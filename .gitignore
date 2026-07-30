@@ -1,0 +1,10 @@
+# Сборки
+/build/
+*.wasm
+*.wasm.gz
+*.exe
+
+# Go
+vendor/
+*.test
+*.out
