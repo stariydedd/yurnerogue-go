@@ -4,8 +4,32 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// Draw рисует текущий экран.
+// Draw рисует текущий экран и, на тач-раскладке, панель кнопок.
 func (g *Game) Draw(screen *ebiten.Image) {
+	r := g.renderer
+
+	g.drawScreen(screen)
+
+	// Справке отдаётся весь экран: панель не рисуется, выход — тап.
+	if g.controls != nil && g.state != StateHelp {
+		g.controls.Draw(screen, r, g.pressedControls(), selectLabel(g.state))
+	}
+}
+
+// pressedControls — контролы, которые сейчас удерживаются (для подсветки).
+func (g *Game) pressedControls() map[string]bool {
+	held := map[string]bool{}
+	if g.touch == nil {
+		return held
+	}
+	for _, control := range g.touch.pressed {
+		held[control] = true
+	}
+	return held
+}
+
+// drawScreen рисует содержимое текущего экрана.
+func (g *Game) drawScreen(screen *ebiten.Image) {
 	r := g.renderer
 
 	switch g.state {

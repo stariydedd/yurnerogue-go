@@ -51,15 +51,24 @@ type Game struct {
 	itemMenuBareHand bool
 	itemMenuSelected int
 
+	touch    *touchInput
+	controls *render.Controls
+
 	leaderboard        []render.LeaderboardRecord
 	leaderboardLoading bool
 	leaderboardSource  string
 	submitStatus       string
 }
 
-// New создаёт игру с заданным рендерером.
+// New создаёт игру с заданным рендерером. На тач-раскладке добавляется
+// панель экранных кнопок.
 func New(r *render.Renderer) *Game {
-	return &Game{renderer: r, state: StateMainMenu}
+	g := &Game{renderer: r, state: StateMainMenu}
+	if r.Layout.Touch {
+		g.controls = render.NewControls(r.Layout)
+		g.touch = newTouchInput(g.controls)
+	}
+	return g
 }
 
 // Layout сообщает Ebitengine размер внутренней поверхности.
@@ -76,6 +85,14 @@ func (g *Game) Update() error {
 	g.renderer.Tick()
 	for _, key := range inpututil.AppendJustPressedKeys(nil) {
 		g.HandleKey(key)
+	}
+	// Касания экранных кнопок приходят сюда же, переведённые в клавиши.
+	if g.touch != nil {
+		for _, control := range g.touch.update(g) {
+			if key := keyForControl(control, g.state); key != ebiten.KeyMax {
+				g.HandleKey(key)
+			}
+		}
 	}
 	if g.state == StateNameEntry {
 		g.appendTypedRunes()
