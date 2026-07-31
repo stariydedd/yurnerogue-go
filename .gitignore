@@ -11,3 +11,8 @@ vendor/
 
 # Скретч-файлы отладки
 /build/web/index_auto.html
+
+# Python (бэкенд)
+.venv/
+__pycache__/
+.pytest_cache/
