@@ -56,12 +56,18 @@ func (t *touchInput) update(g *Game) []string {
 		t.release(mouseID)
 	}
 
-	// Автоповтор: зажатая крестовина продолжает шагать.
-	if t.repeatControl != "" && t.ticks >= t.repeatAt {
-		t.repeatAt = t.ticks + repeatInterval
-		fired = append(fired, t.repeatControl)
+	return append(fired, t.repeatFired()...)
+}
+
+// repeatFired возвращает зажатое направление, когда подошло время повтора:
+// сперва выдерживается пауза repeatDelay, дальше шаги идут через
+// repeatInterval. Вынесено из update, чтобы проверяться без ввода Ebitengine.
+func (t *touchInput) repeatFired() []string {
+	if t.repeatControl == "" || t.ticks < t.repeatAt {
+		return nil
 	}
-	return fired
+	t.repeatAt = t.ticks + repeatInterval
+	return []string{t.repeatControl}
 }
 
 // press запоминает палец и возвращает сработавший контрол.

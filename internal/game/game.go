@@ -2,6 +2,8 @@
 package game
 
 import (
+	"strconv"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
@@ -356,7 +358,7 @@ func (g *Game) applyItemChoice(choice int) {
 		}
 		item := g.itemMenuItems[choice-1]
 		old := p.EquipWeapon(item)
-		msg := "You equipped " + item.Name + " [+" + itoa(item.StrengthEffect) + " STR]."
+		msg := "You equipped " + item.Name + " [+" + strconv.Itoa(item.StrengthEffect) + " STR]."
 		if old != nil {
 			s.DropItemNearPlayer(old)
 			msg += " Dropped " + old.Name + "."
@@ -426,26 +428,4 @@ func (g *Game) checkGameOver() {
 func (g *Game) finishRun(end State) {
 	g.state = end
 	g.submitRun()
-}
-
-func itoa(v int) string {
-	if v == 0 {
-		return "0"
-	}
-	neg := v < 0
-	if neg {
-		v = -v
-	}
-	var buf [20]byte
-	i := len(buf)
-	for v > 0 {
-		i--
-		buf[i] = byte('0' + v%10)
-		v /= 10
-	}
-	if neg {
-		i--
-		buf[i] = '-'
-	}
-	return string(buf[i:])
 }
