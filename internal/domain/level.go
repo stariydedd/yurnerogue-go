@@ -385,13 +385,3 @@ func (l *Level) RoomAt(x, y int) *Room {
 	}
 	return nil
 }
-
-func clamp(v, lo, hi int) int {
-	if v < lo {
-		return lo
-	}
-	if v > hi {
-		return hi
-	}
-	return v
-}

@@ -357,10 +357,3 @@ func (o *Opponent) FacePlayer(px int) {
 		o.Facing = -1
 	}
 }
-
-func abs(v int) int {
-	if v < 0 {
-		return -v
-	}
-	return v
-}

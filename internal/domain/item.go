@@ -1,9 +1,6 @@
 package domain
 
-import (
-	"math/rand"
-	"strconv"
-)
+import "math/rand"
 
 // ItemType — категория предмета.
 type ItemType int
@@ -168,13 +165,13 @@ func NewWeapon() *Item {
 func (it *Item) StatLabel() string {
 	switch {
 	case it.HealthEffect > 0:
-		return " [+" + strconv.Itoa(it.HealthEffect) + " HP]"
+		return " [+" + itoa(it.HealthEffect) + " HP]"
 	case it.MaxHealthEffect > 0:
-		return " [+" + strconv.Itoa(it.MaxHealthEffect) + " MAX HP]"
+		return " [+" + itoa(it.MaxHealthEffect) + " MAX HP]"
 	case it.AgilityEffect > 0:
-		return " [+" + strconv.Itoa(it.AgilityEffect) + " AGI]"
+		return " [+" + itoa(it.AgilityEffect) + " AGI]"
 	case it.StrengthEffect > 0:
-		return " [+" + strconv.Itoa(it.StrengthEffect) + " STR]"
+		return " [+" + itoa(it.StrengthEffect) + " STR]"
 	}
 	return ""
 }
