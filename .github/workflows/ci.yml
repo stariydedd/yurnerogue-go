@@ -35,17 +35,19 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Install Ebitengine build dependencies
-        # Пакеты render и game импортируют Ebitengine, и чтобы собрать их
-        # тестовые бинарники под Linux, нужны заголовки X11 и OpenGL.
-        # Сами тесты дисплея не требуют: они проверяют чистые функции.
+      - name: Install Ebitengine dependencies
+        # Пакеты render и game импортируют Ebitengine: для сборки нужны
+        # заголовки X11 и OpenGL, а для запуска — дисплей, потому что
+        # Ebitengine поднимает GLFW в init() пакета, ещё до первого теста.
+        # Сами тесты рисованием не занимаются, поэтому хватает виртуального
+        # экрана xvfb.
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev \
-            libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config
+            libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config xvfb
       - name: Run tests
-        run: go test -count=2 ./...
+        run: xvfb-run -a go test -count=2 ./...
 
   test-backend:
     runs-on: ubuntu-latest
