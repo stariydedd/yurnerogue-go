@@ -8,3 +8,6 @@
 vendor/
 *.test
 *.out
+
+# Скретч-файлы отладки
+/build/web/index_auto.html

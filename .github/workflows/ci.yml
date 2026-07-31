@@ -1,0 +1,142 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  GO_VERSION: "1.26"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l cmd internal)
+          if [ -n "$unformatted" ]; then
+            echo "Не отформатировано:"; echo "$unformatted"; exit 1
+          fi
+      - name: go vet
+        # Проверяем под целевой платформой: нативная сборка Ebiten на Linux
+        # потребовала бы заголовков X11 и OpenGL, которые игре не нужны —
+        # она уезжает в браузер.
+        run: GOOS=js GOARCH=wasm go vet ./...
+
+  test-game:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Run domain tests
+        # Тесты живут в domain — он не зависит ни от Ebiten, ни от дисплея.
+        run: go test -count=2 ./internal/domain/...
+
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r backend/requirements-dev.txt
+      - name: Run backend tests
+        run: pytest tests/ -v
+        working-directory: backend
+
+  build-web:
+    runs-on: ubuntu-latest
+    needs: [lint, test-game]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build WASM bundle
+        run: |
+          mkdir -p build/web
+          GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o build/web/main.wasm ./cmd/game
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" build/web/
+          cp web/index.html web/favicon.png build/web/
+          # Предсжатый файл рядом с оригиналом: nginx отдаёт его через gzip_static.
+          gzip -9 -k build/web/main.wasm
+          ls -lh build/web/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/web/
+          retention-days: 7
+
+  build-backend-image:
+    runs-on: ubuntu-latest
+    needs: [lint, test-backend]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/yurnerogue-backend:latest
+            ghcr.io/${{ github.repository_owner }}/yurnerogue-backend:${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-web, build-backend-image]
+    if: github.ref == 'refs/heads/main'
+    concurrency: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: web-build
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+      - name: Upload game static and infra files
+        run: |
+          rsync -az --delete web-build/ root@${{ secrets.DEPLOY_HOST }}:/var/www/rogue/
+          rsync -az infra/docker-compose.prod.yml root@${{ secrets.DEPLOY_HOST }}:/opt/rogue/docker-compose.yml
+          rsync -az infra/nginx/ root@${{ secrets.DEPLOY_HOST }}:/opt/rogue/nginx/
+      - name: Pull new backend image and restart stack
+        run: |
+          ssh root@${{ secrets.DEPLOY_HOST }} "
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin &&
+            cd /opt/rogue &&
+            docker compose pull -q &&
+            docker compose up -d --remove-orphans &&
+            docker compose exec -T nginx nginx -s reload &&
+            docker image prune -f
+          "
+      - name: Health check
+        run: |
+          for i in $(seq 1 12); do
+            if curl -fsS "https://yurnerogue.ru/api/health" > /dev/null; then
+              echo "Health check passed"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Health check FAILED"
+          exit 1
