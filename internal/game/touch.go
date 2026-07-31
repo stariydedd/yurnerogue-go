@@ -39,7 +39,7 @@ func (t *touchInput) update(g *Game) []string {
 	var fired []string
 
 	for _, id := range inpututil.AppendJustPressedTouchIDs(nil) {
-		x, y := ebiten.TouchPosition(id)
+		x, y := g.toLogical(ebiten.TouchPosition(id))
 		fired = t.press(id, x, y, g.state, fired)
 	}
 	for id := range t.pressed {
@@ -49,7 +49,7 @@ func (t *touchInput) update(g *Game) []string {
 	}
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		x, y := ebiten.CursorPosition()
+		x, y := g.toLogical(ebiten.CursorPosition())
 		fired = t.press(mouseID, x, y, g.state, fired)
 	}
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {

@@ -4,16 +4,24 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// Draw рисует текущий экран и, на тач-раскладке, панель кнопок.
+// Draw рисует кадр: сперва в логическую поверхность, затем растягивает её
+// на всё окно.
 func (g *Game) Draw(screen *ebiten.Image) {
 	r := g.renderer
+	surface := g.ensureSurface()
 
-	g.drawScreen(screen)
+	g.drawScreen(surface)
 
 	// Справке отдаётся весь экран: панель не рисуется, выход — тап.
 	if g.controls != nil && g.state != StateHelp {
-		g.controls.Draw(screen, r, g.pressedControls(), selectLabel(g.state))
+		g.controls.Draw(surface, r, g.pressedControls(), selectLabel(g.state))
 	}
+
+	sx, sy := g.scaleToWindow()
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(sx, sy)
+	op.Filter = ebiten.FilterNearest // пиксель-арт остаётся чётким
+	screen.DrawImage(surface, op)
 }
 
 // pressedControls — контролы, которые сейчас удерживаются (для подсветки).

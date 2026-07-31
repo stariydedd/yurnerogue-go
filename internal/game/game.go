@@ -54,6 +54,10 @@ type Game struct {
 	touch    *touchInput
 	controls *render.Controls
 
+	// surface — логическая поверхность игры; растягивается на всё окно.
+	surface    *ebiten.Image
+	outW, outH int
+
 	leaderboard        []render.LeaderboardRecord
 	leaderboardLoading bool
 	leaderboardSource  string
@@ -71,10 +75,12 @@ func New(r *render.Renderer) *Game {
 	return g
 }
 
-// Layout сообщает Ebitengine размер внутренней поверхности.
+// Layout сообщает Ebitengine размер кадра. Возвращаем физический размер окна
+// и растягиваем в него логическую поверхность сами (см. surface.go), иначе
+// Ebitengine оставит чёрные поля по краям.
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	l := g.renderer.Layout
-	return l.ScreenW, l.ScreenH
+	g.outW, g.outH = outsideWidth, outsideHeight
+	return outsideWidth, outsideHeight
 }
 
 // State возвращает текущий экран (нужно панели экранных кнопок).

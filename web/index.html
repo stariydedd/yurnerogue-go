@@ -20,15 +20,20 @@
         overscroll-behavior: none;
         touch-action: none;
     }
-    /* Канвас на весь экран без чёрных полос; pixelated держит пиксель-арт чётким. */
+    /* Канвас на весь экран без чёрных полос. !important обязателен: Ebitengine
+       выставляет размеры канваса инлайновым стилем и вписывает картинку с
+       полями по краям, а инлайн перебивает обычные правила.
+       pixelated держит пиксель-арт чётким при растяжении. */
     canvas {
-        display: block;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        image-rendering: pixelated;
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: none !important;
+        max-height: none !important;
+        image-rendering: pixelated !important;
         background: #0a0a0a;
         touch-action: none;
         -webkit-user-select: none;
