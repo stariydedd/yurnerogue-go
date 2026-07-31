@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>YurneROGUE</title>
+<link rel="icon" type="image/png" href="favicon.png" sizes="32x32">
+<style>
+    html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0a0a0a;
+        /* iOS Safari «умно» увеличивает текст — из-за этого плашка загрузки
+           распухала и переносилась на две строки. */
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        overscroll-behavior: none;
+        touch-action: none;
+    }
+    /* Канвас на весь экран без чёрных полос; pixelated держит пиксель-арт чётким. */
+    canvas {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        image-rendering: pixelated;
+        background: #0a0a0a;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+    #loader {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font: 14px/1.6 ui-monospace, monospace;
+        color: #d4af37;
+        background: #1a1a1a;
+        border: 2px solid #d4af37;
+        padding: 16px 28px;
+        white-space: nowrap;
+        z-index: 9;
+    }
+</style>
+</head>
+<body>
+<div id="loader">Loading ...</div>
+<script src="wasm_exec.js"></script>
+<script>
+;(function () {
+    // Внутри Telegram Mini App разворачиваемся на весь экран. Вне Telegram
+    // объект отсутствует, и блок ничего не делает.
+    var tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) {
+        tg.ready();
+        tg.expand();
+        if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+    }
+})();
+
+(async () => {
+    const loader = document.getElementById("loader");
+    try {
+        const go = new Go();
+        // instantiateStreaming компилирует модуль уже во время скачивания.
+        const result = await WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject);
+        loader.remove();
+        go.run(result.instance);
+    } catch (e) {
+        loader.textContent = "Failed to load: " + e;
+    }
+})();
+</script>
+</body>
+</html>
