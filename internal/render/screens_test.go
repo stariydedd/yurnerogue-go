@@ -52,6 +52,24 @@ func TestBrokenNameDoesNotBreakRow(t *testing.T) {
 	}
 }
 
+func TestRowsMeasureToTheSameWidth(t *testing.T) {
+	// Проверка в пикселях, а не в символах: колонки держатся на том, что шрифт
+	// моноширинный, и одинакового числа символов для этого мало. Press Start 2P
+	// содержит лигатуры fl и fi — без их отключения имя «fle» рисуется двумя
+	// клетками вместо трёх, и вся правая часть строки уезжает влево.
+	fonts, err := loadFonts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := TextWidth(leaderboardHeader(false), fonts.Small)
+	for _, name := range []string{"stan", "fle", "fii", "офлайн", "Этофейкна1месте", "1"} {
+		row := leaderboardRow(9, sampleRecord(name), false)
+		if got := TextWidth(row, fonts.Small); got != want {
+			t.Fatalf("строка с именем %q шириной %.1f px, шапка %.1f px", name, got, want)
+		}
+	}
+}
+
 func TestNarrowRowsAlignToo(t *testing.T) {
 	want := utf8.RuneCountInString(leaderboardHeader(true))
 	for _, name := range []string{"stan", "Этофейкн"} {

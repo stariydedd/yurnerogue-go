@@ -30,7 +30,15 @@ func loadFonts() (*Fonts, error) {
 		return nil, err
 	}
 	face := func(size float64) text.Face {
-		return &text.GoTextFace{Source: src, Size: size}
+		f := &text.GoTextFace{Source: src, Size: size}
+		// Press Start 2P содержит лигатуры fl и fi, и шейпер подставляет их
+		// по умолчанию: пара букв становится одним глифом шириной в клетку.
+		// Для пиксельного шрифта это бессмысленно, а таблицу рекордов ломает —
+		// имя вроде «fle» занимает две клетки вместо трёх и сдвигает колонки.
+		for _, feature := range []string{"liga", "clig"} {
+			f.SetFeature(text.MustParseTag(feature), 0)
+		}
+		return f
 	}
 	return &Fonts{
 		Title:   face(40),
