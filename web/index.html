@@ -59,14 +59,35 @@
 <script src="wasm_exec.js"></script>
 <script>
 ;(function () {
-    // Внутри Telegram Mini App разворачиваемся на весь экран. Вне Telegram
-    // объект отсутствует, и блок ничего не делает.
-    var tg = window.Telegram && window.Telegram.WebApp;
-    if (tg) {
+    // Telegram передаёт параметры запуска во фрагменте URL. Если их нет, игра
+    // открыта в обычном браузере — тогда SDK не нужен и лишний запрос к
+    // стороннему домену не делается.
+    if (location.hash.indexOf("tgWebApp") < 0) return;
+
+    // Объект Telegram.WebApp сам не появляется, его приносит этот скрипт.
+    // Грузится он параллельно с игрой и ничего не задерживает: если домен
+    // недоступен, onload просто не сработает, а игра запустится как обычно.
+    var sdk = document.createElement("script");
+    sdk.src = "https://telegram.org/js/telegram-web-app.js";
+    sdk.onload = function () {
+        var tg = window.Telegram && window.Telegram.WebApp;
+        if (!tg) return;
         tg.ready();
+        // expand разворачивает приложение на всю высоту экрана — без него
+        // Telegram открывает его наполовину. На десктопе вызов ничего не
+        // делает: размером того окна страница управлять не может.
         tg.expand();
         if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-    }
+        // Полноэкранный режим Bot API 8.0 мы не просим: на Telegram Desktop он
+        // сообщает странице размер всего экрана, но окно не разворачивает —
+        // канвас растягивается на 2048 px внутри окна шириной 1200, и правая
+        // треть уходит за край. Режим к тому же запоминается между запусками,
+        // поэтому мало его не включать, нужно выйти, если он уже включён.
+        if (tg.isFullscreen && tg.exitFullscreen) {
+            tg.exitFullscreen();
+        }
+    };
+    document.head.appendChild(sdk);
 })();
 
 (async () => {
