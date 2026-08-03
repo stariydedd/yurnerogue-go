@@ -2,6 +2,8 @@ package render
 
 import (
 	"strconv"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -236,13 +238,19 @@ func (r *Renderer) DrawLeaderboard(screen *ebiten.Image, records []LeaderboardRe
 	case len(records) == 0:
 		r.TextCentered(screen, "No records yet.", r.Fonts.UI, 170, White)
 	default:
-		r.TextCentered(screen, leaderboardHeader(narrow), r.Fonts.Small, 150, HintColor)
+		// Таблица центрируется целиком, а строки рисуются от общего левого
+		// края. Если центрировать каждую строку отдельно, любая разница в
+		// ширине (незнакомый шрифту символ в имени) сдвигает всю строку и
+		// колонки перестают совпадать.
+		header := leaderboardHeader(narrow)
+		x := float64(l.ScreenW)/2 - TextWidth(header, r.Fonts.Small)/2
+		r.Text(screen, header, r.Fonts.Small, x, 150, HintColor)
 		for i, rec := range records {
 			clr := White
 			if i == 0 {
 				clr = Hilite
 			}
-			r.TextCentered(screen, leaderboardRow(i+1, rec, narrow), r.Fonts.Small, 180+float64(i)*28, clr)
+			r.Text(screen, leaderboardRow(i+1, rec, narrow), r.Fonts.Small, x, 180+float64(i)*28, clr)
 		}
 	}
 
@@ -263,11 +271,7 @@ func leaderboardHeader(narrow bool) string {
 }
 
 func leaderboardRow(place int, rec LeaderboardRecord, narrow bool) string {
-	name := rec.PlayerName
-	if len(name) > 16 {
-		name = name[:16]
-	}
-	row := pad(strconv.Itoa(place), 3) + " " + padRight(name, 16) + " " +
+	row := pad(strconv.Itoa(place), 3) + " " + padRight(playerLabel(rec.PlayerName), 16) + " " +
 		pad(strconv.Itoa(rec.Treasures), 6) + " " + pad(strconv.Itoa(rec.Level), 4)
 	if narrow {
 		return row
@@ -279,19 +283,45 @@ func leaderboardRow(place int, rec LeaderboardRecord, narrow bool) string {
 		pad(strconv.Itoa(rec.TilesMoved), 6)
 }
 
-// pad и padRight выравнивают колонки моноширинного шрифта.
-func pad(s string, width int) string {
-	for len(s) < width {
-		s = " " + s
+// playerLabel готовит имя к выводу в колонку фиксированной ширины.
+//
+// Имя приходит с сервера и может содержать что угодно: битые байты от старых
+// версий ввода, переводы строк, символы шире одной клетки. Всё это ломает
+// таблицу, поэтому строка чистится до печатных символов и режется по рунам.
+func playerLabel(name string) string {
+	name = strings.ToValidUTF8(name, "")
+	name = strings.Map(func(r rune) rune {
+		if r < ' ' || r == 0x7f {
+			return -1
+		}
+		return r
+	}, name)
+	if utf8.RuneCountInString(name) > 16 {
+		name = string([]rune(name)[:16])
 	}
-	return s
+	if name == "" {
+		name = "anonymous"
+	}
+	return name
+}
+
+// pad и padRight выравнивают колонки моноширинного шрифта. Ширина считается
+// в рунах, а не в байтах: в кириллице символ занимает два байта, и по len()
+// имя из восьми букв уже выглядело дополненным до шестнадцати — колонки такой
+// строки уезжали относительно остальных.
+func pad(s string, width int) string {
+	return strings.Repeat(" ", padWidth(s, width)) + s
 }
 
 func padRight(s string, width int) string {
-	for len(s) < width {
-		s += " "
+	return s + strings.Repeat(" ", padWidth(s, width))
+}
+
+func padWidth(s string, width int) int {
+	if n := width - utf8.RuneCountInString(s); n > 0 {
+		return n
 	}
-	return s
+	return 0
 }
 
 // DrawEndScreen — экран смерти или победы.

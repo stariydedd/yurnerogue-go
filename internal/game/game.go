@@ -3,6 +3,7 @@ package game
 
 import (
 	"strconv"
+	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -165,8 +166,11 @@ func (g *Game) handleNameEntry(key ebiten.Key) {
 		g.playerName = g.nameInput
 		g.startNewGame()
 	case ebiten.KeyBackspace:
+		// Удаляется символ, а не байт: в кириллице символ занимает два байта,
+		// и обрезка по байту оставила бы в имени битую половину руны.
 		if n := len(g.nameInput); n > 0 {
-			g.nameInput = g.nameInput[:n-1]
+			_, size := utf8.DecodeLastRuneInString(g.nameInput)
+			g.nameInput = g.nameInput[:n-size]
 		}
 	}
 }
@@ -174,7 +178,9 @@ func (g *Game) handleNameEntry(key ebiten.Key) {
 // appendTypedRunes добавляет введённые символы в имя.
 func (g *Game) appendTypedRunes() {
 	for _, r := range ebiten.AppendInputChars(nil) {
-		if r >= ' ' && len(g.nameInput) < MaxNameLength {
+		// Предел тоже в символах, иначе кириллическое имя обрывалось бы вдвое
+		// раньше латинского.
+		if r >= ' ' && utf8.RuneCountInString(g.nameInput) < MaxNameLength {
 			g.nameInput += string(r)
 		}
 	}
