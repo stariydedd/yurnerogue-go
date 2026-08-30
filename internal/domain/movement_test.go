@@ -202,6 +202,28 @@ func TestPickupPutsItemInBackpack(t *testing.T) {
 	}
 }
 
+func TestDropItemNearPlayerUsesAdjacentCell(t *testing.T) {
+	s := cleanSession(t)
+	room := s.Level.RoomAt(s.Player.X, s.Player.Y)
+	weapon := NewWeapon()
+	playerPos := Point{s.Player.X, s.Player.Y}
+
+	s.DropItemNearPlayer(weapon)
+
+	if len(room.Items) != 1 || room.Items[0] != weapon {
+		t.Fatal("dropped weapon must be placed on the room floor")
+	}
+	dx := abs(weapon.X - playerPos.X)
+	dy := abs(weapon.Y - playerPos.Y)
+	if dx == 0 && dy == 0 {
+		t.Fatal("dropped weapon must not be placed under the player")
+	}
+	if max(dx, dy) != 1 {
+		t.Fatalf("weapon dropped at (%d,%d), expected a cell adjacent to (%d,%d)",
+			weapon.X, weapon.Y, playerPos.X, playerPos.Y)
+	}
+}
+
 func TestCheckExitDescendsToNextLevel(t *testing.T) {
 	s := cleanSession(t)
 	s.Player.X, s.Player.Y = s.Level.Exit.X, s.Level.Exit.Y

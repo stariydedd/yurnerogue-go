@@ -121,6 +121,9 @@ func (s *Session) DropItemNearPlayer(item *Item) {
 		for dy := -radius; dy <= radius; dy++ {
 			for dx := -radius; dx <= radius; dx++ {
 				x, y := s.Player.X+dx, s.Player.Y+dy
+				if x == s.Player.X && y == s.Player.Y {
+					continue
+				}
 				if !room.IsFloorCell(x, y) || room.itemAt(Point{x, y}) != nil {
 					continue
 				}
