@@ -97,6 +97,9 @@ func inContact(o *Opponent, p *Person) bool {
 // Здесь же тикают сон игрока и эффекты эликсиров.
 func (s *Session) ProcessEnemyTurns() {
 	p := s.Player
+	// Отсчитываем уже пропущенный ход до атак: новый сон должен сохраниться
+	// до следующего действия игрока, в том числе при повторном усыплении.
+	p.TickSleep()
 	var living []*Opponent
 	for _, o := range s.Level.AllOpponents() {
 		if o.IsAlive() {
@@ -120,7 +123,6 @@ func (s *Session) ProcessEnemyTurns() {
 		s.SetMessage(attackMessage(o, p, damage))
 	}
 
-	p.TickSleep()
 	p.TickEffects()
 
 	// Riki виден только изредка, пока не преследует игрока.
