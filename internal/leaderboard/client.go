@@ -41,6 +41,8 @@ type Client struct {
 // ErrUnavailable — сервер недоступен или ответил ошибкой.
 var ErrUnavailable = errors.New("leaderboard unavailable")
 
+var ErrTimeout = errors.New("leaderboard request timed out")
+
 // Submit отправляет результат забега.
 func (c *Client) Submit(run Run) error {
 	body, err := json.Marshal(run)

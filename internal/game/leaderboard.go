@@ -8,9 +8,8 @@ import (
 
 // openLeaderboard показывает экран рекордов и тянет данные с сервера.
 //
-// Запрос уходит в отдельной горутине: в WASM Ebitengine крутит игровой цикл
-// в одном потоке, и синхронный запрос подвесил бы картинку. Результат
-// присваивается полям, которые читает Draw в том же цикле.
+// Каждый запрос получает собственный буфер: старый ответ не меняет новый экран.
+// Только pollNetwork в игровом потоке обновляет поля, которые читает Draw.
 func (g *Game) openLeaderboard() {
 	g.state = StateLeaderboard
 	g.leaderboard = nil
@@ -18,13 +17,29 @@ func (g *Game) openLeaderboard() {
 	g.leaderboardSource = ""
 
 	client := leaderboard.New()
+	results := make(chan topResult, 1)
+	g.topResults = results
 	go func() {
 		runs, err := client.Top()
-		if err != nil {
-			g.leaderboardLoading = false
+		results <- topResult{runs: runs, err: err}
+	}()
+}
+
+type topResult struct {
+	runs []leaderboard.Run
+	err  error
+}
+
+func (g *Game) pollNetwork() {
+	select {
+	case result := <-g.topResults:
+		g.topResults = nil
+		g.leaderboardLoading = false
+		if result.err != nil {
 			g.leaderboardSource = "SERVER UNAVAILABLE"
-			return
+			break
 		}
+		runs := result.runs
 		records := make([]render.LeaderboardRecord, 0, len(runs))
 		for _, r := range runs {
 			records = append(records, render.LeaderboardRecord{
@@ -42,8 +57,19 @@ func (g *Game) openLeaderboard() {
 		}
 		g.leaderboard = records
 		g.leaderboardSource = "GLOBAL"
-		g.leaderboardLoading = false
-	}()
+	default:
+	}
+	select {
+	case err := <-g.submitResults:
+		g.submitResults = nil
+		if err != nil {
+			// При потере ответа сервер уже мог сохранить результат.
+			g.submitStatus = "Score submission could not be confirmed."
+		} else {
+			g.submitStatus = "Score submitted to global leaderboard!"
+		}
+	default:
+	}
 }
 
 // submitRun отправляет результат завершённого забега.
@@ -72,11 +98,9 @@ func (g *Game) submitRun() {
 
 	g.submitStatus = "Submitting score..."
 	client := leaderboard.New()
+	results := make(chan error, 1)
+	g.submitResults = results
 	go func() {
-		if err := client.Submit(run); err != nil {
-			g.submitStatus = "Server unavailable - score not saved."
-			return
-		}
-		g.submitStatus = "Score submitted to global leaderboard!"
+		results <- client.Submit(run)
 	}()
 }

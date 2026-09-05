@@ -5,6 +5,7 @@ package leaderboard
 import (
 	"errors"
 	"syscall/js"
+	"time"
 )
 
 // New создаёт клиент для браузера: запросы идут на тот же origin, откуда
@@ -16,7 +17,22 @@ func New() *Client { return &Client{} }
 // Вызывается из горутины: ожидание на канале уступает управление планировщику
 // Go, тот отдаёт его циклу событий JS, и картинка не замирает.
 func (c *Client) do(method, path string, body []byte) ([]byte, error) {
-	opts := map[string]any{"method": method}
+	return c.doWithTimeout(method, path, body, Timeout)
+}
+
+func (c *Client) doWithTimeout(method, path string, body []byte, timeout time.Duration) ([]byte, error) {
+	controller := js.Global().Get("AbortController").New()
+	signal := controller.Get("signal")
+	abort := js.FuncOf(func(js.Value, []js.Value) any {
+		controller.Call("abort")
+		return nil
+	})
+	timer := js.Global().Call("setTimeout", abort, timeout.Milliseconds())
+	defer func() {
+		js.Global().Call("clearTimeout", timer)
+		abort.Release()
+	}()
+	opts := map[string]any{"method": method, "signal": signal}
 	if body != nil {
 		opts["body"] = string(body)
 		opts["headers"] = map[string]any{"Content-Type": "application/json"}
@@ -24,6 +40,9 @@ func (c *Client) do(method, path string, body []byte) ([]byte, error) {
 
 	resp, err := await(js.Global().Call("fetch", c.BaseURL+path, opts))
 	if err != nil {
+		if signal.Get("aborted").Bool() {
+			return nil, ErrTimeout
+		}
 		return nil, err
 	}
 	if !resp.Get("ok").Bool() {
@@ -32,6 +51,9 @@ func (c *Client) do(method, path string, body []byte) ([]byte, error) {
 
 	text, err := await(resp.Call("text"))
 	if err != nil {
+		if signal.Get("aborted").Bool() {
+			return nil, ErrTimeout
+		}
 		return nil, err
 	}
 	return []byte(text.String()), nil
@@ -60,9 +82,7 @@ func await(promise js.Value) (js.Value, error) {
 	catch := js.FuncOf(func(_ js.Value, args []js.Value) any {
 		msg := "fetch failed"
 		if len(args) > 0 {
-			if m := args[0].Get("message"); m.Type() == js.TypeString {
-				msg = m.String()
-			}
+			msg = js.Global().Get("String").Invoke(args[0]).String()
 		}
 		ch <- outcome{err: errors.New(msg)}
 		return nil

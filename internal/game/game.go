@@ -65,6 +65,8 @@ type Game struct {
 	leaderboardLoading bool
 	leaderboardSource  string
 	submitStatus       string
+	topResults         chan topResult
+	submitResults      chan error
 }
 
 // New создаёт игру с заданным рендерером. На тач-раскладке добавляется
@@ -91,6 +93,7 @@ func (g *Game) State() State { return g.state }
 
 // Update обрабатывает ввод; вызывается Ebitengine 60 раз в секунду.
 func (g *Game) Update() error {
+	g.pollNetwork()
 	g.renderer.Tick()
 	for _, key := range inpututil.AppendJustPressedKeys(nil) {
 		g.HandleKey(key)
@@ -124,6 +127,7 @@ func (g *Game) HandleKey(key ebiten.Key) {
 	case StateQuitDialog:
 		g.handleQuitDialog(key)
 	case StateLeaderboard:
+		g.topResults = nil
 		g.state = StateMainMenu
 	case StateHelp:
 		g.state = g.helpReturn
@@ -416,11 +420,14 @@ func (g *Game) startNewGame() {
 	g.session = domain.NewSession()
 	g.pendingRun = false
 	g.submitStatus = ""
+	g.submitResults = nil
 	g.state = StatePlaying
 }
 
 // returnToMenu сбрасывает сессию и возвращается в главное меню.
 func (g *Game) returnToMenu() {
+	g.topResults = nil
+	g.submitResults = nil
 	g.session = nil
 	g.menuSelected = 0
 	g.state = StateMainMenu
