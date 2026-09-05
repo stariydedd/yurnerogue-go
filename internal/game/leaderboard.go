@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/stariydedd/yurnerogue-go/internal/domain"
 	"github.com/stariydedd/yurnerogue-go/internal/leaderboard"
 	"github.com/stariydedd/yurnerogue-go/internal/render"
 )
@@ -56,9 +57,10 @@ func (g *Game) submitRun() {
 		name = "anonymous"
 	}
 	run := leaderboard.Run{
-		PlayerName:    name,
-		Treasures:     s.Player.Treasures,
-		Level:         s.LevelNum,
+		PlayerName: name,
+		Treasures:  s.Player.Treasures,
+		// После победы сессия уже на уровне 22, но пройденный этаж — 21.
+		Level:         min(s.LevelNum, domain.MaxLevels),
 		EnemiesKilled: s.Stats.EnemiesKilled,
 		FoodUsed:      s.Stats.FoodUsed,
 		ElixirsUsed:   s.Stats.ElixirsUsed,
