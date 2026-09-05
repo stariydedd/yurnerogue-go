@@ -15,8 +15,9 @@ func TestReplaceWeaponPreservesOldWeapon(t *testing.T) {
 		blocked bool
 		drop    bool
 	}{
-		{name: "corridor", pos: domain.Point{X: 10, Y: 6}},
-		{name: "doorway", pos: domain.Point{X: 8, Y: 6}},
+		{name: "corridor", pos: domain.Point{X: 10, Y: 6}, drop: true},
+		{name: "doorway", pos: domain.Point{X: 8, Y: 6}, drop: true},
+		{name: "blocked corridor", pos: domain.Point{X: 10, Y: 6}, blocked: true},
 		{name: "full room", pos: domain.Point{X: 6, Y: 6}, blocked: true},
 		{name: "room", pos: domain.Point{X: 6, Y: 6}, drop: true},
 	} {
@@ -39,10 +40,12 @@ func TestReplaceWeaponPreservesOldWeapon(t *testing.T) {
 			replacement := p.Backpack[0]
 			others := append([]*domain.Item(nil), p.Backpack[1:]...)
 			if tc.blocked {
-				for y := room.Y; y < room.Y+room.H; y++ {
-					for x := room.X; x < room.X+room.W; x++ {
+				for y := p.Y - 1; y <= p.Y+1; y++ {
+					for x := p.X - 1; x <= p.X+1; x++ {
 						if (domain.Point{X: x, Y: y}) != tc.pos {
-							room.Items = append(room.Items, &domain.Item{Type: domain.ItemFood, X: x, Y: y})
+							if domain.IsAnyRoomFloorCell(x, y, level.Rooms) || domain.InPassageCenter(x, y, level.Passages) {
+								level.Items = append(level.Items, &domain.Item{Type: domain.ItemFood, X: x, Y: y})
+							}
 						}
 					}
 				}
@@ -69,7 +72,7 @@ func TestReplaceWeaponPreservesOldWeapon(t *testing.T) {
 					t.Fatal("other backpack weapons changed")
 				}
 			}
-			for _, item := range room.Items {
+			for _, item := range level.Items {
 				if item == old {
 					floorCount++
 				}

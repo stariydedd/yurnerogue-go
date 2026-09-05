@@ -74,22 +74,17 @@ func playerAttackMessage(op *Opponent, damage, goldGained int) string {
 
 // CheckItemPickup подбирает предмет под игроком, если он там есть.
 func (s *Session) CheckItemPickup() {
-	for _, room := range s.Level.Rooms {
-		if room == nil {
+	for i, it := range s.Level.Items {
+		if it.X != s.Player.X || it.Y != s.Player.Y {
 			continue
 		}
-		for i, it := range room.Items {
-			if it.X != s.Player.X || it.Y != s.Player.Y {
-				continue
-			}
-			if s.Player.PickUpItem(it) {
-				room.Items = append(room.Items[:i], room.Items[i+1:]...)
-				s.SetMessage("Picked up: " + it.Name + it.StatLabel() + ".")
-			} else {
-				s.SetMessage("Backpack full! Cannot pick up " + it.Name + ".")
-			}
-			return
+		if s.Player.PickUpItem(it) {
+			s.Level.Items = append(s.Level.Items[:i], s.Level.Items[i+1:]...)
+			s.SetMessage("Picked up: " + it.Name + it.StatLabel() + ".")
+		} else {
+			s.SetMessage("Backpack full! Cannot pick up " + it.Name + ".")
 		}
+		return
 	}
 }
 
@@ -111,31 +106,23 @@ func (s *Session) ResolveTurn() {
 	s.ProcessEnemyTurns()
 }
 
-// DropItemNearPlayer кладёт предмет на ближайшую свободную клетку пола.
-// Возвращает false, если игрок вне комнаты или свободного места нет.
+// DropItemNearPlayer кладёт предмет на свободную соседнюю клетку уровня.
+// Сначала проверяет четыре стороны, затем диагонали без броска сквозь углы.
+// Возвращает false, если места рядом нет.
 func (s *Session) DropItemNearPlayer(item *Item) bool {
-	room := s.Level.RoomAt(s.Player.X, s.Player.Y)
-	if room == nil {
-		return false
-	}
-	for radius := 0; radius < max(room.W, room.H); radius++ {
-		for dy := -radius; dy <= radius; dy++ {
-			for dx := -radius; dx <= radius; dx++ {
-				x, y := s.Player.X+dx, s.Player.Y+dy
-				if x == s.Player.X && y == s.Player.Y {
-					continue
-				}
-				if !room.IsFloorCell(x, y) || room.itemAt(Point{x, y}) != nil {
-					continue
-				}
-				if x == s.Level.Exit.X && y == s.Level.Exit.Y {
-					continue
-				}
-				item.X, item.Y = x, y
-				room.Items = append(room.Items, item)
-				return true
-			}
+	px, py := s.Player.X, s.Player.Y
+	for _, d := range dirs8 {
+		x, y := px+d.X, py+d.Y
+		if !s.CanMoveTo(x, y) || s.Level.itemAt(Point{x, y}) != nil ||
+			s.Level.Exit == (Point{x, y}) || s.OpponentAt(x, y) != nil {
+			continue
 		}
+		if d.X != 0 && d.Y != 0 && (!s.CanMoveTo(px+d.X, py) || !s.CanMoveTo(px, py+d.Y)) {
+			continue
+		}
+		item.X, item.Y = x, y
+		s.Level.Items = append(s.Level.Items, item)
+		return true
 	}
 	return false
 }

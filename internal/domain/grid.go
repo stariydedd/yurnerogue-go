@@ -71,13 +71,8 @@ func (s *Session) BuildGrid(withOpponents bool) Grid {
 		}
 	}
 
-	for _, r := range rooms {
-		if r == nil {
-			continue
-		}
-		for _, it := range r.Items {
-			grid.set(it.X, it.Y, SymItem)
-		}
+	for _, it := range s.Level.Items {
+		grid.set(it.X, it.Y, SymItem)
 	}
 
 	if withOpponents {

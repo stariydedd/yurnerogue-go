@@ -146,14 +146,15 @@ func TestItemsAvoidExitCell(t *testing.T) {
 		l := NewLevel(1)
 		player := NewPerson()
 		l.GenerateItems(player)
-		for _, r := range l.Rooms {
-			if r == nil {
-				continue
+		occupied := map[Point]bool{}
+		for _, it := range l.Items {
+			c := Point{it.X, it.Y}
+			if occupied[c] || l.RoomAt(c.X, c.Y) == nil || l.Rooms[l.StartRoomIdx].IsFloorCell(c.X, c.Y) {
+				t.Fatalf("invalid generated item position: %+v", c)
 			}
-			for _, it := range r.Items {
-				if it.X == l.Exit.X && it.Y == l.Exit.Y {
-					t.Fatalf("предмет лёг на клетку выхода %+v", l.Exit)
-				}
+			occupied[c] = true
+			if it.X == l.Exit.X && it.Y == l.Exit.Y {
+				t.Fatalf("предмет лёг на клетку выхода %+v", l.Exit)
 			}
 		}
 	}

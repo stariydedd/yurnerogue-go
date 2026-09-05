@@ -156,7 +156,7 @@ Enemy stats grow with each floor while useful items become rarer.
 | Food | Restores health. |
 | Elixir | Temporary buff to strength, agility or max HP for 20 turns. |
 | Scroll | Permanent buff to one stat. |
-| Weapon | Equipped via `H`; the previous weapon drops nearby. |
+| Weapon | Equipped via `H`; the previous weapon drops onto a free adjacent tile in a room, corridor or doorway. If none is available, it goes into the backpack. |
 | Treasure | Credited for slain enemies; determines leaderboard rank. |
 
 The exit is a glowing portal — descending after floor 21 wins the run, and the

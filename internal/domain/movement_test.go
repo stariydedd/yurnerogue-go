@@ -6,10 +6,10 @@ import "testing"
 func cleanSession(t *testing.T) *Session {
 	t.Helper()
 	s := NewSession()
+	s.Level.Items = nil
 	for _, r := range s.Level.Rooms {
 		if r != nil {
 			r.Enemies = nil
-			r.Items = nil
 		}
 	}
 	return s
@@ -187,30 +187,28 @@ func TestMoveUpdatesFacingEvenIntoWall(t *testing.T) {
 
 func TestPickupPutsItemInBackpack(t *testing.T) {
 	s := cleanSession(t)
-	room := s.Level.RoomAt(s.Player.X, s.Player.Y)
 	item := NewFood(s.Player)
 	item.X, item.Y = s.Player.X, s.Player.Y
-	room.Items = append(room.Items, item)
+	s.Level.Items = append(s.Level.Items, item)
 
 	s.CheckItemPickup()
 
 	if len(s.Player.Backpack) != 1 {
 		t.Fatalf("в рюкзаке %d предметов, ожидался 1", len(s.Player.Backpack))
 	}
-	if len(room.Items) != 0 {
+	if len(s.Level.Items) != 0 {
 		t.Fatal("предмет должен исчезнуть с пола")
 	}
 }
 
 func TestDropItemNearPlayerUsesAdjacentCell(t *testing.T) {
 	s := cleanSession(t)
-	room := s.Level.RoomAt(s.Player.X, s.Player.Y)
 	weapon := NewWeapon()
 	playerPos := Point{s.Player.X, s.Player.Y}
 
 	s.DropItemNearPlayer(weapon)
 
-	if len(room.Items) != 1 || room.Items[0] != weapon {
+	if len(s.Level.Items) != 1 || s.Level.Items[0] != weapon {
 		t.Fatal("dropped weapon must be placed on the room floor")
 	}
 	dx := abs(weapon.X - playerPos.X)

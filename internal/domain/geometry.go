@@ -21,7 +21,6 @@ type Room struct {
 	X, Y, W, H int
 
 	Enemies []*Opponent
-	Items   []*Item
 }
 
 // PassageCenterCells возвращает клетки центральной линии коридора.

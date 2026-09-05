@@ -106,14 +106,9 @@ func (r *Renderer) DrawWorld(screen *ebiten.Image, s *domain.Session) {
 		r.drawEntity(field, "tree", t.x, t.y, camX, camY, t.hash, 1)
 	}
 
-	for _, room := range s.Level.Rooms {
-		if room == nil {
-			continue
-		}
-		for _, it := range room.Items {
-			if vis.Visible[domain.Point{X: it.X, Y: it.Y}] {
-				r.drawTile(field, itemRole(it.Type), it.X, it.Y, camX, camY, tick)
-			}
+	for _, it := range s.Level.Items {
+		if vis.Visible[domain.Point{X: it.X, Y: it.Y}] {
+			r.drawTile(field, itemRole(it.Type), it.X, it.Y, camX, camY, tick)
 		}
 	}
 

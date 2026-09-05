@@ -8,6 +8,7 @@ type Level struct {
 	Seed     int64
 	Rooms    []*Room // длина GridDim*GridDim, nil — пустая ячейка сетки
 	Passages []Rect
+	Items    []*Item        // предметы на полу комнат, коридоров и дверных проёмов
 	Doors    map[Point]bool // считаются один раз, единое определение из geometry
 
 	StartRoomIdx int
@@ -343,21 +344,21 @@ func (l *Level) GenerateItems(player *Person) {
 		for n := 0; n < count; n++ {
 			for attempt := 0; attempt < 16; attempt++ {
 				c := room.RandomCell()
-				if c == l.Exit || room.itemAt(c) != nil {
+				if c == l.Exit || l.itemAt(c) != nil {
 					continue
 				}
 				item := RandomItem(player)
 				item.X, item.Y = c.X, c.Y
-				room.Items = append(room.Items, item)
+				l.Items = append(l.Items, item)
 				break
 			}
 		}
 	}
 }
 
-// itemAt — предмет в клетке комнаты или nil.
-func (r *Room) itemAt(c Point) *Item {
-	for _, it := range r.Items {
+// itemAt — предмет в клетке уровня или nil.
+func (l *Level) itemAt(c Point) *Item {
+	for _, it := range l.Items {
 		if it.X == c.X && it.Y == c.Y {
 			return it
 		}
