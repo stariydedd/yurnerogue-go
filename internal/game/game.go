@@ -366,8 +366,14 @@ func (g *Game) applyItemChoice(choice int) {
 		old := p.EquipWeapon(item)
 		msg := "You equipped " + item.Name + " [+" + strconv.Itoa(item.StrengthEffect) + " STR]."
 		if old != nil {
-			s.DropItemNearPlayer(old)
-			msg += " Dropped " + old.Name + "."
+			if s.DropItemNearPlayer(old) {
+				msg += " Dropped " + old.Name + "."
+			} else {
+				// EquipWeapon освободил слот оружия, поэтому прежнее помещается
+				// даже в рюкзак, который был полон до смены.
+				p.Backpack = append(p.Backpack, old)
+				msg += " Stowed " + old.Name + " in backpack."
+			}
 		}
 		s.SetMessage(msg)
 		return

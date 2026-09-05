@@ -112,10 +112,11 @@ func (s *Session) ResolveTurn() {
 }
 
 // DropItemNearPlayer кладёт предмет на ближайшую свободную клетку пола.
-func (s *Session) DropItemNearPlayer(item *Item) {
+// Возвращает false, если игрок вне комнаты или свободного места нет.
+func (s *Session) DropItemNearPlayer(item *Item) bool {
 	room := s.Level.RoomAt(s.Player.X, s.Player.Y)
 	if room == nil {
-		return
+		return false
 	}
 	for radius := 0; radius < max(room.W, room.H); radius++ {
 		for dy := -radius; dy <= radius; dy++ {
@@ -132,10 +133,11 @@ func (s *Session) DropItemNearPlayer(item *Item) {
 				}
 				item.X, item.Y = x, y
 				room.Items = append(room.Items, item)
-				return
+				return true
 			}
 		}
 	}
+	return false
 }
 
 // --- Бег (find из оригинального Rogue) ---
