@@ -1,0 +1,2 @@
+# Shared golden replay: seed 1, rules version 1. Also asserted by Go/WASM tests.
+ACTIONS = "sssddsssdddddddddddddddsssssssssssssswwwwaaaaaaaaaaaaaaawwwwwwwwwddddddddddddddddsssdddddddddddddddddsssssdddddddssssddddddddddsssssddddddddddddddddddddssddddddddddddddsdddwsdsssaaaaassswwwwwwwwwwwaaaaaaaawwwdddddwwwwwwwwwawwwaawwwwwwwwwwwwaaasaaaassssdddsssssaa"

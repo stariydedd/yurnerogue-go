@@ -119,6 +119,9 @@ func keyForControl(control string, state State) ebiten.Key {
 	case render.CtrlRight:
 		return ebiten.KeyRight
 	case render.CtrlRun:
+		if state == StateDeath || state == StateWin {
+			return ebiten.KeyR
+		}
 		return ebiten.KeyF
 	case render.CtrlWeapon:
 		return ebiten.KeyH

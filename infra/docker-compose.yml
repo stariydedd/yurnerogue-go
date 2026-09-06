@@ -1,6 +1,8 @@
 services:
   backend:
-    build: ../backend
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://rogue:${POSTGRES_PASSWORD:-rogue}@db:5432/rogue
     ports:

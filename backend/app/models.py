@@ -34,3 +34,22 @@ class RunSubmission(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), unique=True)
+
+
+class RankedTicket(Base):
+    """Server-issued capability for one run, never exposed in the leaderboard."""
+    __tablename__ = "ranked_tickets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    seed: Mapped[str] = mapped_column(String(20))
+    player_name: Mapped[str] = mapped_column(String(32))
+    version: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class RankedResult(Base):
+    __tablename__ = "ranked_results"
+
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("ranked_tickets.id"), primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), unique=True)
+    actions_hash: Mapped[str] = mapped_column(String(64))

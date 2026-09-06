@@ -25,35 +25,78 @@ compatible and retain database backups independently of deployments.
 To roll back, redeploy a known-good revision with its matching backend image
 and web artifact. Do not delete the PostgreSQL volume or replace server secrets.
 
-## Leaderboard protection
+## Ranked replay verification
 
-New clients attach a random UUID `submission_id` per run and reuse it for any
-repeat attempt. The API returns `201` for a new run, `200` with the original
-record for an identical replay, and `409` if that ID is reused with different
-score fields. A database unique key arbitrates simultaneous requests; losing
-transactions roll back their extra run. The new `run_submissions` table is
-created on startup without altering or deleting existing scores. IDs are not
-returned in public leaderboard records. Older clients without an ID still
-work, but their submissions cannot be deduplicated.
+1. Before playing, the client requests `POST /api/runs/start` with
+   `{"player_name":"name","version":"1"}`.
+2. The server chooses the seed and returns an unpredictable one-run ticket,
+   a decimal-string seed and the rules version. The ticket expires in 24 hours.
+   Its name and seed cannot be changed by the final submission.
+3. The client uses a session-local RNG and records legal input actions.
+4. `POST /api/runs` accepts only `{"ticket":"uuid","actions":"..."}`. The Go
+   verifier reproduces the entire run with the same domain package as WASM.
+   Only a terminal run (death or victory) can be saved; all score fields are
+   calculated on the server. Client-supplied score fields are rejected.
+5. The response is `201` for a new verified record, `200` for an exact replay,
+   or `409` if an already used ticket receives another action log. A unique
+   database key prevents concurrent duplicate scores. Completed retries still
+   work after ticket expiry; an unsubmitted expired ticket returns `410`.
 
-Production nginx limits `POST /api/runs` (including a trailing slash) to an
-average of 10 requests/minute per source IP with a burst allowance of 10,
-plus a shared 10 requests/second ceiling with a burst allowance of 20. Excess
-requests receive JSON `429` with `Retry-After: 6`; API bodies are limited to
-8 KiB (`413`). Reads and static files do not consume the submission quota.
-See [nginx rate-limit semantics](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html).
+The new `ranked_tickets` and `ranked_results` tables are additive. Existing
+scores and the old `run_submissions` table are **not deleted or rewritten**.
+The common leaderboard still includes them, with `verified: false` (a dash in
+the game). New verified records have `verified: true` (an asterisk). Tickets
+and action logs are not public leaderboard fields; only the log hash is stored.
 
-The backend has no published port in production: keep it accessible only via
-nginx. The local development stack deliberately does not include this limiter.
-Limits use the socket peer IP, not untrusted forwarded headers. If adding a CDN
-or another proxy, configure trusted real-IP sources first. Shared networks
-(NAT) share a quota; tune the limits if legitimate players get `429`. There is
-no automatic retry or durable offline outbox in the game yet, so a rejected
-submission is reported, not silently retried.
+The old arbitrary-score POST protocol is intentionally closed, even for clients
+with a `submission_id`. Players must reload the page before starting a ranked
+run. An unavailable/incompatible start falls back to a clearly announced
+practice run, which is not submitted. There is no mid-run network requirement
+or durable offline outbox. A finished ranked run can retry with R (RUN on touch)
+while its end screen remains open, using the same ticket and journal.
 
-These are spam and replay protections, **not anti-cheat**. A modified client
-can invent scores and generate fresh UUIDs; many IPs can still fill the database
-at the allowed rate. Integer bounds prevent storage overflow, not fabricated
-records. Server-issued run tokens, authoritative game validation/replay,
-authentication and retention/moderation are separate work. Back up PostgreSQL
-regularly; do not remove historical records as part of a release.
+### Resource limits
+
+Both start and finish POST endpoints share nginx's average 10 requests/minute
+per socket peer IP with a burst allowance of 10, plus 10 requests/second
+globally with a burst allowance of 20. Excess requests return JSON `429` and
+`Retry-After: 6`. Reads and static files do not consume this quota.
+API bodies are capped at 64 KiB, journals at 60,000 ASCII bytes and simulated
+turns at 100,000. Over-limit play can continue locally but cannot be ranked.
+
+Verification uses at most two subprocesses per API worker, each with one Go
+CPU thread, a 64 MiB soft Go memory target and a 3-second wall-clock timeout.
+Subprocess input is bounded; there is no shell or execution of supplied code.
+Invalid/unfinished/over-budget replay returns `422`; busy/broken verification
+returns `503`. Neither creates a record. Startup fails if the verifier binary
+is missing. These limits may need tuning for long legitimate runs or slower
+hardware; the memory target is not an OS hard limit.
+
+Keep the production backend private behind nginx. Local development exposes
+the backend directly and intentionally has no proxy rate limiter. If adding
+a CDN, configure trusted real-IP sources first; forwarded headers alone do not
+change the quota key. Players behind the same NAT share a quota.
+
+### Rules changes, testing and remaining risks
+
+The Docker build context is the repository root. The backend multi-stage image
+compiles `cmd/verifier` and ships it alongside FastAPI; no extra service or
+production secret is required. For backend tests, first build
+`go build -o build/verifier ./cmd/verifier` (use `build/verifier.exe` on Windows).
+For running FastAPI outside Docker, set `VERIFIER_PATH` to its absolute path.
+
+Increment `domain.RulesVersion` for simulation changes, including changes in
+RNG call order. Refresh the golden replay fixtures deliberately. WASM and native
+Go tests check the same golden result; API tests invoke the real verifier.
+An in-flight run from a different rules version cannot be verified after a
+release. Supporting old engines for the ticket lifetime is separate work.
+Do not roll back to an older arbitrary-score API without understanding that it
+reopens unverified writes.
+
+This verifies **rule-consistent outcomes, not human play**. The public seed and
+client simulation allow prediction, bots, route search and replay assistance.
+Names are not authenticated identities. Distributed clients can still fill
+storage at the allowed rate; ticket and result retention/moderation remain
+operational work. Existing legacy scores remain untrusted and can still lead
+the shared ranking, as requested. Back up PostgreSQL and monitor verification
+latency, rejection rates and table sizes; this release removes no records.

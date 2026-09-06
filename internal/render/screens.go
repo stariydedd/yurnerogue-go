@@ -210,6 +210,7 @@ func (r *Renderer) drawFitted(screen *ebiten.Image, role string, x, y, slot floa
 
 // LeaderboardRecord — строка таблицы рекордов.
 type LeaderboardRecord struct {
+	Verified      bool
 	PlayerName    string
 	Treasures     int
 	Level         int
@@ -263,16 +264,20 @@ func (r *Renderer) DrawLeaderboard(screen *ebiten.Image, records []LeaderboardRe
 
 func leaderboardHeader(narrow bool) string {
 	if narrow {
-		return pad("#", 3) + " " + padRight("NAME", 16) + " " + pad("GOLD", 6) + " " + pad("LVL", 4)
+		return pad("#", 3) + " " + padRight("NAME", 16) + " " + pad("GOLD", 6) + " " + pad("LVL", 4) + " V"
 	}
 	return pad("#", 3) + " " + padRight("NAME", 16) + " " + pad("GOLD", 6) + " " + pad("LVL", 4) + " " +
-		pad("KILLS", 5) + " " + pad("FOOD", 4) + " " + pad("ELIX", 4) + " " + pad("SCRL", 4) + " " +
+		"V " + pad("KILLS", 5) + " " + pad("FOOD", 4) + " " + pad("ELIX", 4) + " " + pad("SCRL", 4) + " " +
 		pad("ATK", 5) + " " + pad("HIT", 5) + " " + pad("MOVE", 6)
 }
 
 func leaderboardRow(place int, rec LeaderboardRecord, narrow bool) string {
+	mark := "-"
+	if rec.Verified {
+		mark = "*"
+	}
 	row := pad(strconv.Itoa(place), 3) + " " + padRight(playerLabel(rec.PlayerName), 16) + " " +
-		pad(strconv.Itoa(rec.Treasures), 6) + " " + pad(strconv.Itoa(rec.Level), 4)
+		pad(strconv.Itoa(rec.Treasures), 6) + " " + pad(strconv.Itoa(rec.Level), 4) + " " + mark
 	if narrow {
 		return row
 	}
@@ -325,7 +330,7 @@ func padWidth(s string, width int) int {
 }
 
 // DrawEndScreen — экран смерти или победы.
-func (r *Renderer) DrawEndScreen(screen *ebiten.Image, title, submitStatus string) {
+func (r *Renderer) DrawEndScreen(screen *ebiten.Image, title, submitStatus string, customHint ...string) {
 	l := r.Layout
 	r.backdrop(screen)
 	r.titleWithShadow(screen, title, float64(l.ScreenH)/2-80)
@@ -337,9 +342,12 @@ func (r *Renderer) DrawEndScreen(screen *ebiten.Image, title, submitStatus strin
 		}
 		r.TextCentered(screen, submitStatus, face, float64(l.ScreenH)/2+20, MsgColor)
 	}
-	hint := "Press Enter to exit."
+	hint := "Enter: menu / R: retry score"
 	if l.Touch {
-		hint = "Press SELECT to exit."
+		hint = "SELECT: menu / RUN: retry score"
+	}
+	if len(customHint) > 0 {
+		hint = customHint[0]
 	}
 	r.TextCentered(screen, hint, r.Fonts.Small, float64(l.ScreenH)/2+60, HintColor)
 }

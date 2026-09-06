@@ -65,7 +65,7 @@ jobs:
         with:
           node-version: "22"
       - name: Test browser transport
-        run: GOOS=js GOARCH=wasm go test -exec="$(go env GOROOT)/lib/wasm/go_js_wasm_exec" ./internal/leaderboard
+        run: GOOS=js GOARCH=wasm go test -exec="$(go env GOROOT)/lib/wasm/go_js_wasm_exec" ./internal/leaderboard ./internal/domain
 
   test-backend:
     runs-on: ubuntu-latest
@@ -88,11 +88,17 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r backend/requirements-dev.txt
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build replay verifier
+        run: go build -o build/verifier ./cmd/verifier
       - name: Run backend tests
         run: pytest tests/ -v
         working-directory: backend
         env:
           TEST_POSTGRES_URL: postgresql+psycopg://rogue:test-only@localhost:5432/rogue_test
+          VERIFIER_PATH: ${{ github.workspace }}/build/verifier
 
   test-proxy:
     runs-on: ubuntu-latest
@@ -154,7 +160,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
-          context: backend
+          context: .
+          file: backend/Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/yurnerogue-backend:${{ github.sha }}
 

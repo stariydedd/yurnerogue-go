@@ -1,5 +1,7 @@
 package domain
 
+import "math/rand"
+
 // Stats — статистика забега, уходит в лидерборд по его завершении.
 type Stats struct {
 	EnemiesKilled int
@@ -13,11 +15,14 @@ type Stats struct {
 
 // Session — игровая сессия: текущий уровень, персонаж и статистика.
 type Session struct {
-	LevelNum int
-	Level    *Level
-	Player   *Person
-	Message  string
-	Stats    Stats
+	actions        []byte
+	Turns          int
+	ReplayOverflow bool
+	LevelNum       int
+	Level          *Level
+	Player         *Person
+	Message        string
+	Stats          Stats
 
 	// VisitedRooms — индексы комнат, которые игрок уже видел (для тумана войны).
 	VisitedRooms map[int]bool
@@ -28,10 +33,19 @@ func NewSession() *Session { return NewSessionAtLevel(1) }
 
 // NewSessionAtLevel начинает сессию с заданного уровня (удобно в тестах).
 func NewSessionAtLevel(num int) *Session {
-	level := NewLevel(num)
+	return newSessionAtLevel(num, rand.New(rand.NewSource(rand.Int63())))
+}
+
+func NewSessionSeed(seed int64) *Session {
+	return newSessionAtLevel(1, rand.New(rand.NewSource(seed)))
+}
+
+func newSessionAtLevel(num int, rng *rand.Rand) *Session {
+	level := NewLevel(num, rng)
 	start := level.PlayerStart()
 
 	player := NewPerson()
+	player.rng = rng
 	player.X, player.Y = start.X, start.Y
 	level.GenerateItems(player)
 
@@ -65,7 +79,7 @@ func (s *Session) OpponentAt(x, y int) *Opponent {
 // UpdateLevel спускает игрока на следующий уровень.
 func (s *Session) UpdateLevel() {
 	s.LevelNum++
-	s.Level = NewLevel(s.LevelNum)
+	s.Level = NewLevel(s.LevelNum, s.Player.rng)
 	start := s.Level.PlayerStart()
 	s.Player.X, s.Player.Y = start.X, start.Y
 	s.Level.GenerateItems(s.Player)

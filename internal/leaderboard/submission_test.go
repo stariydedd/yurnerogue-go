@@ -1,21 +1,8 @@
 package leaderboard
 
 import (
-	"regexp"
 	"testing"
 )
-
-func TestSubmissionIDsAreDistinctUUIDs(t *testing.T) {
-	pattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-	seen := make(map[string]bool)
-	for range 100 {
-		id, err := NewSubmissionID()
-		if err != nil || !pattern.MatchString(id) || seen[id] {
-			t.Fatalf("invalid or duplicate ID %q: %v", id, err)
-		}
-		seen[id] = true
-	}
-}
 
 func TestSubmissionResponseErrors(t *testing.T) {
 	for _, tc := range []struct {

@@ -1,7 +1,10 @@
 package domain
 
+import "math/rand"
+
 // Person — персонаж игрока: характеристики, оружие, рюкзак, временные эффекты.
 type Person struct {
+	rng  *rand.Rand
 	X, Y int
 
 	MaxHealth int

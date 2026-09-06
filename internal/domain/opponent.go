@@ -88,6 +88,7 @@ func (h hostility) radius() int {
 
 // Opponent — враг на уровне.
 type Opponent struct {
+	rng      *rand.Rand
 	Type     OpponentType
 	X, Y     int
 	Health   int
@@ -134,8 +135,9 @@ func NewOpponent(t OpponentType) *Opponent {
 
 // RandomOpponent создаёт случайного врага, усиленного под номер уровня:
 // характеристики растут на PercentsUpdateDifficultyMonsters процентов за уровень.
-func RandomOpponent(levelNum int) *Opponent {
-	op := NewOpponent(pick(AllOpponentTypes))
+func RandomOpponent(levelNum int, rng ...*rand.Rand) *Opponent {
+	op := NewOpponent(pick(AllOpponentTypes, rng...))
+	op.rng = source(rng)
 	scale := 1 + float64(PercentsUpdateDifficultyMonsters*levelNum)/100.0
 	op.Health = int(float64(op.Health) * scale)
 	op.Agility = int(float64(op.Agility) * scale)
@@ -182,9 +184,9 @@ var (
 )
 
 // shuffled возвращает перемешанную копию списка направлений.
-func shuffled(src []Point) []Point {
+func shuffled(src []Point, rng ...*rand.Rand) []Point {
 	out := append([]Point(nil), src...)
-	rand.Shuffle(len(out), func(i, j int) { out[i], out[j] = out[j], out[i] })
+	random(source(rng)).Shuffle(len(out), func(i, j int) { out[i], out[j] = out[j], out[i] })
 	return out
 }
 
@@ -243,9 +245,9 @@ func (o *Opponent) pathStep(tx, ty int, rooms []*Room, passages []Rect, opponent
 func (o *Opponent) patternStep(rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
 	switch o.Type {
 	case Zombie:
-		return o.firstWalkable(shuffled(dirs4), rooms, passages, opponents)
+		return o.firstWalkable(shuffled(dirs4, o.rng), rooms, passages, opponents)
 	case Vampire:
-		return o.firstWalkable(shuffled(dirs8), rooms, passages, opponents)
+		return o.firstWalkable(shuffled(dirs8, o.rng), rooms, passages, opponents)
 	case Ghost:
 		return o.blinkInRoom(rooms, passages, opponents)
 	case Ogre:
@@ -280,8 +282,8 @@ func (o *Opponent) blinkInRoom(rooms []*Room, passages []Rect, opponents []*Oppo
 		return nil
 	}
 	for i := 0; i < 16; i++ {
-		nx := room.X + rand.Intn(room.W)
-		ny := room.Y + rand.Intn(room.H)
+		nx := room.X + random(o.rng).Intn(room.W)
+		ny := room.Y + random(o.rng).Intn(room.H)
 		if o.canStep(nx, ny, rooms, passages, opponents) {
 			return &Point{nx - o.X, ny - o.Y}
 		}
@@ -291,7 +293,7 @@ func (o *Opponent) blinkInRoom(rooms []*Room, passages []Rect, opponents []*Oppo
 
 // doubleStep — Axe шагает на две клетки, если свободны обе.
 func (o *Opponent) doubleStep(rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
-	for _, d := range shuffled(dirs4) {
+	for _, d := range shuffled(dirs4, o.rng) {
 		if o.canStep(o.X+d.X, o.Y+d.Y, rooms, passages, opponents) &&
 			o.canStep(o.X+d.X*OgreStep, o.Y+d.Y*OgreStep, rooms, passages, opponents) {
 			return &Point{d.X * OgreStep, d.Y * OgreStep}
@@ -302,7 +304,7 @@ func (o *Opponent) doubleStep(rooms []*Room, passages []Rect, opponents []*Oppon
 
 // diagonalStep — Skywrath ходит по диагонали, стараясь не повторять прошлый шаг.
 func (o *Opponent) diagonalStep(rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
-	for _, d := range shuffled(diag4) {
+	for _, d := range shuffled(diag4, o.rng) {
 		if o.lastDirection != nil && *o.lastDirection == d {
 			continue
 		}

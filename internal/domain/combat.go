@@ -6,14 +6,14 @@ import "math/rand"
 const Miss = -1
 
 // checkHit — попадание зависит от разницы в ловкости атакующего и цели.
-func checkHit(attackerAgility, defenderAgility int) bool {
+func checkHit(attackerAgility, defenderAgility int, rng ...*rand.Rand) bool {
 	chance := InitialHitChance + float64(attackerAgility-defenderAgility-StandardAgility)*AgilityFactor
-	return rand.Intn(100) < clamp(int(chance), 0, 100)
+	return random(source(rng)).Intn(100) < clamp(int(chance), 0, 100)
 }
 
 // calculateLoot — сокровища, выпадающие из поверженного врага.
-func calculateLoot(o *Opponent) int {
-	return int(float64(o.Agility)*0.2+float64(o.Health)*0.5+float64(o.Strength)*0.5) + rand.Intn(20)
+func calculateLoot(o *Opponent, rng ...*rand.Rand) int {
+	return int(float64(o.Agility)*0.2+float64(o.Health)*0.5+float64(o.Strength)*0.5) + random(source(rng)).Intn(20)
 }
 
 // PlayerAttacks — атака игрока по врагу. Возвращает урон или Miss.
@@ -22,7 +22,7 @@ func PlayerAttacks(p *Person, o *Opponent) int {
 	if o.DeflectsFirstStrike() {
 		return Miss
 	}
-	if !checkHit(p.Agility, o.Agility) {
+	if !checkHit(p.Agility, o.Agility, p.rng) {
 		return Miss
 	}
 
@@ -38,7 +38,7 @@ func PlayerAttacks(p *Person, o *Opponent) int {
 
 	o.TakeDamage(damage)
 	if !o.IsAlive() {
-		p.ReceiveTreasure(calculateLoot(o))
+		p.ReceiveTreasure(calculateLoot(o, p.rng))
 	}
 	return damage
 }
@@ -47,7 +47,7 @@ func PlayerAttacks(p *Person, o *Opponent) int {
 // или 0, когда Axe отдыхает после удара.
 func OpponentAttacks(o *Opponent, p *Person) int {
 	// Удар Axe нельзя увернуться.
-	if o.Type != Ogre && !checkHit(o.Agility, p.Agility) {
+	if o.Type != Ogre && !checkHit(o.Agility, p.Agility, p.rng) {
 		return Miss
 	}
 
@@ -78,7 +78,7 @@ func OpponentAttacks(o *Opponent, p *Person) int {
 	p.TakeDamage(damage)
 
 	// Skywrath Mage может усыпить игрока на ход.
-	if o.Type == Snake && rand.Intn(100) < SleepChance {
+	if o.Type == Snake && random(p.rng).Intn(100) < SleepChance {
 		p.FallAsleep(1)
 	}
 	return damage
@@ -127,7 +127,7 @@ func (s *Session) ProcessEnemyTurns() {
 
 	// Riki виден только изредка, пока не преследует игрока.
 	for _, o := range living {
-		o.IsVisible = o.Type != Ghost || o.IsChasing || rand.Intn(100) < ChanceGhostVisible
+		o.IsVisible = o.Type != Ghost || o.IsChasing || random(p.rng).Intn(100) < ChanceGhostVisible
 	}
 }
 

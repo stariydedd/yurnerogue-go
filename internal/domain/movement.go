@@ -101,6 +101,7 @@ func (s *Session) CheckExit() bool {
 
 // ResolveTurn завершает ход игрока: подбор предмета, спуск, ходы врагов.
 func (s *Session) ResolveTurn() {
+	s.Turns++
 	s.CheckItemPickup()
 	s.CheckExit()
 	s.ProcessEnemyTurns()

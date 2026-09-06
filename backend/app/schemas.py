@@ -23,9 +23,22 @@ class RunFields(BaseModel):
     tiles_moved: Counter = 0
 
 
-class RunSubmit(RunFields):
-    # Optional for older clients; new clients reuse one UUID for the whole run.
-    submission_id: UUID | None = None
+class RunStart(BaseModel):
+    player_name: str = Field(default="anonymous", min_length=1, max_length=32)
+    version: str = Field(min_length=1, max_length=64)
+    model_config = {"extra": "forbid"}
+
+
+class RunTicket(BaseModel):
+    ticket: UUID
+    seed: str
+    version: str
+
+
+class RunSubmit(BaseModel):
+    ticket: UUID
+    actions: str = Field(min_length=1, max_length=60000, pattern=r"^[wasdWASDzhjke0-9]+$")
+    model_config = {"extra": "forbid"}
 
 
 class RunOut(RunFields):
@@ -33,5 +46,6 @@ class RunOut(RunFields):
 
     id: int
     created_at: datetime
+    verified: bool = False
 
     model_config = {"from_attributes": True}

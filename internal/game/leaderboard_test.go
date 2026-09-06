@@ -9,107 +9,105 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 	"github.com/stariydedd/yurnerogue-go/internal/leaderboard"
 )
 
-func TestSubmitRunReportsCompletedLevel(t *testing.T) {
-	for _, tc := range []struct {
-		name  string
-		level int
-		win   bool
-	}{
-		{name: "death on first floor", level: 1},
-		{name: "death on last floor", level: domain.MaxLevels},
-		{name: "victory", level: domain.MaxLevels, win: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			received := make(chan leaderboard.Run, 1)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != http.MethodPost || r.URL.Path != "/api/runs" {
-					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
-				}
-				var run leaderboard.Run
-				if err := json.NewDecoder(r.Body).Decode(&run); err != nil {
-					t.Errorf("decode submitted run: %v", err)
-				}
-				received <- run
-				w.WriteHeader(http.StatusCreated)
-			}))
-			defer server.Close()
-			t.Setenv("ROGUE_API", server.URL)
-
-			s := domain.NewSessionAtLevel(tc.level)
-			s.Player.Treasures = 1234
-			s.Stats.EnemiesKilled = 7
-			if tc.win {
-				s.Player.X, s.Player.Y = s.Level.Exit.X, s.Level.Exit.Y
-				if !s.CheckExit() || !s.Won() {
-					t.Fatal("leaving the last floor must win the run")
-				}
-			} else {
-				s.Player.TakeDamage(s.Player.Health)
-			}
-			g := &Game{session: s, playerName: "tester"}
-			g.checkGameOver()
-
-			select {
-			case run := <-received:
-				if run.Level != tc.level {
-					t.Fatalf("submitted level %d, want %d", run.Level, tc.level)
-				}
-				if run.PlayerName != "tester" || run.Treasures != 1234 || run.EnemiesKilled != 7 {
-					t.Fatalf("run details changed: %+v", run)
-				}
-			case <-time.After(2 * leaderboard.Timeout):
-				t.Fatal("run was not submitted")
-			}
-		})
+func waitSubmission(t *testing.T, g *Game) {
+	t.Helper()
+	select {
+	case err := <-g.submitResults:
+		g.submitResults <- err
+		g.pollNetwork()
+	case <-time.After(2 * leaderboard.Timeout):
+		t.Fatal("submission did not complete")
 	}
 }
 
-func TestSubmissionIDIsReusedOnlyWithinOneRun(t *testing.T) {
-	received := make(chan leaderboard.Run, 3)
+func TestRankedSubmissionContainsOnlyTicketAndReplay(t *testing.T) {
+	received := make(chan map[string]string, 3)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var run leaderboard.Run
-		if err := json.NewDecoder(r.Body).Decode(&run); err != nil {
+		var payload map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Error(err)
 		}
-		received <- run
-		w.WriteHeader(http.StatusCreated)
+		received <- payload
+		w.WriteHeader(201)
 	}))
 	defer server.Close()
 	t.Setenv("ROGUE_API", server.URL)
-	g := &Game{session: domain.NewSessionAtLevel(1)}
-	send := func() string {
-		t.Helper()
-		g.submitRun()
-		pending := g.submitResults
-		g.submitRun()
-		if g.submitResults != pending {
-			t.Fatal("duplicate call started another in-flight request")
-		}
-		select {
-		case err := <-pending:
-			pending <- err
-			g.pollNetwork()
-		case <-time.After(2 * leaderboard.Timeout):
-			t.Fatal("submission did not complete")
-		}
-		select {
-		case run := <-received:
-			return run.SubmissionID
-		default:
-			t.Fatal("missing request")
-			return ""
-		}
+	g := &Game{session: domain.NewSessionSeed(1), runTicket: "server-issued"}
+	g.session.ApplyAction("s")
+	g.submitRun()
+	pending := g.submitResults
+	g.submitRun()
+	if g.submitResults != pending {
+		t.Fatal("duplicate in-flight request")
 	}
-	first := send()
-	if first == "" || send() != first {
-		t.Fatal("retry must keep the original submission ID")
+	waitSubmission(t, g)
+	first := <-received
+	if len(first) != 2 || first["ticket"] != "server-issued" || first["actions"] != "s" {
+		t.Fatal(first)
+	}
+	g.submitRun()
+	waitSubmission(t, g)
+	again := <-received
+	if again["ticket"] != first["ticket"] || again["actions"] != first["actions"] {
+		t.Fatal("retry changed")
 	}
 	g.startNewGame()
-	if send() == first {
-		t.Fatal("new run must receive another submission ID")
+	if g.runTicket != "" {
+		t.Fatal("new practice run kept ticket")
+	}
+	g.submitRun()
+	if g.submitResults != nil || g.submitStatus != "Practice run: not submitted to leaderboard." {
+		t.Fatal("practice submitted")
+	}
+}
+
+func TestLateStartResponseIsDiscarded(t *testing.T) {
+	old := make(chan startResult, 1)
+	g := &Game{state: StateStarting, startResults: old}
+	g.HandleKey(ebiten.KeyQ)
+	old <- startResult{ticket: leaderboard.Ticket{Ticket: "late", Seed: "1", Version: domain.RulesVersion}}
+	g.pollNetwork()
+	if g.state != StateMainMenu || g.session != nil || g.runTicket != "" {
+		t.Fatal("cancelled start changed screen")
+	}
+}
+
+func TestStartResponseCreatesSeededOrPracticeRun(t *testing.T) {
+	for _, failure := range []bool{false, true} {
+		results := make(chan startResult, 1)
+		g := &Game{state: StateStarting, startResults: results}
+		result := startResult{ticket: leaderboard.Ticket{Ticket: "ticket", Seed: "1", Version: domain.RulesVersion}}
+		if failure {
+			result.err = leaderboard.ErrUnavailable
+		}
+		results <- result
+		g.pollNetwork()
+		if g.state != StatePlaying || g.session == nil {
+			t.Fatal("game did not start")
+		}
+		if (g.runTicket == "") != failure {
+			t.Fatal("wrong ranked state")
+		}
+		if !failure && g.session.Level.Seed != domain.NewSessionSeed(1).Level.Seed {
+			t.Fatal("server seed not used")
+		}
+	}
+}
+
+func TestInventoryInputRecordsSharedDomainAction(t *testing.T) {
+	g := &Game{session: domain.NewSessionSeed(1), state: StatePlaying}
+	g.session.Player.Backpack = append(g.session.Player.Backpack, domain.NewWeapon())
+	g.HandleKey(ebiten.KeyH)
+	g.HandleKey(ebiten.Key1)
+	if g.session.Actions() != "h1" || g.session.Player.Weapon == nil {
+		t.Fatal("inventory bypassed replay path")
+	}
+	if keyForControl("run", StateDeath) != ebiten.KeyR {
+		t.Fatal("missing mobile retry")
 	}
 }

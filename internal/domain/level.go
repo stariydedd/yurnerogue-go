@@ -15,12 +15,13 @@ type Level struct {
 	Exit         Point
 
 	roomsCount int
+	rng        *rand.Rand
 }
 
 // NewLevel генерирует уровень с номером num: комнаты, связную сеть коридоров,
 // врагов и выход.
-func NewLevel(num int) *Level {
-	l := &Level{Num: num}
+func NewLevel(num int, rng ...*rand.Rand) *Level {
+	l := &Level{Num: num, rng: source(rng)}
 	l.generateValid()
 	l.Doors = DoorCells(l.Rooms, l.Passages)
 	l.pickStartRoom()
@@ -48,15 +49,14 @@ func (l *Level) generateValid() {
 // generateRooms раскладывает комнаты по сетке GridDim x GridDim; часть ячеек
 // остаётся пустой с вероятностью 1-ProbRoom.
 func (l *Level) generateRooms() {
-	// Seed записывается для лидерборда и отладки. Пересеивать генератор, как
-	// это делала Python-версия, не нужно: рантайм Go засеивает его случайно
-	// при старте — в том числе в WASM, где CPython давал один и тот же уровень.
-	l.Seed = int64(rand.Intn(10_000_000_000-100) + 100)
+	// Diagnostic level marker. Ranked replay is seeded once for the whole
+	// session; it must retain the RNG stream across floor transitions.
+	l.Seed = int64(random(l.rng).Intn(10_000_000_000-100) + 100)
 
 	rooms := make([]*Room, 0, GridDim*GridDim)
 	for r := 0; r < GridDim; r++ {
 		for c := 0; c < GridDim; c++ {
-			if rand.Float64() > ProbRoom {
+			if random(l.rng).Float64() > ProbRoom {
 				rooms = append(rooms, nil)
 				continue
 			}
@@ -65,10 +65,10 @@ func (l *Level) generateRooms() {
 				rooms = append(rooms, nil)
 				continue
 			}
-			w := MinW + rand.Intn(min(MaxW, availW)-MinW+1)
-			h := MinH + rand.Intn(min(MaxH, availH)-MinH+1)
-			x := c*CellW + Pad + rand.Intn(availW-w+1)
-			y := r*CellH + Pad + rand.Intn(availH-h+1)
+			w := MinW + random(l.rng).Intn(min(MaxW, availW)-MinW+1)
+			h := MinH + random(l.rng).Intn(min(MaxH, availH)-MinH+1)
+			x := c*CellW + Pad + random(l.rng).Intn(availW-w+1)
+			y := r*CellH + Pad + random(l.rng).Intn(availH-h+1)
 			x = clamp(x, 0, Cols-w)
 			y = clamp(y, 0, Rows-h)
 			rooms = append(rooms, &Room{X: x, Y: y, W: w, H: h})
@@ -146,7 +146,7 @@ func (d *dsu) union(a, b int) {
 // generatePassages строит коридоры, связывающие все комнаты в одну сеть.
 func (l *Level) generatePassages() ([]Rect, int) {
 	edges := l.roomEdges()
-	rand.Shuffle(len(edges), func(i, j int) { edges[i], edges[j] = edges[j], edges[i] })
+	random(l.rng).Shuffle(len(edges), func(i, j int) { edges[i], edges[j] = edges[j], edges[i] })
 
 	var passages []Rect
 	connections := 0
@@ -173,14 +173,14 @@ func addSegment(passages []Rect, x, y, w, h int) []Rect {
 }
 
 // turnBetween выбирает координату поворота Г-образного коридора строго между
-// a и b. Если промежутка нет, возвращает середину: rand.Intn(0) паникует, а
+// a и b. Если промежутка нет, возвращает середину: Intn(0) паникует, а
 // паника в WASM убивает всю игру.
-func turnBetween(a, b int) int {
+func turnBetween(a, b int, rng ...*rand.Rand) int {
 	lo, hi := min(a, b), max(a, b)
 	if hi-lo < 2 {
 		return (lo + hi) / 2
 	}
-	return lo + 1 + rand.Intn(hi-lo-1)
+	return lo + 1 + random(source(rng)).Intn(hi-lo-1)
 }
 
 // horizontalPassage соединяет две горизонтально соседние комнаты: прямой
@@ -189,14 +189,14 @@ func (l *Level) horizontalPassage(e [2]int, passages []Rect) []Rect {
 	first, second := l.Rooms[e[0]], l.Rooms[e[1]]
 
 	firstX := first.X + first.W
-	firstY := first.Y + rand.Intn(first.H)
+	firstY := first.Y + random(l.rng).Intn(first.H)
 	secondX := second.X - 1
-	secondY := second.Y + rand.Intn(second.H)
+	secondY := second.Y + random(l.rng).Intn(second.H)
 
 	if firstY == secondY {
 		return addSegment(passages, firstX, firstY, abs(secondX-firstX)+1, 1)
 	}
-	turn := turnBetween(firstX, secondX)
+	turn := turnBetween(firstX, secondX, l.rng)
 	passages = addSegment(passages, firstX, firstY, abs(turn-firstX)+1, 1)
 	passages = addSegment(passages, turn, min(firstY, secondY), 1, abs(secondY-firstY)+1)
 	passages = addSegment(passages, turn, secondY, abs(secondX-turn)+1, 1)
@@ -208,14 +208,14 @@ func (l *Level) verticalPassage(e [2]int, passages []Rect) []Rect {
 	first, second := l.Rooms[e[0]], l.Rooms[e[1]]
 
 	firstY := first.Y + first.H
-	firstX := first.X + rand.Intn(first.W)
+	firstX := first.X + random(l.rng).Intn(first.W)
 	secondY := second.Y - 1
-	secondX := second.X + rand.Intn(second.W)
+	secondX := second.X + random(l.rng).Intn(second.W)
 
 	if firstX == secondX {
 		return addSegment(passages, firstX, firstY, 1, abs(secondY-firstY)+1)
 	}
-	turn := turnBetween(firstY, secondY)
+	turn := turnBetween(firstY, secondY, l.rng)
 	passages = addSegment(passages, firstX, firstY, 1, abs(turn-firstY)+1)
 	passages = addSegment(passages, min(firstX, secondX), turn, abs(secondX-firstX)+1, 1)
 	passages = addSegment(passages, secondX, turn, 1, abs(secondY-turn)+1)
@@ -230,17 +230,17 @@ func (l *Level) pickStartRoom() {
 			valid = append(valid, i)
 		}
 	}
-	l.StartRoomIdx = pick(valid)
+	l.StartRoomIdx = pick(valid, l.rng)
 }
 
 // PlayerStart — случайная клетка стартовой комнаты.
 func (l *Level) PlayerStart() Point {
-	return l.Rooms[l.StartRoomIdx].RandomCell()
+	return l.Rooms[l.StartRoomIdx].RandomCell(l.rng)
 }
 
 // RandomCell — случайная клетка пола комнаты.
-func (r *Room) RandomCell() Point {
-	return Point{r.X + rand.Intn(r.W), r.Y + rand.Intn(r.H)}
+func (r *Room) RandomCell(rng ...*rand.Rand) Point {
+	return Point{r.X + random(source(rng)).Intn(r.W), r.Y + random(source(rng)).Intn(r.H)}
 }
 
 // generateOpponents расселяет врагов по всем комнатам, кроме стартовой.
@@ -250,15 +250,15 @@ func (l *Level) generateOpponents() {
 		if room == nil || i == l.StartRoomIdx {
 			continue
 		}
-		count := rand.Intn(maxPerRoom + 1)
+		count := random(l.rng).Intn(maxPerRoom + 1)
 		for n := 0; n < count; n++ {
 			// До 16 попыток найти клетку, не занятую другим врагом.
 			for attempt := 0; attempt < 16; attempt++ {
-				c := room.RandomCell()
+				c := room.RandomCell(l.rng)
 				if room.enemyAt(c) != nil {
 					continue
 				}
-				op := RandomOpponent(l.Num)
+				op := RandomOpponent(l.Num, l.rng)
 				op.X, op.Y = c.X, c.Y
 				room.Enemies = append(room.Enemies, op)
 				break
@@ -294,7 +294,7 @@ func (l *Level) exitPosition() Point {
 			}
 		}
 	}
-	room := pick(candidates)
+	room := pick(candidates, l.rng)
 
 	var free, valid []Point
 	for y := room.Y; y < room.Y+room.H; y++ {
@@ -310,12 +310,12 @@ func (l *Level) exitPosition() Point {
 		}
 	}
 	if len(valid) > 0 {
-		return pick(valid)
+		return pick(valid, l.rng)
 	}
 	if len(free) > 0 {
-		return pick(free)
+		return pick(free, l.rng)
 	}
-	return room.RandomCell()
+	return room.RandomCell(l.rng)
 }
 
 // farFromDoors — клетка дальше чем на одну (по Чебышёву) от каждой двери:
@@ -340,10 +340,10 @@ func (l *Level) GenerateItems(player *Person) {
 		if room == nil || i == l.StartRoomIdx {
 			continue
 		}
-		count := rand.Intn(maxItems + 1)
+		count := random(l.rng).Intn(maxItems + 1)
 		for n := 0; n < count; n++ {
 			for attempt := 0; attempt < 16; attempt++ {
-				c := room.RandomCell()
+				c := room.RandomCell(l.rng)
 				if c == l.Exit || l.itemAt(c) != nil {
 					continue
 				}

@@ -13,7 +13,7 @@ func TestNetworkResultsAreAppliedByGameLoop(t *testing.T) {
 	g.topResults <- topResult{runs: []leaderboard.Run{{PlayerName: "tester", Treasures: 42}}}
 	g.submitResults <- nil
 	g.pollNetwork()
-	if g.leaderboardLoading || g.leaderboardSource != "GLOBAL" || len(g.leaderboard) != 1 || g.leaderboard[0].Treasures != 42 {
+	if g.leaderboardLoading || g.leaderboardSource != "GLOBAL  |  * verified  - legacy" || len(g.leaderboard) != 1 || g.leaderboard[0].Treasures != 42 {
 		t.Fatal("game loop did not apply leaderboard response")
 	}
 	if g.submitStatus != "Score submitted to global leaderboard!" || g.topResults != nil || g.submitResults != nil {

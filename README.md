@@ -111,7 +111,8 @@ TLS certificates are issued by Let's Encrypt and renewed automatically by
   breadth-first chasing.
 - Items and buffs, plus the classic run command (`F` + direction) that follows
   corridor turns and stops at doorways.
-- Global leaderboard shared with all players.
+- Global leaderboard with server-replayed scores. New verified runs are marked
+  `*`; historical unverified records remain visible as `-`.
 - Mobile version: a retro-console portrait layout with a d-pad (run button in
   the centre), item buttons and contextual SELECT/MENU keys.
 - All graphics are pixel art embedded into the binary — no external requests.
@@ -162,6 +163,12 @@ Enemy stats grow with each floor while useful items become rarer.
 The exit is a glowing portal — descending after floor 21 wins the run, and the
 result is submitted to the global leaderboard.
 
+Ranked runs obtain a server-issued seed and ticket before starting. The server
+replays the input log and computes the score itself. If starting online fails,
+the game starts a practice run that does not enter the leaderboard. After a
+ranked run, R (RUN on touch) retries submission without creating duplicates.
+See [verification limits and operations](docs/operations.md).
+
 ## Local development
 
 ```
@@ -175,6 +182,10 @@ cp web/index.html web/favicon.png build/web/       # then serve build/web
 docker compose -f infra/docker-compose.yml up      # backend + PostgreSQL on :8000
 cd backend && python -m pytest tests               # backend tests
 ```
+
+Before backend tests, build `go build -o build/verifier ./cmd/verifier` from the
+repository root (`build/verifier.exe` on Windows). The Docker image includes
+this replay verifier automatically.
 
 ## Project structure
 

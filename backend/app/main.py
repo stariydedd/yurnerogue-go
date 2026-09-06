@@ -5,10 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
 from app.routers import leaderboard
+from app.verifier import rules_version
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    rules_version()  # Missing or broken verifier must prevent an unsafe deploy.
     # Creates missing tables only (including run_submissions). Changes to
     # existing columns require a migration; create_all does not alter them.
     Base.metadata.create_all(bind=engine)

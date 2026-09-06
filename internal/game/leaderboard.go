@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 	"github.com/stariydedd/yurnerogue-go/internal/leaderboard"
@@ -34,6 +35,20 @@ type topResult struct {
 
 func (g *Game) pollNetwork() {
 	select {
+	case result := <-g.startResults:
+		g.startResults = nil
+		g.startNewGame()
+		seed, err := strconv.ParseInt(result.ticket.Seed, 10, 64)
+		if result.err != nil || err != nil || result.ticket.Version != domain.RulesVersion || result.ticket.Ticket == "" {
+			g.session.SetMessage("Practice run: ranked server unavailable. Reload to update.")
+		} else {
+			g.session = domain.NewSessionSeed(seed)
+			g.runTicket = result.ticket.Ticket
+			g.session.SetMessage("Ranked run: server replay verification enabled.")
+		}
+	default:
+	}
+	select {
 	case result := <-g.topResults:
 		g.topResults = nil
 		g.leaderboardLoading = false
@@ -46,6 +61,7 @@ func (g *Game) pollNetwork() {
 		for _, r := range runs {
 			records = append(records, render.LeaderboardRecord{
 				PlayerName:    r.PlayerName,
+				Verified:      r.Verified,
 				Treasures:     r.Treasures,
 				Level:         r.Level,
 				EnemiesKilled: r.EnemiesKilled,
@@ -58,7 +74,7 @@ func (g *Game) pollNetwork() {
 			})
 		}
 		g.leaderboard = records
-		g.leaderboardSource = "GLOBAL"
+		g.leaderboardSource = "GLOBAL  |  * verified  - legacy"
 	default:
 	}
 	select {
@@ -79,44 +95,44 @@ func (g *Game) pollNetwork() {
 	}
 }
 
-// submitRun отправляет результат завершённого забега.
+type startResult struct {
+	ticket leaderboard.Ticket
+	err    error
+}
+
+func (g *Game) requestRankedGame() {
+	g.state = StateStarting
+	results := make(chan startResult, 1)
+	g.startResults = results
+	name := g.playerName
+	if name == "" {
+		name = "anonymous"
+	}
+	client := leaderboard.New()
+	go func() {
+		ticket, err := client.StartRun(name, domain.RulesVersion)
+		results <- startResult{ticket, err}
+	}()
+}
+
+// submitRun sends only the ticket and legal input log, never trusted scores.
 func (g *Game) submitRun() {
 	s := g.session
 	if s == nil || g.submitResults != nil {
 		return
 	}
-	if g.submissionID == "" {
-		id, err := leaderboard.NewSubmissionID()
-		if err != nil {
-			g.submitStatus = "Could not prepare score submission."
-			return
-		}
-		g.submissionID = id
+	if g.runTicket == "" {
+		g.submitStatus = "Practice run: not submitted to leaderboard."
+		return
 	}
-	name := g.playerName
-	if name == "" {
-		name = "anonymous"
+	if s.ReplayOverflow {
+		g.submitStatus = "Replay limit reached: score cannot be verified."
+		return
 	}
-	run := leaderboard.Run{
-		SubmissionID: g.submissionID,
-		PlayerName:   name,
-		Treasures:    s.Player.Treasures,
-		// После победы сессия уже на уровне 22, но пройденный этаж — 21.
-		Level:         min(s.LevelNum, domain.MaxLevels),
-		EnemiesKilled: s.Stats.EnemiesKilled,
-		FoodUsed:      s.Stats.FoodUsed,
-		ElixirsUsed:   s.Stats.ElixirsUsed,
-		ScrollsRead:   s.Stats.ScrollsRead,
-		AttacksMade:   s.Stats.AttacksMade,
-		HitsTaken:     s.Stats.HitsTaken,
-		TilesMoved:    s.Stats.TilesMoved,
-	}
-
-	g.submitStatus = "Submitting score..."
+	ticket, actions := g.runTicket, s.Actions()
+	g.submitStatus = "Verifying score..."
 	client := leaderboard.New()
 	results := make(chan error, 1)
 	g.submitResults = results
-	go func() {
-		results <- client.Submit(run)
-	}()
+	go func() { results <- client.SubmitReplay(ticket, actions) }()
 }

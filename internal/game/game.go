@@ -2,7 +2,6 @@
 package game
 
 import (
-	"strconv"
 	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -25,6 +24,7 @@ const (
 	StateHelp
 	StateDeath
 	StateWin
+	StateStarting
 )
 
 // MaxNameLength — предел длины имени для лидерборда.
@@ -67,7 +67,8 @@ type Game struct {
 	submitStatus       string
 	topResults         chan topResult
 	submitResults      chan error
-	submissionID       string
+	runTicket          string
+	startResults       chan startResult
 }
 
 // New создаёт игру с заданным рендерером. На тач-раскладке добавляется
@@ -117,6 +118,10 @@ func (g *Game) Update() error {
 // экранных кнопок, транслированные в клавиши.
 func (g *Game) HandleKey(key ebiten.Key) {
 	switch g.state {
+	case StateStarting:
+		if key == ebiten.KeyEscape || key == ebiten.KeyQ {
+			g.returnToMenu()
+		}
 	case StateMainMenu:
 		g.handleMainMenu(key)
 	case StateNameEntry:
@@ -133,6 +138,9 @@ func (g *Game) HandleKey(key ebiten.Key) {
 	case StateHelp:
 		g.state = g.helpReturn
 	case StateDeath, StateWin:
+		if key == ebiten.KeyR {
+			g.submitRun()
+		}
 		if key == ebiten.KeyEnter || key == ebiten.KeyNumpadEnter {
 			g.returnToMenu()
 		}
@@ -169,7 +177,7 @@ func (g *Game) handleNameEntry(key ebiten.Key) {
 		g.state = StateMainMenu
 	case ebiten.KeyEnter, ebiten.KeyNumpadEnter:
 		g.playerName = g.nameInput
-		g.startNewGame()
+		g.requestRankedGame()
 	case ebiten.KeyBackspace:
 		// Удаляется символ, а не байт: в кириллице символ занимает два байта,
 		// и обрезка по байту оставила бы в имени битую половину руны.
@@ -201,24 +209,14 @@ var directionKeys = map[ebiten.Key]domain.Point{
 
 func (g *Game) handlePlaying(key ebiten.Key) {
 	s := g.session
-	sleeping := s.Player.Sleeping
 	s.Message = ""
-
-	// Режим бега: следующая клавиша-направление запускает серию ходов,
-	// любая другая отменяет. Во сне попытка бега тратит ход, как обычный шаг.
 	if g.pendingRun {
 		g.pendingRun = false
 		if d, ok := directionKeys[key]; ok {
-			if sleeping {
-				g.resolveTurn(true)
-			} else {
-				s.Run(d.X, d.Y)
-				g.checkGameOver()
-			}
+			g.performAction(directionAction(d, true))
 		}
 		return
 	}
-
 	switch key {
 	case ebiten.KeyQ:
 		g.quitSelected = 0
@@ -233,43 +231,50 @@ func (g *Game) handlePlaying(key ebiten.Key) {
 		s.SetMessage("Run: press a direction key.")
 		return
 	}
-
-	acted := false
-	switch {
-	case key == ebiten.KeyH:
-		acted = sleeping || g.openItemMenu(domain.ItemWeapon)
-	case key == ebiten.KeyJ:
-		acted = sleeping || g.openItemMenu(domain.ItemFood)
-	case key == ebiten.KeyK:
-		acted = sleeping || g.openItemMenu(domain.ItemElixir)
-	case key == ebiten.KeyE:
-		acted = sleeping || g.openItemMenu(domain.ItemScroll)
-	default:
-		d, ok := directionKeys[key]
-		if !ok {
-			return
-		}
-		if sleeping {
-			acted = true
-		} else if d.X != 0 {
-			acted = s.MoveX(d.X)
-		} else {
-			acted = s.MoveY(d.Y)
-		}
+	itemType := domain.ItemNone
+	switch key {
+	case ebiten.KeyH:
+		itemType = domain.ItemWeapon
+	case ebiten.KeyJ:
+		itemType = domain.ItemFood
+	case ebiten.KeyK:
+		itemType = domain.ItemElixir
+	case ebiten.KeyE:
+		itemType = domain.ItemScroll
 	}
-
-	if acted {
-		g.resolveTurn(sleeping)
+	if itemType != domain.ItemNone {
+		if s.Player.Sleeping {
+			g.performAction("z")
+		} else {
+			g.openItemMenu(itemType)
+		}
+		return
+	}
+	if d, ok := directionKeys[key]; ok {
+		g.performAction(directionAction(d, false))
 	}
 }
 
-// resolveTurn завершает ход игрока и проверяет конец игры.
-func (g *Game) resolveTurn(sleeping bool) {
-	if sleeping {
-		g.session.SetMessage("You are asleep!")
+func directionAction(d domain.Point, run bool) string {
+	code := byte('w')
+	switch {
+	case d.Y > 0:
+		code = 's'
+	case d.X < 0:
+		code = 'a'
+	case d.X > 0:
+		code = 'd'
 	}
-	g.session.ResolveTurn()
-	g.checkGameOver()
+	if run {
+		code -= 'a' - 'A'
+	}
+	return string(code)
+}
+
+func (g *Game) performAction(action string) {
+	if g.session.ApplyAction(action) == nil {
+		g.checkGameOver()
+	}
 }
 
 // openItemMenu открывает выбор предмета нужной категории.
@@ -342,61 +347,15 @@ func (g *Game) handleItemMenu(key ebiten.Key) {
 		return
 	}
 
-	g.applyItemChoice(choice)
+	code := map[domain.ItemType]byte{domain.ItemWeapon: 'h', domain.ItemFood: 'j', domain.ItemElixir: 'k', domain.ItemScroll: 'e'}[g.itemMenuType]
 	g.state = StatePlaying
-	g.resolveTurn(false)
+	g.performAction(string([]byte{code, byte('0' + choice)}))
 }
 
 // applyItemChoice применяет выбранный предмет: экипирует оружие или использует
 // расходник, обновляя статистику.
 func (g *Game) applyItemChoice(choice int) {
-	s := g.session
-	p := s.Player
-
-	if g.itemMenuType == domain.ItemWeapon {
-		if choice == 0 {
-			weapon := p.UnequipWeapon()
-			if weapon == nil {
-				return
-			}
-			if p.PickUpItem(weapon) {
-				s.SetMessage("You holstered " + weapon.Name + ".")
-			} else {
-				p.Weapon = weapon
-				s.SetMessage("Backpack full! Cannot holster weapon.")
-			}
-			return
-		}
-		item := g.itemMenuItems[choice-1]
-		old := p.EquipWeapon(item)
-		msg := "You equipped " + item.Name + " [+" + strconv.Itoa(item.StrengthEffect) + " STR]."
-		if old != nil {
-			if s.DropItemNearPlayer(old) {
-				msg += " Dropped " + old.Name + "."
-			} else {
-				// EquipWeapon освободил слот оружия, поэтому прежнее помещается
-				// даже в рюкзак, который был полон до смены.
-				p.Backpack = append(p.Backpack, old)
-				msg += " Stowed " + old.Name + " in backpack."
-			}
-		}
-		s.SetMessage(msg)
-		return
-	}
-
-	item := g.itemMenuItems[choice]
-	if !p.UseItem(item) {
-		return
-	}
-	s.SetMessage("You used " + item.Name + item.StatLabel() + ".")
-	switch g.itemMenuType {
-	case domain.ItemFood:
-		s.Stats.FoodUsed++
-	case domain.ItemElixir:
-		s.Stats.ElixirsUsed++
-	case domain.ItemScroll:
-		s.Stats.ScrollsRead++
-	}
+	g.session.UseChoice(g.itemMenuType, choice)
 }
 
 func (g *Game) handleQuitDialog(key ebiten.Key) {
@@ -418,7 +377,8 @@ func (g *Game) handleQuitDialog(key ebiten.Key) {
 
 // startNewGame начинает забег.
 func (g *Game) startNewGame() {
-	g.submissionID = ""
+	g.runTicket = ""
+	g.startResults = nil
 	g.session = domain.NewSession()
 	g.pendingRun = false
 	g.submitStatus = ""
@@ -428,6 +388,8 @@ func (g *Game) startNewGame() {
 
 // returnToMenu сбрасывает сессию и возвращается в главное меню.
 func (g *Game) returnToMenu() {
+	g.runTicket = ""
+	g.startResults = nil
 	g.topResults = nil
 	g.submitResults = nil
 	g.session = nil

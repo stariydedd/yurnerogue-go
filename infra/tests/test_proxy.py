@@ -28,7 +28,8 @@ class ProxyTest(unittest.TestCase):
         else:
             self.fail("test proxy did not become ready")
 
-        self.assertEqual(self.request("/api/runs", b"x" * 8193)[0], 413)
+        self.assertEqual(self.request("/api/runs", b"x" * 65537)[0], 413)
+        self.assertEqual(self.request("/api/runs/start", b"{}")[0], 201)
         responses = [self.request("/api/runs", b"{}") for _ in range(16)]
         self.assertEqual(responses[0][0], 201)
         limited = [response for response in responses if response[0] == 429]
@@ -41,6 +42,7 @@ class ProxyTest(unittest.TestCase):
             "X-Forwarded-For": "203.0.113.1", "X-Real-IP": "203.0.113.2",
         })[0], 429)
         self.assertEqual(self.request("/api/leaderboard")[0], 200)
+        self.assertEqual(self.request("/api/runs/start", b"{}")[0], 429)
         self.assertEqual(self.request("/api/health")[0], 200)
         self.assertEqual(self.request("/index.html")[0], 200)
 
