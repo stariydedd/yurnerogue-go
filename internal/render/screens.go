@@ -210,7 +210,6 @@ func (r *Renderer) drawFitted(screen *ebiten.Image, role string, x, y, slot floa
 
 // LeaderboardRecord — строка таблицы рекордов.
 type LeaderboardRecord struct {
-	Verified      bool
 	PlayerName    string
 	Treasures     int
 	Level         int
@@ -264,20 +263,16 @@ func (r *Renderer) DrawLeaderboard(screen *ebiten.Image, records []LeaderboardRe
 
 func leaderboardHeader(narrow bool) string {
 	if narrow {
-		return pad("#", 3) + " " + padRight("NAME", 16) + " " + pad("GOLD", 6) + " " + pad("LVL", 4) + " V"
+		return pad("#", 3) + " " + padRight("NAME", 16) + " " + pad("GOLD", 6) + " " + pad("LVL", 4)
 	}
 	return pad("#", 3) + " " + padRight("NAME", 16) + " " + pad("GOLD", 6) + " " + pad("LVL", 4) + " " +
-		"V " + pad("KILLS", 5) + " " + pad("FOOD", 4) + " " + pad("ELIX", 4) + " " + pad("SCRL", 4) + " " +
+		pad("KILLS", 5) + " " + pad("FOOD", 4) + " " + pad("ELIX", 4) + " " + pad("SCRL", 4) + " " +
 		pad("ATK", 5) + " " + pad("HIT", 5) + " " + pad("MOVE", 6)
 }
 
 func leaderboardRow(place int, rec LeaderboardRecord, narrow bool) string {
-	mark := "-"
-	if rec.Verified {
-		mark = "*"
-	}
 	row := pad(strconv.Itoa(place), 3) + " " + padRight(playerLabel(rec.PlayerName), 16) + " " +
-		pad(strconv.Itoa(rec.Treasures), 6) + " " + pad(strconv.Itoa(rec.Level), 4) + " " + mark
+		pad(strconv.Itoa(rec.Treasures), 6) + " " + pad(strconv.Itoa(rec.Level), 4)
 	if narrow {
 		return row
 	}

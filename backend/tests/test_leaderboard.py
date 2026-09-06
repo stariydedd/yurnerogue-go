@@ -82,11 +82,12 @@ def test_same_name_and_score_allowed_for_distinct_runs(client):
     assert len(client.get("/api/leaderboard").json()) == 2
 
 
-def test_legacy_scores_stay_visible_and_unverified(client):
+def test_legacy_scores_are_grandfathered_as_trusted(client):
     old_id = client.seed_run(player_name="legacy", treasures=1000, level=9)
     submit(client, start(client))
     rows = client.get("/api/leaderboard").json()
-    assert [(r["id"], r["verified"]) for r in rows][:1] == [(old_id, False)]
+    assert [(r["id"], r["verified"]) for r in rows][:1] == [(old_id, True)]
+    assert rows[0]["player_name"] == "legacy" and rows[0]["treasures"] == 1000
     assert rows[1]["verified"] is True
     assert len(client.get("/api/leaderboard?limit=1").json()) == 1
 

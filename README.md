@@ -111,8 +111,8 @@ TLS certificates are issued by Let's Encrypt and renewed automatically by
   breadth-first chasing.
 - Items and buffs, plus the classic run command (`F` + direction) that follows
   corridor turns and stops at doorways.
-- Global leaderboard with server-replayed scores. New verified runs are marked
-  `*`; historical unverified records remain visible as `-`.
+- Global leaderboard with server-replayed new scores. Historical records are
+  accepted as trusted; the table has no verification labels or extra column.
 - Mobile version: a retro-console portrait layout with a d-pad (run button in
   the centre), item buttons and contextual SELECT/MENU keys.
 - All graphics are pixel art embedded into the binary — no external requests.

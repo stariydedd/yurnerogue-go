@@ -61,7 +61,6 @@ func (g *Game) pollNetwork() {
 		for _, r := range runs {
 			records = append(records, render.LeaderboardRecord{
 				PlayerName:    r.PlayerName,
-				Verified:      r.Verified,
 				Treasures:     r.Treasures,
 				Level:         r.Level,
 				EnemiesKilled: r.EnemiesKilled,
@@ -74,7 +73,7 @@ func (g *Game) pollNetwork() {
 			})
 		}
 		g.leaderboard = records
-		g.leaderboardSource = "GLOBAL  |  * verified  - legacy"
+		g.leaderboardSource = "GLOBAL"
 	default:
 	}
 	select {

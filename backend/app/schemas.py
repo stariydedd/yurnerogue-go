@@ -46,6 +46,8 @@ class RunOut(RunFields):
 
     id: int
     created_at: datetime
-    verified: bool = False
+    # Legacy records are grandfathered as trusted by the project owner.
+    # New records still require server replay; this is not a write permission.
+    verified: bool = True
 
     model_config = {"from_attributes": True}

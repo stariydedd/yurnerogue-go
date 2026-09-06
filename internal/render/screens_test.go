@@ -1,9 +1,26 @@
 package render
 
 import (
+	"strings"
 	"testing"
 	"unicode/utf8"
 )
+
+func TestLeaderboardHasNoVerificationColumn(t *testing.T) {
+	for _, narrow := range []bool{false, true} {
+		want := "# NAME GOLD LVL KILLS FOOD ELIX SCRL ATK HIT MOVE"
+		if narrow {
+			want = "# NAME GOLD LVL"
+		}
+		if got := strings.Join(strings.Fields(leaderboardHeader(narrow)), " "); got != want {
+			t.Fatalf("unexpected columns: %s", got)
+		}
+		row := strings.Fields(leaderboardRow(1, sampleRecord("tester"), narrow))
+		if len(row) != len(strings.Fields(want)) {
+			t.Fatalf("unexpected row markers: %v", row)
+		}
+	}
+}
 
 func sampleRecord(name string) LeaderboardRecord {
 	return LeaderboardRecord{

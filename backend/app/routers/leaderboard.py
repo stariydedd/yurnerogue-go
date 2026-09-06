@@ -29,8 +29,8 @@ def start_run(payload: RunStart, db: Session = Depends(get_db)):
     return RunTicket(ticket=ticket.id, seed=ticket.seed, version=version)
 
 
-def result_out(run: Run, verified: bool) -> RunOut:
-    return RunOut.model_validate(run).model_copy(update={"verified": verified})
+def result_out(run: Run) -> RunOut:
+    return RunOut.model_validate(run)
 
 
 @router.post("/runs", response_model=RunOut, status_code=201)
@@ -46,7 +46,7 @@ def submit_run(payload: RunSubmit, response: Response, db: Session = Depends(get
         if saved.actions_hash != digest:
             raise HTTPException(409, "Ticket already used for another replay")
         response.status_code = 200
-        return result_out(db.get(Run, saved.run_id), True)
+        return result_out(db.get(Run, saved.run_id))
 
     existing = replay()
     if existing is not None:
@@ -77,13 +77,11 @@ def submit_run(payload: RunSubmit, response: Response, db: Session = Depends(get
             return existing
         raise
     db.refresh(run)
-    return result_out(run, True)
+    return result_out(run)
 
 
 @router.get("/leaderboard", response_model=list[RunOut])
 def get_leaderboard(limit: int = Query(default=10, ge=1, le=100), db: Session = Depends(get_db)):
-    """Keep legacy scores visible, explicitly distinguish verified new runs."""
-    stmt = (select(Run, RankedResult.run_id)
-            .outerjoin(RankedResult, RankedResult.run_id == Run.id)
-            .order_by(desc(Run.treasures), desc(Run.level)).limit(limit))
-    return [result_out(run, verified_id is not None) for run, verified_id in db.execute(stmt)]
+    """Legacy scores are trusted by owner decision; new writes require replay."""
+    stmt = select(Run).order_by(desc(Run.treasures), desc(Run.level)).limit(limit)
+    return [result_out(run) for run in db.scalars(stmt)]
