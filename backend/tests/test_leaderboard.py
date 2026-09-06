@@ -1,3 +1,8 @@
+from uuid import uuid4
+
+import pytest
+
+
 def _run(treasures=100, level=3, **kw):
     payload = {"player_name": "tester", "treasures": treasures, "level": level}
     payload.update(kw)
@@ -58,3 +63,49 @@ def test_default_player_name_is_anonymous(client):
     resp = client.post("/api/runs", json={"treasures": 10, "level": 1})
     assert resp.status_code == 201
     assert resp.json()["player_name"] == "anonymous"
+
+
+def test_replay_returns_original_record_without_duplicate(client):
+    payload = _run(submission_id=str(uuid4()))
+    first = client.post("/api/runs", json=payload)
+    again = client.post("/api/runs", json=payload)
+    assert first.status_code == 201
+    assert again.status_code == 200
+    assert again.json() == first.json()
+    assert len(client.get("/api/leaderboard").json()) == 1
+
+
+def test_reusing_key_with_different_score_is_conflict(client):
+    payload = _run(submission_id=str(uuid4()))
+    first = client.post("/api/runs", json=payload)
+    payload["treasures"] += 1
+    assert client.post("/api/runs", json=payload).status_code == 409
+    assert client.get("/api/leaderboard").json() == [first.json()]
+
+
+def test_identical_scores_from_distinct_runs_are_allowed(client):
+    for _ in range(2):
+        assert client.post("/api/runs", json=_run(submission_id=str(uuid4()))).status_code == 201
+    assert len(client.get("/api/leaderboard").json()) == 2
+
+
+def test_replay_normalizes_uuid_and_default_fields(client):
+    key = str(uuid4())
+    first = client.post("/api/runs", json={"treasures": 10, "level": 1, "submission_id": key})
+    again = client.post("/api/runs", json={**first.json(), "submission_id": key.upper()})
+    assert again.status_code == 200
+    assert again.json() == first.json()
+
+
+def test_malformed_submission_id_is_rejected(client):
+    assert client.post("/api/runs", json=_run(submission_id="invalid")).status_code == 422
+
+
+@pytest.mark.parametrize("field", [
+    "treasures", "enemies_killed", "food_used", "elixirs_used", "scrolls_read",
+    "attacks_made", "hits_taken", "tiles_moved",
+])
+def test_counter_bounds_match_postgresql(client, field):
+    assert client.post("/api/runs", json=_run(**{field: 2**31})).status_code == 422
+    assert client.post("/api/runs", json=_run(**{field: -1})).status_code == 422
+    assert client.post("/api/runs", json=_run(**{field: 2**31 - 1})).status_code == 201

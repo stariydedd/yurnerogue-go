@@ -67,6 +67,7 @@ type Game struct {
 	submitStatus       string
 	topResults         chan topResult
 	submitResults      chan error
+	submissionID       string
 }
 
 // New создаёт игру с заданным рендерером. На тач-раскладке добавляется
@@ -417,6 +418,7 @@ func (g *Game) handleQuitDialog(key ebiten.Key) {
 
 // startNewGame начинает забег.
 func (g *Game) startNewGame() {
+	g.submissionID = ""
 	g.session = domain.NewSession()
 	g.pendingRun = false
 	g.submitStatus = ""

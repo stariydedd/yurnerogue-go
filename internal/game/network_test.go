@@ -48,3 +48,20 @@ func TestNetworkFailureDoesNotClaimScoreWasLost(t *testing.T) {
 		t.Fatal(g.submitStatus)
 	}
 }
+
+func TestSubmissionRejectionMessages(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{leaderboard.ErrRateLimited, "Too many scores. Submission rejected."},
+		{leaderboard.ErrRejected, "Score rejected by the server."},
+	} {
+		g := &Game{submitResults: make(chan error, 1)}
+		g.submitResults <- tc.err
+		g.pollNetwork()
+		if g.submitStatus != tc.want {
+			t.Fatal(g.submitStatus)
+		}
+	}
+}

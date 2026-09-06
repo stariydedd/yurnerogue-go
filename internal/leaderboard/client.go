@@ -8,8 +8,10 @@
 package leaderboard
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -19,6 +21,7 @@ const Timeout = 5 * time.Second
 
 // Run — результат забега; поля совпадают со схемой бэкенда.
 type Run struct {
+	SubmissionID  string `json:"submission_id,omitempty"`
 	PlayerName    string `json:"player_name"`
 	Treasures     int    `json:"treasures"`
 	Level         int    `json:"level"`
@@ -42,6 +45,31 @@ type Client struct {
 var ErrUnavailable = errors.New("leaderboard unavailable")
 
 var ErrTimeout = errors.New("leaderboard request timed out")
+
+var ErrRateLimited = errors.New("too many leaderboard submissions")
+var ErrRejected = errors.New("leaderboard rejected submission")
+
+func responseError(status int) error {
+	switch status {
+	case 429:
+		return ErrRateLimited
+	case 400, 409, 413, 422:
+		return ErrRejected
+	default:
+		return ErrUnavailable
+	}
+}
+
+// NewSubmissionID identifies a run, not an individual HTTP attempt.
+func NewSubmissionID() (string, error) {
+	var id [16]byte
+	if _, err := rand.Read(id[:]); err != nil {
+		return "", err
+	}
+	id[6] = (id[6] & 0x0f) | 0x40
+	id[8] = (id[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", id[:4], id[4:6], id[6:8], id[8:10], id[10:]), nil
+}
 
 // Submit отправляет результат забега.
 func (c *Client) Submit(run Run) error {

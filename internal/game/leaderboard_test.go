@@ -67,3 +67,49 @@ func TestSubmitRunReportsCompletedLevel(t *testing.T) {
 		})
 	}
 }
+
+func TestSubmissionIDIsReusedOnlyWithinOneRun(t *testing.T) {
+	received := make(chan leaderboard.Run, 3)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var run leaderboard.Run
+		if err := json.NewDecoder(r.Body).Decode(&run); err != nil {
+			t.Error(err)
+		}
+		received <- run
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer server.Close()
+	t.Setenv("ROGUE_API", server.URL)
+	g := &Game{session: domain.NewSessionAtLevel(1)}
+	send := func() string {
+		t.Helper()
+		g.submitRun()
+		pending := g.submitResults
+		g.submitRun()
+		if g.submitResults != pending {
+			t.Fatal("duplicate call started another in-flight request")
+		}
+		select {
+		case err := <-pending:
+			pending <- err
+			g.pollNetwork()
+		case <-time.After(2 * leaderboard.Timeout):
+			t.Fatal("submission did not complete")
+		}
+		select {
+		case run := <-received:
+			return run.SubmissionID
+		default:
+			t.Fatal("missing request")
+			return ""
+		}
+	}
+	first := send()
+	if first == "" || send() != first {
+		t.Fatal("retry must keep the original submission ID")
+	}
+	g.startNewGame()
+	if send() == first {
+		t.Fatal("new run must receive another submission ID")
+	}
+}

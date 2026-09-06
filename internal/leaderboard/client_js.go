@@ -46,7 +46,7 @@ func (c *Client) doWithTimeout(method, path string, body []byte, timeout time.Du
 		return nil, err
 	}
 	if !resp.Get("ok").Bool() {
-		return nil, ErrUnavailable
+		return nil, responseError(resp.Get("status").Int())
 	}
 
 	text, err := await(resp.Call("text"))

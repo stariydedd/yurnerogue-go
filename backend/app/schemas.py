@@ -1,24 +1,34 @@
 from datetime import datetime
+from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
-class RunSubmit(BaseModel):
-    """Тело POST /api/runs — результат забега от игры."""
+Counter = Annotated[int, Field(ge=0, le=2**31 - 1)]
+
+
+class RunFields(BaseModel):
+    """Score fields bounded by the PostgreSQL INTEGER storage type."""
 
     player_name: str = Field(default="anonymous", min_length=1, max_length=32)
-    treasures: int = Field(ge=0)
+    treasures: Counter
     level: int = Field(ge=1, le=21)
-    enemies_killed: int = Field(default=0, ge=0)
-    food_used: int = Field(default=0, ge=0)
-    elixirs_used: int = Field(default=0, ge=0)
-    scrolls_read: int = Field(default=0, ge=0)
-    attacks_made: int = Field(default=0, ge=0)
-    hits_taken: int = Field(default=0, ge=0)
-    tiles_moved: int = Field(default=0, ge=0)
+    enemies_killed: Counter = 0
+    food_used: Counter = 0
+    elixirs_used: Counter = 0
+    scrolls_read: Counter = 0
+    attacks_made: Counter = 0
+    hits_taken: Counter = 0
+    tiles_moved: Counter = 0
 
 
-class RunOut(RunSubmit):
+class RunSubmit(RunFields):
+    # Optional for older clients; new clients reuse one UUID for the whole run.
+    submission_id: UUID | None = None
+
+
+class RunOut(RunFields):
     """Запись лидерборда в ответах API."""
 
     id: int

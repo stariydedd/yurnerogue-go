@@ -69,6 +69,18 @@ jobs:
 
   test-backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rogue
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: rogue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rogue -d rogue_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -79,6 +91,29 @@ jobs:
       - name: Run backend tests
         run: pytest tests/ -v
         working-directory: backend
+        env:
+          TEST_POSTGRES_URL: postgresql+psycopg://rogue:test-only@localhost:5432/rogue_test
+
+  test-proxy:
+    runs-on: ubuntu-latest
+    env:
+      TEST_CERT_DIR: ${{ github.workspace }}/build/test-certs
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test production proxy limits
+        run: |
+          mkdir -p "$TEST_CERT_DIR"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj /CN=yurnerogue.ru \
+            -keyout "$TEST_CERT_DIR/privkey.pem" -out "$TEST_CERT_DIR/fullchain.pem"
+          docker compose -p rogue-proxy-test -f infra/tests/compose.yml up -d
+          docker compose -p rogue-proxy-test -f infra/tests/compose.yml exec -T nginx nginx -t
+          python infra/tests/test_proxy.py
+      - name: Proxy logs and cleanup
+        if: always()
+        run: |
+          docker compose -p rogue-proxy-test -f infra/tests/compose.yml logs
+          docker compose -p rogue-proxy-test -f infra/tests/compose.yml down
 
   build-web:
     runs-on: ubuntu-latest
@@ -125,7 +160,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [build-web, build-backend-image]
+    needs: [build-web, build-backend-image, test-proxy]
     if: github.ref == 'refs/heads/main'
     concurrency: production
     steps:

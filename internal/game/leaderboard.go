@@ -1,6 +1,8 @@
 package game
 
 import (
+	"errors"
+
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 	"github.com/stariydedd/yurnerogue-go/internal/leaderboard"
 	"github.com/stariydedd/yurnerogue-go/internal/render"
@@ -62,10 +64,15 @@ func (g *Game) pollNetwork() {
 	select {
 	case err := <-g.submitResults:
 		g.submitResults = nil
-		if err != nil {
+		switch {
+		case errors.Is(err, leaderboard.ErrRateLimited):
+			g.submitStatus = "Too many scores. Submission rejected."
+		case errors.Is(err, leaderboard.ErrRejected):
+			g.submitStatus = "Score rejected by the server."
+		case err != nil:
 			// При потере ответа сервер уже мог сохранить результат.
 			g.submitStatus = "Score submission could not be confirmed."
-		} else {
+		default:
 			g.submitStatus = "Score submitted to global leaderboard!"
 		}
 	default:
@@ -75,16 +82,25 @@ func (g *Game) pollNetwork() {
 // submitRun отправляет результат завершённого забега.
 func (g *Game) submitRun() {
 	s := g.session
-	if s == nil {
+	if s == nil || g.submitResults != nil {
 		return
+	}
+	if g.submissionID == "" {
+		id, err := leaderboard.NewSubmissionID()
+		if err != nil {
+			g.submitStatus = "Could not prepare score submission."
+			return
+		}
+		g.submissionID = id
 	}
 	name := g.playerName
 	if name == "" {
 		name = "anonymous"
 	}
 	run := leaderboard.Run{
-		PlayerName: name,
-		Treasures:  s.Player.Treasures,
+		SubmissionID: g.submissionID,
+		PlayerName:   name,
+		Treasures:    s.Player.Treasures,
 		// После победы сессия уже на уровне 22, но пройденный этаж — 21.
 		Level:         min(s.LevelNum, domain.MaxLevels),
 		EnemiesKilled: s.Stats.EnemiesKilled,

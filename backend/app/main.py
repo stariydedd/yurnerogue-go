@@ -9,7 +9,8 @@ from app.routers import leaderboard
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Пока схема создаётся напрямую; при первом изменении схемы заменим на Alembic-миграции.
+    # Creates missing tables only (including run_submissions). Changes to
+    # existing columns require a migration; create_all does not alter them.
     Base.metadata.create_all(bind=engine)
     yield
 

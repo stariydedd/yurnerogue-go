@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -25,3 +25,12 @@ class Run(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
+
+
+class RunSubmission(Base):
+    """Idempotency keys in a new table: existing runs need no schema changes."""
+
+    __tablename__ = "run_submissions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), unique=True)

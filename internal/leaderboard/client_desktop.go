@@ -42,7 +42,7 @@ func (c *Client) do(method, path string, body []byte) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		return nil, ErrUnavailable
+		return nil, responseError(resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)
 }

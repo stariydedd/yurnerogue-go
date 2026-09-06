@@ -59,3 +59,19 @@ func TestFetchSuccessAndRejectedPromise(t *testing.T) {
 		})
 	}
 }
+
+func TestFetchReportsRateLimitAndRejection(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		want   error
+	}{{429, ErrRateLimited}, {409, ErrRejected}, {422, ErrRejected}, {503, ErrUnavailable}} {
+		original := js.Global().Get("fetch")
+		factory := js.Global().Get("Function").New("status", `return () => Promise.resolve({ok:false, status});`)
+		js.Global().Set("fetch", factory.Invoke(tc.status))
+		_, err := New().doWithTimeout("POST", "/api/runs", []byte(`{}`), time.Second)
+		js.Global().Set("fetch", original)
+		if !errors.Is(err, tc.want) {
+			t.Fatalf("status %d: got %v, want %v", tc.status, err, tc.want)
+		}
+	}
+}
