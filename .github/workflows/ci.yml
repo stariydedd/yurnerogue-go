@@ -8,6 +8,11 @@ on:
 env:
   GO_VERSION: "1.26"
 
+# Новый push заменяет ожидающий запуск, но не обрывает текущую выкладку.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -116,9 +121,7 @@ jobs:
         with:
           context: backend
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/yurnerogue-backend:latest
-            ghcr.io/${{ github.repository_owner }}/yurnerogue-backend:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/yurnerogue-backend:${{ github.sha }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -127,35 +130,57 @@ jobs:
     concurrency: production
     steps:
       - uses: actions/checkout@v4
+      - name: Skip superseded release
+        id: release
+        shell: bash
+        run: |
+          head=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipping superseded release $GITHUB_SHA (main is $head)"
+          fi
       - uses: actions/download-artifact@v4
+        if: steps.release.outputs.current == 'true'
         with:
           name: web-build
           path: web-build
       - name: Set up SSH
+        if: steps.release.outputs.current == 'true'
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
       - name: Upload game static and infra files
+        if: steps.release.outputs.current == 'true'
+        env:
+          BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/yurnerogue-backend:${{ github.sha }}
         run: |
+          printf 'BACKEND_IMAGE=%s\n' "$BACKEND_IMAGE" > release.env
           rsync -az --delete web-build/ root@${{ secrets.DEPLOY_HOST }}:/var/www/rogue/
           rsync -az infra/docker-compose.prod.yml root@${{ secrets.DEPLOY_HOST }}:/opt/rogue/docker-compose.yml
           rsync -az infra/nginx/ root@${{ secrets.DEPLOY_HOST }}:/opt/rogue/nginx/
+          rsync -az release.env root@${{ secrets.DEPLOY_HOST }}:/opt/rogue/.release.env
       - name: Pull new backend image and restart stack
+        if: steps.release.outputs.current == 'true'
         run: |
           ssh root@${{ secrets.DEPLOY_HOST }} "
             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin &&
             cd /opt/rogue &&
-            docker compose pull -q &&
-            docker compose up -d --remove-orphans &&
-            docker compose exec -T nginx nginx -s reload &&
+            docker compose --env-file .env --env-file .release.env pull -q backend &&
+            docker compose --env-file .env --env-file .release.env up -d --remove-orphans --wait --wait-timeout 90 &&
+            docker compose --env-file .env --env-file .release.env exec -T nginx nginx -t &&
+            docker compose --env-file .env --env-file .release.env exec -T nginx nginx -s reload &&
             docker image prune -f
           "
       - name: Health check
+        if: steps.release.outputs.current == 'true'
         run: |
           for i in $(seq 1 12); do
-            if curl -fsS "https://yurnerogue.ru/api/health" > /dev/null; then
+            if curl --max-time 10 -fsS "https://yurnerogue.ru/api/health" > /dev/null &&
+               curl --max-time 10 -fsS "https://yurnerogue.ru/api/leaderboard?limit=1" > /dev/null &&
+               curl --max-time 10 -fsSI "https://yurnerogue.ru/main.wasm" > /dev/null; then
               echo "Health check passed"
               exit 0
             fi

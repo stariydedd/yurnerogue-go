@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: ghcr.io/stariydedd/yurnerogue-backend:latest
+    image: ${BACKEND_IMAGE:?Set BACKEND_IMAGE in .release.env to the release SHA image}
     env_file: .env
     depends_on:
       db:
