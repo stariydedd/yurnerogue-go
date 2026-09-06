@@ -119,8 +119,8 @@ func keyForControl(control string, state State) ebiten.Key {
 	case render.CtrlRight:
 		return ebiten.KeyRight
 	case render.CtrlRun:
-		if state == StateDeath || state == StateWin {
-			return ebiten.KeyR
+		if !runControlVisible(state) {
+			return ebiten.KeyMax
 		}
 		return ebiten.KeyF
 	case render.CtrlWeapon:
@@ -146,6 +146,10 @@ func keyForControl(control string, state State) ebiten.Key {
 		return ebiten.KeyQ
 	}
 	return ebiten.KeyMax
+}
+
+func runControlVisible(state State) bool {
+	return state != StateDeath && state != StateWin
 }
 
 // selectLabel — подпись контекстной кнопки для текущего экрана.

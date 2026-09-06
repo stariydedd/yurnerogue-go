@@ -165,8 +165,8 @@ result is submitted to the global leaderboard.
 
 Ranked runs obtain a server-issued seed and ticket before starting. The server
 replays the input log and computes the score itself. If starting online fails,
-the game starts a practice run that does not enter the leaderboard. After a
-ranked run, R (RUN on touch) retries submission without creating duplicates.
+the game starts a practice run that does not enter the leaderboard. A ranked
+result is submitted automatically once; there is no manual retry control.
 See [verification limits and operations](docs/operations.md).
 
 ## Local development

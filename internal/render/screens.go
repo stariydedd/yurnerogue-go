@@ -337,9 +337,9 @@ func (r *Renderer) DrawEndScreen(screen *ebiten.Image, title, submitStatus strin
 		}
 		r.TextCentered(screen, submitStatus, face, float64(l.ScreenH)/2+20, MsgColor)
 	}
-	hint := "Enter: menu / R: retry score"
+	hint := "Enter: menu"
 	if l.Touch {
-		hint = "SELECT: menu / RUN: retry score"
+		hint = "SELECT: menu"
 	}
 	if len(customHint) > 0 {
 		hint = customHint[0]

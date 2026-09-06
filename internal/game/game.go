@@ -138,9 +138,6 @@ func (g *Game) HandleKey(key ebiten.Key) {
 	case StateHelp:
 		g.state = g.helpReturn
 	case StateDeath, StateWin:
-		if key == ebiten.KeyR {
-			g.submitRun()
-		}
 		if key == ebiten.KeyEnter || key == ebiten.KeyNumpadEnter {
 			g.returnToMenu()
 		}

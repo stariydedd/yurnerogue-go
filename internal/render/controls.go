@@ -122,8 +122,8 @@ const (
 	SelectUse
 )
 
-// Draw рисует панель кнопок. pressed отмечает нажатые контролы.
-func (c *Controls) Draw(screen *ebiten.Image, r *Renderer, pressed map[string]bool, label SelectLabel) {
+// Draw рисует панель кнопок. showRun скрывает бег на экране результата.
+func (c *Controls) Draw(screen *ebiten.Image, r *Renderer, pressed map[string]bool, label SelectLabel, showRun bool) {
 	p := c.Panel
 	vector.DrawFilledRect(screen, float32(p.Min.X), float32(p.Min.Y),
 		float32(p.Dx()), float32(p.Dy()), PanelBG, false)
@@ -144,13 +144,15 @@ func (c *Controls) Draw(screen *ebiten.Image, r *Renderer, pressed map[string]bo
 		c.drawArrow(screen, name, rect)
 	}
 
-	hubFill := PanelBG
-	if pressed[CtrlRun] {
-		hubFill = BtnPressed
+	if showRun {
+		hubFill := PanelBG
+		if pressed[CtrlRun] {
+			hubFill = BtnPressed
+		}
+		vector.DrawFilledCircle(screen, float32(c.dpadCent.X), float32(c.dpadCent.Y), 22, hubFill, true)
+		vector.StrokeCircle(screen, float32(c.dpadCent.X), float32(c.dpadCent.Y), 22, 2, BtnEdge, true)
+		r.drawCentered(screen, "ui_run", c.dpadCent, 34)
 	}
-	vector.DrawFilledCircle(screen, float32(c.dpadCent.X), float32(c.dpadCent.Y), 22, hubFill, true)
-	vector.StrokeCircle(screen, float32(c.dpadCent.X), float32(c.dpadCent.Y), 22, 2, BtnEdge, true)
-	r.drawCentered(screen, "ui_run", c.dpadCent, 34)
 
 	// Ромб предметов со спрайтами.
 	for name, center := range c.buttons {

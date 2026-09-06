@@ -14,7 +14,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// Справке отдаётся весь экран: панель не рисуется, выход — тап.
 	if g.controls != nil && g.state != StateHelp {
-		g.controls.Draw(surface, r, g.pressedControls(), selectLabel(g.state))
+		g.controls.Draw(surface, r, g.pressedControls(), selectLabel(g.state), runControlVisible(g.state))
 	}
 
 	sx, sy := g.scaleToWindow()

@@ -107,7 +107,27 @@ func TestInventoryInputRecordsSharedDomainAction(t *testing.T) {
 	if g.session.Actions() != "h1" || g.session.Player.Weapon == nil {
 		t.Fatal("inventory bypassed replay path")
 	}
-	if keyForControl("run", StateDeath) != ebiten.KeyR {
-		t.Fatal("missing mobile retry")
+}
+
+func TestEndScreenHasNoRetryControls(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("end-screen input unexpectedly submitted a score")
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer server.Close()
+	t.Setenv("ROGUE_API", server.URL)
+	for _, state := range []State{StateDeath, StateWin} {
+		g := &Game{state: state, session: domain.NewSessionSeed(1), runTicket: "ticket", submitStatus: "saved"}
+		if runControlVisible(state) || keyForControl("run", state) != ebiten.KeyMax {
+			t.Fatal("end screen exposes RUN")
+		}
+		g.HandleKey(ebiten.KeyR)
+		g.HandleKey(keyForControl("run", state))
+		if g.submitResults != nil || g.submitStatus != "saved" {
+			t.Fatal("retry is still enabled")
+		}
+	}
+	if !runControlVisible(StatePlaying) || keyForControl("run", StatePlaying) != ebiten.KeyF {
+		t.Fatal("ordinary gameplay running was removed")
 	}
 }
