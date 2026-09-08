@@ -51,12 +51,13 @@ func loadFonts() (*Fonts, error) {
 
 // Renderer рисует все экраны игры.
 type Renderer struct {
-	Layout  Layout
-	Fonts   *Fonts
-	sprites *Sprites
-	dim     *ebiten.Image // полупрозрачный слой тумана войны
-	tick    int
-	forest  *forestCache
+	Layout       Layout
+	Fonts        *Fonts
+	sprites      *Sprites
+	dim          *ebiten.Image // полупрозрачный слой тумана войны
+	tick         int
+	forest       *forestCache
+	forestMemory forestMemory
 }
 
 // New создаёт рендерер под заданную раскладку.

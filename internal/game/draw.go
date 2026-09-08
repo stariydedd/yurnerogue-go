@@ -42,7 +42,7 @@ func (g *Game) drawScreen(screen *ebiten.Image) {
 
 	switch g.state {
 	case StateStarting:
-		r.DrawEndScreen(screen, "CONNECTING", "Starting ranked run...", "Q / Esc / MENU: cancel")
+		r.DrawEndScreen(screen, "CONNECTING", "Starting game...", "Q / Esc / MENU: cancel")
 	case StateMainMenu:
 		r.DrawMainMenu(screen, g.menuSelected, g.menuMessage)
 	case StateNameEntry:

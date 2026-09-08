@@ -24,6 +24,8 @@ type preview struct {
 	err       error
 	frames    int
 	firstHash [32]byte
+	walk      []domain.Point
+	step      int
 }
 
 func (p *preview) Update() error {
@@ -57,14 +59,27 @@ func (p *preview) Draw(screen *ebiten.Image) {
 	if p.frames < 3 {
 		return
 	}
-	f, err := os.Create(p.out)
+	destination := p.out
+	if len(p.walk) > 0 {
+		ext := filepath.Ext(destination)
+		destination = fmt.Sprintf("%s-step-%d%s", destination[:len(destination)-len(ext)], p.step, ext)
+	}
+	f, err := os.Create(destination)
 	if err == nil {
 		err = png.Encode(f, screen)
 		if closeErr := f.Close(); err == nil {
 			err = closeErr
 		}
 	}
-	p.err, p.done = err, true
+	p.err = err
+	if err == nil && p.step < len(p.walk) {
+		next := p.walk[p.step]
+		p.s.Player.X, p.s.Player.Y = next.X, next.Y
+		p.step++
+		p.frames = 0
+		return
+	}
+	p.done = true
 }
 
 func (p *preview) Layout(_, _ int) (int, int) {
@@ -74,6 +89,16 @@ func (p *preview) Layout(_, _ int) (int, int) {
 func fixture(scene string) *domain.Session {
 	s := domain.NewSessionSeed(21)
 	if scene == "seed" {
+		return s
+	}
+	if scene == "corridor-bend" {
+		s.Level.Rooms = nil
+		s.Level.Items = nil
+		s.Level.Passages = []domain.Rect{{X: 8, Y: 19, W: 13, H: 3}, {X: 18, Y: 12, W: 3, H: 10}}
+		s.Level.Doors = nil
+		s.Level.Exit = domain.Point{X: 40, Y: 40}
+		s.Player.X, s.Player.Y = 19, 20
+		s.VisitedRooms = map[int]bool{}
 		return s
 	}
 	room := &domain.Room{X: 8, Y: 6, W: 16, H: 9}
@@ -142,13 +167,13 @@ func fixture(scene string) *domain.Session {
 }
 
 func main() {
-	scene := flag.String("scene", "room", "room, corridor, heroes, hero-depth, hero-depth-reverse, gate-items, gate-clear, gate-hero, or seeded gameplay (seed)")
+	scene := flag.String("scene", "room", "room, corridor, corridor-bend (four walking frames), heroes, hero-depth, hero-depth-reverse, gate-items, gate-clear, gate-hero, or seeded gameplay (seed)")
 	out := flag.String("out", "build/radiant-room.png", "screenshot destination")
 	touch := flag.Bool("touch", false, "capture the portrait touch layout")
 	frame := flag.Int("frame", 0, "fixed animation frame for all sprite roles")
 	left := flag.Bool("left", false, "face all characters left")
 	flag.Parse()
-	if *scene != "room" && *scene != "corridor" && *scene != "seed" && *scene != "heroes" && *scene != "hero-depth" && *scene != "hero-depth-reverse" && *scene != "gate-items" && *scene != "gate-clear" && *scene != "gate-hero" {
+	if *scene != "room" && *scene != "corridor" && *scene != "corridor-bend" && *scene != "seed" && *scene != "heroes" && *scene != "hero-depth" && *scene != "hero-depth-reverse" && *scene != "gate-items" && *scene != "gate-clear" && *scene != "gate-hero" {
 		log.Fatal("unknown scene")
 	}
 	if err := os.MkdirAll(filepath.Dir(*out), 0755); err != nil {
@@ -178,7 +203,11 @@ func main() {
 			op.Facing = -1
 		}
 	}
-	if err := ebiten.RunGame(&preview{r: r, s: s, out: *out}); err != nil {
+	p := &preview{r: r, s: s, out: *out}
+	if *scene == "corridor-bend" {
+		p.walk = []domain.Point{{X: 19, Y: 19}, {X: 19, Y: 20}, {X: 19, Y: 19}}
+	}
+	if err := ebiten.RunGame(p); err != nil {
 		log.Fatal(err)
 	}
 }

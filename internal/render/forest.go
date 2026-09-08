@@ -30,6 +30,28 @@ type forestCache struct {
 	frame *ebiten.Image
 }
 
+// Remember only revealed floor, including corridors, for this level. This is
+// rendering state: it must not reveal items or change gameplay visibility.
+type forestMemory struct {
+	level  *domain.Level
+	ground map[domain.Point]bool
+}
+
+func (m *forestMemory) reveal(level *domain.Level, grid domain.Grid, vis domain.Visibility) domain.Visibility {
+	if m.level != level || m.ground == nil {
+		m.level = level
+		m.ground = map[domain.Point]bool{}
+	}
+	for _, cells := range []map[domain.Point]bool{vis.Visible, vis.Explored} {
+		for p, known := range cells {
+			if known && isFloor(grid.At(p.X, p.Y)) {
+				m.ground[p] = true
+			}
+		}
+	}
+	return domain.Visibility{Visible: vis.Visible, Explored: m.ground}
+}
+
 // Terrain is static between player steps. Cache its GPU image instead of
 // rebuilding the forest and its low foliage on every animation frame.
 func (r *Renderer) drawCachedForest(dst *ebiten.Image, grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, key forestCacheKey) {
@@ -46,7 +68,8 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, grid domain.Grid, vis dom
 			frame = ebiten.NewImage(key.viewport.Dx(), key.viewport.Dy())
 		}
 		frame.Fill(Black)
-		r.drawForestTerrain(frame, grid, vis, paths, key.viewport.Min.X, key.viewport.Min.Y)
+		terrainVis := r.forestMemory.reveal(key.level, grid, vis)
+		r.drawForestTerrain(frame, grid, terrainVis, paths, key.viewport.Min.X, key.viewport.Min.Y)
 		r.forest = &forestCache{key: key, frame: frame}
 	}
 	dst.DrawImage(r.forest.frame, nil)
@@ -163,8 +186,8 @@ func forestTreeSilhouette(p forestProp) (image.Rectangle, image.Rectangle) {
 	return crown, trunk
 }
 
-// Edge trees and woodland trees share this one pass.
-// Select in world space before viewport culling so panning cannot reshuffle it.
+// Select the complete woodland before filtering revealed floor. Removed trees
+// still reserve their space, so discovering a path cannot reshuffle neighbours.
 func forestTrees(v forestView) []forestProp {
 	type candidate struct {
 		prop     forestProp
@@ -174,17 +197,7 @@ func forestTrees(v forestView) []forestProp {
 	add := func(x, y, h, priority int) {
 		w, height := 100+(h/113)%21, 128+(h/199)%25
 		rect := image.Rect(x-w/2, y-height, x+w/2, y)
-		if v.fits(rect, 5) {
-			candidates = append(candidates, candidate{forestProp{role: "tree", frame: h / 7, rect: rect}, priority})
-		}
-	}
-	for y := 0; y < domain.Rows; y++ {
-		for x := 0; x < domain.Cols; x++ {
-			h := cellHash(x*5+3, y)
-			if v.ground[domain.Point{X: x, Y: y}] && !v.ground[domain.Point{X: x, Y: y - 1}] && h%2 == 0 {
-				add(x*TileSize+16+h%13-6, y*TileSize+4-(h/13)%19, h, h%10000)
-			}
-		}
+		candidates = append(candidates, candidate{forestProp{role: "tree", frame: h / 7, rect: rect}, priority})
 	}
 	for gy := 0; gy <= (domain.Rows*TileSize+160)/56; gy++ {
 		for gx := 0; gx <= (domain.Cols*TileSize+160)/56; gx++ {
@@ -203,9 +216,11 @@ func forestTrees(v forestView) []forestProp {
 	for _, c := range candidates {
 		crown, trunk := forestTreeSilhouette(c.prop)
 		if space.free(crown.Inset(-6)) && space.free(trunk.Inset(-6)) {
-			trees = append(trees, c.prop)
 			space.occupy(crown)
 			space.occupy(trunk)
+			if v.fits(c.prop.rect, 5) {
+				trees = append(trees, c.prop)
+			}
 		}
 	}
 	return trees
@@ -248,14 +263,14 @@ func (s forestSpace) protectTree(p forestProp) {
 func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 	// All tall/solid props participate in spacing even outside the viewport.
 	// Verge is ground cover and intentionally overlaps roots and other fringes.
-	scenery := forestTrees(v)
+	scenery := forestTrees(forestView{})
 	space := forestSpace{}
 	for _, tree := range scenery {
 		space.protectTree(tree)
 	}
 	var props []forestProp
 	add := func(role string, frame int, rect image.Rectangle) bool {
-		if v.fits(rect, 5) && space.free(rect) {
+		if space.free(rect) {
 			scenery = append(scenery, forestProp{role: role, frame: frame, rect: rect})
 			inset := 5
 			if role == "bush" && rect.Dy() > 30 {
@@ -303,21 +318,6 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 				if vr.Overlaps(viewport) && v.fits(vr, 5) {
 					props = append(props, forestProp{role: "verge", frame: h, rect: vr, rotation: rotation})
 				}
-				w, hgt := 48+h%21, 40+(h/17)%17
-				role := "bush"
-				frame := (h / 5) % 3
-				if (h/29)%13 == 0 {
-					frame = 3
-				} // Cyan plants are accents, not a border pattern.
-				if h%4 == 0 {
-					role = "ruins"
-					w, hgt = 48, 60
-					frame = (h / 5) % 3 // Mostly broken blocks, fewer pillars.
-				}
-				ox, oy := d.X*(w/2-4), d.Y*(hgt/2-4)
-				tangent := h%11 - 5
-				cx, cy := ex+ox+d.Y*tangent, ey+oy+d.X*tangent
-				add(role, frame, image.Rect(cx-w/2, cy-hgt/2, cx+w/2, cy+hgt/2))
 			}
 		}
 	}
@@ -409,6 +409,11 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 		}
 	}
 	for _, p := range scenery {
+		// Filter only after every solid prop has reserved its permanent space.
+		// No replacement is spawned into gaps left by newly revealed ground.
+		if !v.fits(p.rect, 5) {
+			continue
+		}
 		if p.role == "tree" || p.role == "ruins" {
 			p.lightAnchor = forestFoot(p)
 			bed := forestBed(p)

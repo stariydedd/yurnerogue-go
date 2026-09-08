@@ -88,6 +88,128 @@ func TestForestStableAcrossFramesAndCameraMovement(t *testing.T) {
 	}
 }
 
+func corridorForestSession() *domain.Session {
+	s := domain.NewSessionSeed(21)
+	s.Level.Rooms = nil
+	s.Level.Items = nil
+	s.Level.Passages = []domain.Rect{
+		{X: 8, Y: 19, W: 13, H: 3},
+		{X: 18, Y: 12, W: 3, H: 10},
+	}
+	s.Level.Exit = domain.Point{X: 40, Y: 40}
+	s.VisitedRooms = map[int]bool{}
+	return s
+}
+
+func TestForestStableAcrossAdjacentCorridorSteps(t *testing.T) {
+	s := corridorForestSession()
+	var memory forestMemory
+	view := func(p domain.Point) forestView {
+		s.Player.X, s.Player.Y = p.X, p.Y
+		grid := s.BuildGrid(false)
+		return newForestView(grid, memory.reveal(s.Level, grid, s.ComputeVisibility(grid)))
+	}
+	a, b := domain.Point{X: 19, Y: 20}, domain.Point{X: 19, Y: 19}
+	// Discover both views, then walk back and forth around the bend.
+	view(a)
+	view(b)
+	va, vb := view(a), view(b)
+	if !reflect.DeepEqual(va.ground, vb.ground) {
+		t.Fatal("a corridor disappears after stepping out of sight")
+	}
+	if reflect.DeepEqual(va.distance, vb.distance) {
+		t.Fatal("fixture must change the actual field of view")
+	}
+	viewport := image.Rect(0, 0, 1280, 900)
+	pa, pb := forestProps(va, viewport), forestProps(vb, viewport)
+	if !reflect.DeepEqual(pa, pb) {
+		t.Fatal("adjacent corridor steps reshuffle scenery")
+	}
+	if !reflect.DeepEqual(pb, forestProps(view(a), viewport)) {
+		t.Fatal("returning around the bend changes scenery")
+	}
+}
+
+func TestForestDiscoveryOnlyRemovesObstructingProps(t *testing.T) {
+	viewport := image.Rect(0, 0, 1280, 900)
+	before := forestProps(forestView{}, viewport)
+	v := forestView{ground: map[domain.Point]bool{}}
+	for y := 10; y <= 20; y++ {
+		v.ground[domain.Point{X: 19, Y: y}] = true
+	}
+	for x := 8; x <= 19; x++ {
+		v.ground[domain.Point{X: x, Y: 20}] = true
+	}
+	solid := func(props []forestProp) map[forestProp]bool {
+		result := map[forestProp]bool{}
+		for _, p := range props {
+			if !p.groundCover && p.role != "verge" {
+				result[p] = true
+			}
+		}
+		return result
+	}
+	a, b := solid(before), solid(forestProps(v, viewport))
+	removed := 0
+	for p := range a {
+		if !b[p] {
+			removed++
+			if v.fits(p.rect, 5) {
+				t.Fatalf("unobstructing %s disappeared at %v", p.role, p.rect)
+			}
+		}
+	}
+	for p := range b {
+		if !a[p] {
+			t.Fatalf("discovery spawned or moved %s at %v", p.role, p.rect)
+		}
+	}
+	if removed == 0 || len(b) == 0 {
+		t.Fatal("fixture must remove obstacles and retain surrounding scenery")
+	}
+}
+
+func TestForestMemoryDoesNotRevealGameplayOrUnknownTerrain(t *testing.T) {
+	s := corridorForestSession()
+	s.Player.X, s.Player.Y = 19, 20
+	grid := s.BuildGrid(false)
+	vis := s.ComputeVisibility(grid)
+	var memory forestMemory
+	memory.reveal(s.Level, grid, vis)
+	for p := range memory.ground {
+		if !vis.Visible[p] && !vis.Explored[p] {
+			t.Fatal("memory contains unseen floor")
+		}
+	}
+	if len(vis.Explored) != 0 {
+		t.Fatal("renderer mutated gameplay exploration")
+	}
+	visible := map[domain.Point]bool{}
+	remembered := memory.reveal(s.Level, grid, domain.Visibility{Visible: visible})
+	if len(remembered.Explored) == 0 || len(remembered.Visible) != 0 || len(visible) != 0 {
+		t.Fatal("remembered terrain must not make items or enemies visible")
+	}
+	// Changing concealed geometry must not influence the remembered forest.
+	other := s.BuildGrid(false)
+	for y := 0; y < domain.Rows; y++ {
+		for x := 0; x < domain.Cols; x++ {
+			if !vis.Visible[domain.Point{X: x, Y: y}] {
+				other[y][x] = domain.SymRoomFloor
+			}
+		}
+	}
+	var alternate forestMemory
+	got := newForestView(other, alternate.reveal(s.Level, other, vis))
+	want := newForestView(grid, memory.reveal(s.Level, grid, vis))
+	if !reflect.DeepEqual(got, want) {
+		t.Fatal("hidden geometry affects forest memory")
+	}
+	reset := memory.reveal(&domain.Level{}, grid, domain.Visibility{})
+	if len(reset.Explored) != 0 {
+		t.Fatal("terrain memory leaked into a new level")
+	}
+}
+
 func TestForestTreesHaveBreathingRoom(t *testing.T) {
 	for _, seed := range []int64{1, 21, 99, 2026} {
 		s := domain.NewSessionSeed(seed)

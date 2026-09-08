@@ -40,11 +40,10 @@ func (g *Game) pollNetwork() {
 		g.startNewGame()
 		seed, err := strconv.ParseInt(result.ticket.Seed, 10, 64)
 		if result.err != nil || err != nil || result.ticket.Version != domain.RulesVersion || result.ticket.Ticket == "" {
-			g.session.SetMessage("Practice run: ranked server unavailable. Reload to update.")
+			g.session.SetMessage("Leaderboard unavailable for this game.")
 		} else {
 			g.session = domain.NewSessionSeed(seed)
 			g.runTicket = result.ticket.Ticket
-			g.session.SetMessage("Ranked run: server replay verification enabled.")
 		}
 	default:
 	}
@@ -121,15 +120,15 @@ func (g *Game) submitRun() {
 		return
 	}
 	if g.runTicket == "" {
-		g.submitStatus = "Practice run: not submitted to leaderboard."
+		g.submitStatus = "Score not submitted: leaderboard unavailable for this game."
 		return
 	}
 	if s.ReplayOverflow {
-		g.submitStatus = "Replay limit reached: score cannot be verified."
+		g.submitStatus = "Game length limit reached: score cannot be submitted."
 		return
 	}
 	ticket, actions := g.runTicket, s.Actions()
-	g.submitStatus = "Verifying score..."
+	g.submitStatus = "Submitting score..."
 	client := leaderboard.New()
 	results := make(chan error, 1)
 	g.submitResults = results

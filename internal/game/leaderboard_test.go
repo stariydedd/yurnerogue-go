@@ -61,7 +61,7 @@ func TestRankedSubmissionContainsOnlyTicketAndReplay(t *testing.T) {
 		t.Fatal("new practice run kept ticket")
 	}
 	g.submitRun()
-	if g.submitResults != nil || g.submitStatus != "Practice run: not submitted to leaderboard." {
+	if g.submitResults != nil || g.submitStatus != "Score not submitted: leaderboard unavailable for this game." {
 		t.Fatal("practice submitted")
 	}
 }
@@ -96,6 +96,21 @@ func TestStartResponseCreatesSeededOrPracticeRun(t *testing.T) {
 		if !failure && g.session.Level.Seed != domain.NewSessionSeed(1).Level.Seed {
 			t.Fatal("server seed not used")
 		}
+		if !failure && g.session.Message != "" {
+			t.Fatal("successful start should not display a run-mode announcement")
+		}
+		if failure && g.session.Message != "Leaderboard unavailable for this game." {
+			t.Fatal("missing leaderboard availability warning")
+		}
+	}
+}
+
+func TestReplayOverflowDoesNotSubmit(t *testing.T) {
+	g := &Game{session: domain.NewSessionSeed(1), runTicket: "server-issued"}
+	g.session.ReplayOverflow = true
+	g.submitRun()
+	if g.submitResults != nil || g.submitStatus != "Game length limit reached: score cannot be submitted." {
+		t.Fatal("overflow must prevent submission and explain the limit")
 	}
 }
 
