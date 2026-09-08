@@ -15,41 +15,76 @@ import (
 )
 
 // tileRoles масштабируются ровно в клетку, чтобы в сетке не было щелей.
-var tileRoles = map[string]bool{"floor": true, "wall": true, "portal": true, "path": true}
+var tileRoles = map[string]bool{"floor": true}
 
 // Sprites — кадры по ролям. Имя файла задаёт роль: `<роль>.png` — статичный
 // спрайт, `<роль>.N.png` — N кадров анимации по горизонтали.
 type Sprites struct {
-	frames  map[string][]*ebiten.Image
-	flipped map[string][]*ebiten.Image
+	frames        map[string][]*ebiten.Image
+	flipped       map[string][]*ebiten.Image
+	groundPickups map[string][]*ebiten.Image
+	worldHeroes   map[string][]*ebiten.Image
 }
 
-// LoadSprites читает все PNG из assets/custom.
+// LoadSprites читает базовые PNG, затем применяет оформление Radiant.
 func LoadSprites() (*Sprites, error) {
-	entries, err := assets.FS.ReadDir("custom")
-	if err != nil {
-		return nil, err
-	}
 	s := &Sprites{
 		frames:  map[string][]*ebiten.Image{},
 		flipped: map[string][]*ebiten.Image{},
+	}
+	for _, dir := range []string{"custom", "custom/radiant"} {
+		if err := s.loadDir(dir); err != nil {
+			return nil, err
+		}
+	}
+	return s, nil
+}
+
+func (s *Sprites) loadDir(dir string) error {
+	entries, err := assets.FS.ReadDir(dir)
+	if err != nil {
+		return err
 	}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".png") {
 			continue
 		}
 		role, count := parseSpriteName(e.Name())
-		data, err := assets.FS.ReadFile(path.Join("custom", e.Name()))
+		file := path.Join(dir, e.Name())
+		data, err := assets.FS.ReadFile(file)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		img, _, err := image.Decode(bytes.NewReader(data))
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", e.Name(), err)
+			return fmt.Errorf("%s: %w", file, err)
+		}
+		if img.Bounds().Dx()%count != 0 || img.Bounds().Dx()/count == 0 {
+			return fmt.Errorf("%s: width must be a positive multiple of %d frames", file, count)
 		}
 		s.frames[role] = splitFrames(ebiten.NewImageFromImage(img), count, tileRoles[role])
+		if isPickupRole(role) || isHeroRole(role) {
+			frames := make([]*ebiten.Image, count)
+			w := img.Bounds().Dx() / count
+			for i := range frames {
+				b := image.Rect(img.Bounds().Min.X+i*w, img.Bounds().Min.Y, img.Bounds().Min.X+(i+1)*w, img.Bounds().Max.Y)
+				frames[i] = ebiten.NewImageFromImage(outlineSprite(img, b))
+			}
+			if isPickupRole(role) {
+				if s.groundPickups == nil {
+					s.groundPickups = map[string][]*ebiten.Image{}
+				}
+				s.groundPickups[role] = frames
+			} else {
+				if s.worldHeroes == nil {
+					s.worldHeroes = map[string][]*ebiten.Image{}
+				}
+				s.worldHeroes[role] = frames
+			}
+		}
+		delete(s.flipped, role)
 	}
-	return s, nil
+	return nil
 }
 
 // parseSpriteName разбирает имя файла в роль и число кадров:

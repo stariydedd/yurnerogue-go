@@ -3,13 +3,19 @@ Press Start 2P by CodeMan38
 https://fonts.google.com/specimen/Press+Start+2P
 License: SIL Open Font License 1.1
 
-custom/floor.6.png, custom/path.6.png — tiles from "[LPC] Terrains"
-https://opengameart.org/content/lpc-terrains
-License: CC-BY-SA 3.0 / GPL 3.0. Authors: see CREDITS-lpc-terrain.txt
+custom/radiant/{floor,decor,tree,bush,ruins,verge,moss,meadow,trail}.4.png
+Radiant-inspired environment pixel art.
+Final source sheets: docs/art/radiant/sources/.
 
-custom/wall.8.png, custom/tree.2.png, custom/decor.4.png — from "[LPC] Trees Mega-Pack"
-https://opengameart.org/content/lpc-trees
-License: CC-BY-SA 3.0. Authors: see CREDITS-lpc-trees.txt
+custom/radiant/{food,elixir,scroll,sword,portal}.png — item and portal pixel art
+Final source cutouts:
+docs/art/radiant/items/sources/.
+Tango, Clarity, TP Scroll and Juggernaut Blade are fan interpretations of
+Dota 2 designs (© Valve). The portal is also a fan interpretation
+based on a Dota 2 reference (© Valve).
+Current mossy, bright-blue portal source:
+docs/art/radiant/items/sources/portal.png (packed to 56x64).
+Original base icons below are retained. This does not grant rights to Valve designs.
 
 custom/player.8.png, pudge.8.png, bloodseeker.21.png, riki.39.png,
 axe.48.png, skywrath.5.png — pixel Showcase Decorations from Dota 2 (© Valve),

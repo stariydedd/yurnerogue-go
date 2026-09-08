@@ -9,15 +9,15 @@ a global leaderboard and a full CI/CD pipeline deploying to a VPS.
 
 | Desktop | Mobile |
 |---------|--------|
-| ![Gameplay](docs/screenshots/gameplay.png) | ![Mobile](docs/screenshots/mobile.png) |
+| [![Radiant forest, heroes and portal](docs/screenshots/gameplay.png)](docs/screenshots/gameplay.png) | [![Portrait layout with touch controls](docs/screenshots/mobile.png)](docs/screenshots/mobile.png) |
+
+Current local build, captured from the game renderer in a fixed showcase scene.
 
 ## About
 
-The Dark Carnival passed through the jungle and did not leave whole: its
-creatures stayed and twisted the forest. As Yurnero the Juggernaut you cut
-clearings through the thicket and descend twenty-one floors toward the heart of
-the Carnival. Every floor is procedurally generated and harder than the last;
-every finished run lands on a global leaderboard shared by all players.
+Play as Juggernaut through 21 procedurally generated forest levels. Fight
+five enemy types, collect items and improve your stats as the difficulty
+increases. Complete ranked runs to compete on the global leaderboard.
 
 This is the third iteration of the project: it began as a terminal roguelike in
 Python ([rogue](https://github.com/stariydedd/rogue)), grew a graphical UI and a
@@ -45,8 +45,7 @@ flowchart LR
 The game keeps a layered architecture, with dependencies pointing inwards:
 
 - **`internal/domain/`** — game rules and state: level generation, combat,
-  movement, fog of war. No dependency on rendering, input or networking, and
-  the only package with tests.
+  movement, fog of war. No dependency on rendering, input or networking.
 - **`internal/render/`** — Ebitengine drawing: sprites, world map with camera,
   HUD, menus and on-screen touch controls.
 - **`internal/game/`** — the state machine tying the two together, plus input.
@@ -62,7 +61,8 @@ compile an entire CPython interpreter plus pygame in the browser — tens of
 megabytes before the first frame. It worked on desktop, but never finished
 loading inside Telegram's webview.
 
-Measured on the same phone over LTE, cold cache:
+Historical measurements from the initial Go port, on the same phone over LTE
+with a cold cache (before the visual update; not current bundle benchmarks):
 
 | | Python (pygbag) | Go (Ebitengine) |
 |---|---|---|
@@ -107,6 +107,12 @@ TLS certificates are issued by Let's Encrypt and renewed automatically by
 
 - 21 procedurally generated jungle floors with fog of war and a camera that
   follows the player.
+- Dense Radiant-style forest with moss, roots, ruins and natural-looking
+  clearing edges; continuous grass and corridor trails.
+- Refreshed Tango, Clarity, scroll and blade sprites, plus a mossy portal
+  with bright blue light. The gate fades locally behind nearby items and heroes.
+- Dark outlines improve item and character readability; characters are drawn
+  in depth order, with those lower on the screen in front. Static scenery is cached.
 - 5 recognizable Dota heroes as enemies, each with distinct behaviour and
   breadth-first chasing.
 - Items and buffs, plus the classic run command (`F` + direction) that follows
@@ -154,13 +160,15 @@ Enemy stats grow with each floor while useful items become rarer.
 
 | Item | Effect |
 |------|--------|
-| Food | Restores health. |
-| Elixir | Temporary buff to strength, agility or max HP for 20 turns. |
-| Scroll | Permanent buff to one stat. |
-| Weapon | Equipped via `H`; the previous weapon drops onto a free adjacent tile in a room, corridor or doorway. If none is available, it goes into the backpack. |
+| Food (Tango) | Restores health. |
+| Elixir (Clarity) | Temporary buff to strength, agility or max HP for 20 turns. |
+| Scroll (TP Scroll artwork) | Permanent buff to one stat. |
+| Weapon (Juggernaut blade) | Equipped via `H`; the previous weapon drops onto a free adjacent tile in a room, corridor or doorway. If none is available, it goes into the backpack. |
 | Treasure | Credited for slain enemies; determines leaderboard rank. |
 
-The exit is a glowing portal — descending after floor 21 wins the run, and the
+The Dota-inspired artwork does not change item effects: Clarity is a stat buff,
+and the scroll is not a teleport. The exit is a blue-glowing portal —
+descending after floor 21 wins the run, and the
 result is submitted to the global leaderboard.
 
 Ranked runs obtain a server-issued seed and ticket before starting. The server
@@ -173,7 +181,7 @@ See [verification limits and operations](docs/operations.md).
 
 ```
 go run ./cmd/game                                  # native window
-go test ./internal/domain/...                      # game rules
+go test ./...                                      # all Go tests
 
 GOOS=js GOARCH=wasm go build -o build/web/main.wasm ./cmd/game
 cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" build/web/
@@ -201,11 +209,15 @@ yurnerogue/
 ├── backend/               # FastAPI leaderboard service + its tests
 ├── infra/                 # docker-compose stacks, nginx (TLS)
 ├── web/                   # HTML shell and favicon
+├── tools/                 # sprite packing and local renderer screenshots
+├── docs/art/              # final source artwork for sprite packing
 └── .github/workflows/     # CI/CD pipeline
 ```
 
 ## Assets
 
-Hero sprites and item icons are fan-made pixel art (Dota 2 © Valve, used as
-non-commercial fan content); third-party fonts and tiles are listed in
+The environment uses the Radiant sprite set in `internal/assets/custom/radiant/`.
+Items and portal are fan interpretations of Dota 2 designs. Hero sprites
+and the favicon come from Dota 2 (© Valve); the font is Press Start 2P.
+Sources and license notices are listed in
 [internal/assets/LICENSE.txt](internal/assets/LICENSE.txt).

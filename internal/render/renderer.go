@@ -56,6 +56,7 @@ type Renderer struct {
 	sprites *Sprites
 	dim     *ebiten.Image // полупрозрачный слой тумана войны
 	tick    int
+	forest  *forestCache
 }
 
 // New создаёт рендерер под заданную раскладку.
