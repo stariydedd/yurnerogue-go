@@ -11,7 +11,7 @@ var ErrAction = errors.New("invalid replay action")
 var ErrReplayLimit = errors.New("replay limit exceeded")
 
 // UseChoice shares inventory rules between the UI and the headless verifier.
-// Weapon choice 0 means bare hands; other categories use zero-based indices.
+// Weapon choice 0 returns to Quelling Blade; other categories use zero-based indices.
 func (s *Session) UseChoice(t ItemType, choice int) bool {
 	p := s.Player
 	items := p.ItemsOfType(t)

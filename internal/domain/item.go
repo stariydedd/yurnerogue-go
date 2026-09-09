@@ -2,6 +2,9 @@ package domain
 
 import "math/rand"
 
+// BaseWeaponName is the permanent starter, represented by no equipped upgrade.
+const BaseWeaponName = "Quelling Blade"
+
 // ItemType — категория предмета.
 type ItemType int
 
@@ -40,48 +43,49 @@ type Item struct {
 
 var (
 	foodNames = []string{
-		"Ration of the Ironclad",
-		"Crimson Berry Cluster",
-		"Loaf of the Forgotten Baker",
-		"Smoked Wyrm Jerky",
-		"Golden Apple of Vitality",
-		"Hardtack of the Endless March",
-		"Spiced Venison Strips",
-		"Honeyed Nectar Bread",
-		"Dried Mushrooms of the Deep",
+		"Tango",
+		"Iron Branch",
+		"Faerie Fire",
+		"Mango",
+		"Healing Salve",
+		"Lotus",
+		"Cheese",
+		"Seeds of Serenity",
+		"Elixir",
 	}
 	elixirNames = []string{
-		"Elixir of the Jade Serpent",
-		"Potion of the Phantom's Breath",
-		"Vial of Crimson Vitality",
-		"Draught of the Frozen Star",
-		"Elixir of the Shattered Mind",
-		"Potion of the Wandering Soul",
-		"Vial of Ember Essence",
-		"Elixir of the Obsidian Veil",
-		"Potion of the Howling Wind",
+		"Phantom Clarity",
+		"Arcane Clarity",
+		"Frozen Clarity",
+		"Crimson Clarity",
+		"Jade Clarity",
+		"Moon Clarity",
+		"Mystic Clarity",
+		"Ember Clarity",
+		"Wind Clarity",
 	}
 	scrollNames = []string{
-		"Scroll of Shadowstep",
-		"Parchment of Eternal Flame",
-		"Manuscript of Forgotten Truths",
-		"Scroll of Iron Will",
-		"Vellum of the Void",
-		"Scroll of Whispers",
-		"Tome of the Lost King",
-		"Scroll of Unseen Paths",
-		"Parchment of Thunderous Roar",
+		"Aghanim's Scroll",
+		"Ogre Scroll",
+		"Elven Scroll",
+		"Vital Scroll",
+		"Arcane Scroll",
+		"Sage Scroll",
+		"Power Scroll",
+		"Mystic Scroll",
+		"Ancient Scroll",
 	}
 	weaponNames = []string{
-		"Blade of the Forgotten Dawn",
-		"Obsidian Reaver",
-		"Fang of the Shadow Wolf",
-		"Ironclad Cleaver",
-		"Crimson Talon",
-		"Thunderstrike Maul",
-		"Serpent's Kiss Dagger",
-		"Voidrend Sword",
-		"Ebonheart Spear",
+		"Yasha",
+		"Diffusal Blade",
+		"Butterfly",
+		"Radiance",
+		"Crystalys",
+		"Battle Fury",
+		"Desolator",
+		"Shadow Blade",
+		"Silver Edge",
+		"Abyssal Blade",
 	}
 )
 
@@ -154,10 +158,16 @@ func applyStatRoll(it *Item, player *Person) {
 
 // NewWeapon — оружие с бонусом к силе 30..50.
 func NewWeapon(rng ...*rand.Rand) *Item {
+	// Rules version 1 consumes Intn(9), then Intn(21). Keep those exact draws:
+	// Intn(len(weaponNames)) would change damage and subsequent map/combat rolls.
+	// Both existing rolls select the cosmetic name, allowing all ten variants.
+	const nameRollBound = 9
+	nameRoll := random(source(rng)).Intn(nameRollBound)
+	damageRoll := random(source(rng)).Intn(21)
 	return &Item{
 		Type:           ItemWeapon,
-		Name:           pick(weaponNames, rng...),
-		StrengthEffect: random(source(rng)).Intn(21) + 30,
+		Name:           weaponNames[(nameRoll+damageRoll*nameRollBound)%len(weaponNames)],
+		StrengthEffect: damageRoll + 30,
 	}
 }
 

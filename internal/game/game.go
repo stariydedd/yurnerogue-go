@@ -107,11 +107,25 @@ func (g *Game) Update() error {
 				g.HandleKey(key)
 			}
 		}
+	} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := g.toLogical(ebiten.CursorPosition())
+		g.handleHUDPointer(x, y)
 	}
 	if g.state == StateNameEntry {
 		g.appendTypedRunes()
 	}
 	return nil
+}
+
+// Desktop slots use the same command path as the keyboard, including replay recording.
+func (g *Game) handleHUDPointer(x, y int) {
+	if g.state != StatePlaying {
+		return
+	}
+	control := render.HUDControlAt(g.renderer.Layout, x, y)
+	if key := keyForControl(control, g.state); key != ebiten.KeyMax {
+		g.HandleKey(key)
+	}
 }
 
 // HandleKey — единая точка входа для клавиш: сюда же приходят нажатия
@@ -280,7 +294,7 @@ func (g *Game) openItemMenu(t domain.ItemType) bool {
 	items := g.session.Player.ItemsOfType(t)
 	if t == domain.ItemWeapon {
 		if len(items) == 0 && g.session.Player.Weapon == nil {
-			g.session.SetMessage("No weapons in backpack.")
+			g.session.SetMessage("No other weapons in backpack.")
 			return false
 		}
 		g.itemMenuBareHand = true

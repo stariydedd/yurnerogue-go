@@ -2,6 +2,8 @@ package game
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/stariydedd/yurnerogue-go/internal/domain"
+	"github.com/stariydedd/yurnerogue-go/internal/render"
 )
 
 // Draw рисует кадр: сперва в логическую поверхность, затем растягивает её
@@ -14,7 +16,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// Справке отдаётся весь экран: панель не рисуется, выход — тап.
 	if g.controls != nil && g.state != StateHelp {
-		g.controls.Draw(surface, r, g.pressedControls(), selectLabel(g.state), runControlVisible(g.state))
+		var player *domain.Person
+		if g.session != nil {
+			player = g.session.Player
+		}
+		g.controls.Draw(surface, r, g.pressedControls(), selectLabel(g.state), runControlVisible(g.state), player)
 	}
 
 	sx, sy := g.scaleToWindow()
@@ -27,6 +33,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 // pressedControls — контролы, которые сейчас удерживаются (для подсветки).
 func (g *Game) pressedControls() map[string]bool {
 	held := map[string]bool{}
+	if g.state == StatePlaying && g.pendingRun {
+		held[render.CtrlRun] = true
+	}
 	if g.touch == nil {
 		return held
 	}

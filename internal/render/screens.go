@@ -61,13 +61,13 @@ func (r *Renderer) DrawMainMenu(screen *ebiten.Image, selected int, message stri
 	}
 
 	if message != "" {
-		r.TextCentered(screen, message, r.Fonts.UI, float64(l.ScreenH)-60, MsgColor)
+		r.TextCentered(screen, message, r.Fonts.UI, float64(l.ControlsTop())-60, MsgColor)
 	}
 	hint := "WASD / arrows + Enter"
 	if l.Touch {
 		hint = "D-pad + SELECT"
 	}
-	r.TextCentered(screen, hint, r.Fonts.Small, float64(l.ScreenH)-28, HintColor)
+	r.TextCentered(screen, hint, r.Fonts.Small, float64(l.ControlsTop())-28, HintColor)
 }
 
 // drawHeroBanner рисует увеличенного игрока по центру экрана.
@@ -119,8 +119,8 @@ var helpEnemies = []helpEntry{
 }
 
 var helpItems = []helpEntry{
-	{"food", "Food", "Restores health."},
-	{"elixir", "Elixir", "Temporary stat buff for 20 turns."},
+	{"food", "Tango", "Restores health."},
+	{"elixir", "Clarity", "Temporary stat buff for 20 turns."},
 	{"scroll", "Scroll", "Permanent stat buff."},
 	{"sword", "Weapon", "Equip it; the old one drops nearby."},
 	{"portal", "Exit", "Descend deeper. Clear level 21 to win."},
@@ -353,7 +353,7 @@ func (r *Renderer) DrawItemMenu(screen *ebiten.Image, items []*domain.Item, allo
 
 	var lines []string
 	if allowBareHands {
-		lines = append(lines, "Bare hands")
+		lines = append(lines, domain.BaseWeaponName)
 	}
 	for _, it := range items {
 		lines = append(lines, it.Name+it.StatLabel())
@@ -377,7 +377,7 @@ func (r *Renderer) DrawItemMenu(screen *ebiten.Image, items []*domain.Item, allo
 			prefix, clr = "> ", Hilite
 		}
 		// На тач-экране цифровые префиксы бессмысленны — клавиатуры нет.
-		// На десктопе нумерация начинается с 0, если доступны голые руки.
+		// На десктопе номер 0 возвращает базовый Quelling Blade.
 		if !l.Touch {
 			number := i
 			if !allowBareHands {

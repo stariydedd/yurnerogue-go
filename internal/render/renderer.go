@@ -58,6 +58,7 @@ type Renderer struct {
 	tick         int
 	forest       *forestCache
 	forestMemory forestMemory
+	uiStone      *ebiten.Image
 }
 
 // New создаёт рендерер под заданную раскладку.

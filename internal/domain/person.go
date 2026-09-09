@@ -11,7 +11,7 @@ type Person struct {
 	Health    int
 	Agility   int
 	Strength  int
-	Weapon    *Item
+	Weapon    *Item // Equipped upgrade; nil uses the permanent Quelling Blade.
 	Treasures int
 
 	Backpack []*Item
@@ -204,6 +204,20 @@ func (p *Person) TickEffects() {
 
 // ActiveEffects — сколько эффектов эликсиров действует сейчас.
 func (p *Person) ActiveEffects() int { return len(p.effects) }
+
+// EffectStatus is a read-only snapshot of a temporary stat bonus.
+type EffectStatus struct {
+	Stat              ItemSubType
+	Amount, TurnsLeft int
+}
+
+func (p *Person) EffectStatuses() []EffectStatus {
+	statuses := make([]EffectStatus, len(p.effects))
+	for i, effect := range p.effects {
+		statuses[i] = EffectStatus{effect.sub, effect.amount, effect.turnsLeft}
+	}
+	return statuses
+}
 
 // EquipWeapon экипирует оружие из рюкзака и возвращает прежнее (упадёт на пол).
 func (p *Person) EquipWeapon(item *Item) *Item {

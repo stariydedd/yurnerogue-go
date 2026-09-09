@@ -45,7 +45,7 @@ func (p *preview) Draw(screen *ebiten.Image) {
 	p.r.DrawWorld(screen, p.s)
 	p.r.DrawHUD(screen, p.s)
 	if p.r.Layout.Touch {
-		render.NewControls(p.r.Layout).Draw(screen, p.r, nil, render.SelectHelp, true)
+		render.NewControls(p.r.Layout).Draw(screen, p.r, nil, render.SelectHelp, true, p.s.Player)
 	}
 	pixels := make([]byte, 4*screen.Bounds().Dx()*screen.Bounds().Dy())
 	screen.ReadPixels(pixels)
@@ -170,6 +170,9 @@ func main() {
 	scene := flag.String("scene", "room", "room, corridor, corridor-bend (four walking frames), heroes, hero-depth, hero-depth-reverse, gate-items, gate-clear, gate-hero, or seeded gameplay (seed)")
 	out := flag.String("out", "build/radiant-room.png", "screenshot destination")
 	touch := flag.Bool("touch", false, "capture the portrait touch layout")
+	width := flag.Int("width", 480, "touch viewport width")
+	height := flag.Int("height", 960, "touch viewport height")
+	hud := flag.Bool("hud", false, "populate inventory and temporary effects for a HUD preview")
 	frame := flag.Int("frame", 0, "fixed animation frame for all sprite roles")
 	left := flag.Bool("left", false, "face all characters left")
 	flag.Parse()
@@ -181,7 +184,7 @@ func main() {
 	}
 	l := render.DesktopLayout()
 	if *touch {
-		l = render.TouchLayout(480, 960)
+		l = render.TouchLayout(*width, *height)
 	}
 	r, err := render.New(l)
 	if err != nil {
@@ -197,6 +200,20 @@ func main() {
 		r.Tick()
 	}
 	s := fixture(*scene)
+	if *hud {
+		s.Player.Weapon = &domain.Item{Type: domain.ItemWeapon, Name: "Yasha", StrengthEffect: 35}
+		s.Player.Treasures = 120
+		for i, kind := range []domain.ItemType{domain.ItemFood, domain.ItemElixir, domain.ItemScroll} {
+			for n := 0; n < 3-i; n++ {
+				s.Player.PickUpItem(&domain.Item{Type: kind})
+			}
+		}
+		elixir := &domain.Item{Type: domain.ItemElixir, AgilityEffect: 5, StrengthEffect: 3, MaxHealthEffect: 20}
+		s.Player.PickUpItem(elixir)
+		s.Player.UseItem(elixir)
+		s.Player.TakeDamage(80)
+		s.Message = "Picked up: Tango."
+	}
 	if *left {
 		s.Player.Facing = -1
 		for _, op := range s.Level.AllOpponents() {

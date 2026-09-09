@@ -24,7 +24,7 @@ type Layout struct {
 // DesktopLayout — раскладка с клавиатурой: поле 40x22 тайла и панель снизу.
 func DesktopLayout() Layout {
 	gridW, gridH := ViewCols*TileSize, ViewRows*TileSize
-	panelH := 96
+	panelH := 144
 	return Layout{
 		ScreenW: gridW,
 		ScreenH: gridH + panelH,
@@ -48,8 +48,8 @@ func TouchLayout(windowW, windowH int) Layout {
 	}
 	screenH := int(float64(screenW) * ratio)
 
-	panelH := 164
-	controlsH := max(264, screenH*30/100)
+	panelH := 108
+	controlsH := 228
 	return Layout{
 		ScreenW:   screenW,
 		ScreenH:   screenH,

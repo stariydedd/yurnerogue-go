@@ -149,7 +149,7 @@ func keyForControl(control string, state State) ebiten.Key {
 }
 
 func runControlVisible(state State) bool {
-	return state != StateDeath && state != StateWin
+	return state == StatePlaying
 }
 
 // selectLabel — подпись контекстной кнопки для текущего экрана.

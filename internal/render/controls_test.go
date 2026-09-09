@@ -5,99 +5,86 @@ import (
 	"testing"
 )
 
-// touchControls — панель кнопок для типового телефона.
-func touchControls() (Layout, *Controls) {
-	l := TouchLayout(390, 844)
-	return l, NewControls(l)
-}
-
-func TestControlsFitInsidePanel(t *testing.T) {
-	l, c := touchControls()
-
-	if c.Panel.Max.Y > l.ScreenH {
-		t.Fatalf("панель вылезает за экран: %d > %d", c.Panel.Max.Y, l.ScreenH)
+func TestSelectCaptionFitsTouchButton(t *testing.T) {
+	fonts, err := loadFonts()
+	if err != nil {
+		t.Fatal(err)
 	}
-	for name, rect := range c.dpad {
-		if !rect.In(c.Panel) {
-			t.Fatalf("клавиша %q вне панели: %v", name, rect)
-		}
-	}
-	for name, rect := range c.pills {
-		if !rect.In(c.Panel) {
-			t.Fatalf("кнопка %q вне панели: %v", name, rect)
-		}
-	}
-	for name, center := range c.buttons {
-		box := image.Rect(center.X-c.btnRadius, center.Y-c.btnRadius,
-			center.X+c.btnRadius, center.Y+c.btnRadius)
-		if !box.In(c.Panel) {
-			t.Fatalf("кнопка предмета %q вне панели: %v", name, box)
-		}
+	controls := NewControls(TouchLayout(390, 844))
+	width := float64(controls.targets[CtrlSelect].Dx() - 8)
+	if fitLabel("SELECT", fonts.Small, width) != "SELECT" {
+		t.Fatal("SELECT caption is clipped")
 	}
 }
 
-func TestControlAtHitsEveryButton(t *testing.T) {
-	_, c := touchControls()
-
-	// Крестовина: центр каждой клавиши отдаёт своё направление.
-	for _, name := range []string{CtrlUp, CtrlDown, CtrlLeft, CtrlRight} {
-		rect := c.dpad[name]
-		cx, cy := rect.Min.X+rect.Dx()/2, rect.Min.Y+rect.Dy()/2
-		if got := c.ControlAt(cx, cy); got != name {
-			t.Fatalf("в центре %q попали в %q", name, got)
+func TestControlsFitAndHitWithoutOverlap(t *testing.T) {
+	for _, viewport := range []image.Point{{320, 568}, {360, 640}, {390, 844}, {480, 960}, {768, 1024}, {844, 390}} {
+		l := TouchLayout(viewport.X, viewport.Y)
+		c := NewControls(l)
+		if len(c.targets) != 11 {
+			t.Fatalf("missing controls: %d", len(c.targets))
 		}
-	}
-
-	if got := c.ControlAt(c.dpadCent.X, c.dpadCent.Y); got != CtrlRun {
-		t.Fatalf("центр крестовины должен быть бегом, получено %q", got)
-	}
-
-	for _, name := range []string{CtrlWeapon, CtrlFood, CtrlElixir, CtrlScroll} {
-		center := c.buttons[name]
-		if got := c.ControlAt(center.X, center.Y); got != name {
-			t.Fatalf("в центре кнопки %q попали в %q", name, got)
-		}
-	}
-
-	for _, name := range []string{CtrlMenu, CtrlSelect} {
-		rect := c.pills[name]
-		cx, cy := rect.Min.X+rect.Dx()/2, rect.Min.Y+rect.Dy()/2
-		if got := c.ControlAt(cx, cy); got != name {
-			t.Fatalf("в центре %q попали в %q", name, got)
-		}
-	}
-}
-
-func TestControlAtIgnoresEmptySpace(t *testing.T) {
-	l, c := touchControls()
-
-	// Карта и статус-панель кнопок не содержат.
-	for _, p := range []image.Point{
-		{X: l.ScreenW / 2, Y: 10},
-		{X: l.ScreenW / 2, Y: l.GridH + 10},
-	} {
-		if got := c.ControlAt(p.X, p.Y); got != "" {
-			t.Fatalf("в точке %v нашли кнопку %q, хотя там карта или HUD", p, got)
-		}
-	}
-	// Промежуток между крестовиной и ромбом предметов.
-	midX := (c.dpadCent.X + c.buttons[CtrlFood].X) / 2
-	if got := c.ControlAt(midX, c.dpadCent.Y); got != "" {
-		t.Fatalf("между блоками кнопок нашли %q", got)
-	}
-}
-
-func TestDPadAndItemButtonsDoNotOverlap(t *testing.T) {
-	// Иначе палец на крестовине случайно съедал бы предмет.
-	_, c := touchControls()
-
-	for dname, rect := range c.dpad {
-		for bname, center := range c.buttons {
-			box := image.Rect(center.X-c.btnRadius, center.Y-c.btnRadius,
-				center.X+c.btnRadius, center.Y+c.btnRadius)
-			if rect.Overlaps(box) {
-				t.Fatalf("клавиша %q пересекается с кнопкой %q", dname, bname)
+		for name, rect := range c.targets {
+			if !rect.In(c.Panel) {
+				t.Fatalf("%s outside panel at %v: %v", name, viewport, rect)
+			}
+			if rect.Dx() < 44 || rect.Dy() < 44 {
+				t.Fatalf("target too small: %s", name)
+			}
+			for other, bounds := range c.targets {
+				if name != other && rect.Overlaps(bounds) {
+					t.Fatalf("%s overlaps %s", name, other)
+				}
+			}
+			for y := rect.Min.Y; y < rect.Max.Y; y++ {
+				for x := rect.Min.X; x < rect.Max.X; x++ {
+					if got := c.ControlAt(x, y); got != name {
+						t.Fatalf("%s target hits %s at %d,%d", name, got, x, y)
+					}
+				}
 			}
 		}
+	}
+}
+
+func TestControlAtIgnoresHubAndEmptySpace(t *testing.T) {
+	l := TouchLayout(390, 844)
+	c := NewControls(l)
+	for _, p := range []image.Point{{240, 10}, {240, l.GridH + 10}, boxCenter(c.hub), {205, l.ControlsTop() + 110}, {240, l.ScreenH - 5}} {
+		if got := c.ControlAt(p.X, p.Y); got != "" {
+			t.Fatalf("empty point %v hits %q", p, got)
+		}
+	}
+	if got := c.ControlAt(248, l.ControlsTop()+52); got != CtrlRun {
+		t.Fatalf("separate RUN target hits %q", got)
+	}
+}
+
+func TestHUDTargetsMatchDesktopSlots(t *testing.T) {
+	l := DesktopLayout()
+	targets := HUDTargets(l)
+	if len(targets) != 6 {
+		t.Fatalf("missing HUD targets: %d", len(targets))
+	}
+	panel := image.Rect(0, l.GridH, l.ScreenW, l.ScreenH)
+	for name, rect := range targets {
+		if !rect.In(panel) {
+			t.Fatalf("%s outside HUD", name)
+		}
+		p := boxCenter(rect)
+		if got := HUDControlAt(l, p.X, p.Y); got != name {
+			t.Fatalf("%s hits %s", name, got)
+		}
+		for other, bounds := range targets {
+			if name != other && rect.Overlaps(bounds) {
+				t.Fatalf("%s overlaps %s", name, other)
+			}
+		}
+	}
+	if HUDControlAt(l, 500, 100) != "" {
+		t.Fatal("world must not contain HUD targets")
+	}
+	if len(HUDTargets(TouchLayout(480, 960))) != 0 {
+		t.Fatal("touch HUD must not contain desktop targets")
 	}
 }

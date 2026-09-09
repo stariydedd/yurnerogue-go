@@ -9,9 +9,10 @@ a global leaderboard and a full CI/CD pipeline deploying to a VPS.
 
 | Desktop | Mobile |
 |---------|--------|
-| [![Radiant forest, heroes and portal](docs/screenshots/gameplay.png)](docs/screenshots/gameplay.png) | [![Portrait layout with touch controls](docs/screenshots/mobile.png)](docs/screenshots/mobile.png) |
+| [![Radiant forest and black-orange desktop HUD](docs/screenshots/gameplay.png)](docs/screenshots/gameplay.png) | [![Mobile HUD, separate RUN button and 2x2 item grid](docs/screenshots/mobile.png)](docs/screenshots/mobile.png) |
 
-Current local build, captured from the game renderer in a fixed showcase scene.
+Current local build, captured from the game renderer in a fixed showcase scene
+with an equipped weapon, inventory counts and active stat bonuses.
 
 ## About
 
@@ -119,8 +120,10 @@ TLS certificates are issued by Let's Encrypt and renewed automatically by
   corridor turns and stops at doorways.
 - Global leaderboard with server-replayed new scores. Historical records are
   accepted as trusted; the table has no verification labels or extra column.
-- Mobile version: a retro-console portrait layout with a d-pad (run button in
-  the centre), item buttons and contextual SELECT/MENU keys.
+- Black, orange and white desktop and mobile HUDs with animated portraits,
+  framed item slots, inventory counts, health and temporary effect timers.
+  Mobile controls use a d-pad, separate RUN button,
+  a 2×2 item grid and contextual SELECT/MENU keys.
 - All graphics are pixel art embedded into the binary — no external requests.
 
 ## Controls
@@ -136,11 +139,12 @@ TLS certificates are issued by Let's Encrypt and renewed automatically by
 | `F1` | Help |
 | `Q` | Back to menu |
 
+Desktop HUD slots, menu and help also respond to mouse clicks.
 In item menus select with digits or arrows + `Enter`.
 
 On touch devices the game switches to a portrait console layout: d-pad for
-movement with a run button in its centre, a four-button diamond for items,
-`SELECT` to confirm (`HELP` in game, `USE` in item menus) and `MENU` to cancel
+movement and an inactive centre, a separate `RUN` button followed by a direction,
+a 2×2 item grid, `SELECT` to confirm (`HELP` in game, `USE` in item menus) and `MENU` to cancel
 or exit. Appending `?touch=1` to the URL forces that layout in a desktop
 browser.
 
@@ -165,6 +169,15 @@ Enemy stats grow with each floor while useful items become rarer.
 | Scroll (TP Scroll artwork) | Permanent buff to one stat. |
 | Weapon (Juggernaut blade) | Equipped via `H`; the previous weapon drops onto a free adjacent tile in a room, corridor or doorway. If none is available, it goes into the backpack. |
 | Treasure | Credited for slain enemies; determines leaderboard rank. |
+
+Quelling Blade is the permanent starting weapon, with no stat bonus and the
+original base attack damage. Selecting it in the weapon menu stows the equipped
+upgrade; the starter itself never takes a backpack slot or drops on the ground.
+
+Item names are short Dota-inspired variants, including Phantom Clarity,
+Aghanim's Scroll and Yasha. Names do not change their category's effects.
+The HUD shows temporary STR, AGI and MAX HP bonuses (MHP on mobile).
+Stacked bonuses are summed; their timer counts turns until the next partial expiry.
 
 The Dota-inspired artwork does not change item effects: Clarity is a stat buff,
 and the scroll is not a teleport. The exit is a blue-glowing portal —
