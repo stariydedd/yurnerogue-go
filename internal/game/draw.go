@@ -61,7 +61,7 @@ func (g *Game) drawScreen(screen *ebiten.Image) {
 	case StateMainMenu:
 		r.DrawMainMenu(screen, g.menuSelected, g.menuMessage)
 	case StateNameEntry:
-		r.DrawNameEntry(screen, g.nameInput)
+		r.DrawNameEntry(screen, g.nameInput, g.submitStatus)
 	case StatePlaying:
 		r.DrawWorld(screen, g.session)
 		r.DrawHUD(screen, g.session)

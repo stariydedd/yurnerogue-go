@@ -77,7 +77,7 @@ func TestLateStartResponseIsDiscarded(t *testing.T) {
 	}
 }
 
-func TestStartResponseCreatesSeededOrPracticeRun(t *testing.T) {
+func TestStartResponseRequiresServerTicket(t *testing.T) {
 	for _, failure := range []bool{false, true} {
 		results := make(chan startResult, 1)
 		g := &Game{state: StateStarting, startResults: results}
@@ -87,6 +87,12 @@ func TestStartResponseCreatesSeededOrPracticeRun(t *testing.T) {
 		}
 		results <- result
 		g.pollNetwork()
+		if failure {
+			if g.state != StateNameEntry || g.session != nil || g.runTicket != "" || g.submitStatus == "" {
+				t.Fatal("failed start silently created an unsubmitable game")
+			}
+			continue
+		}
 		if g.state != StatePlaying || g.session == nil {
 			t.Fatal("game did not start")
 		}
@@ -99,8 +105,31 @@ func TestStartResponseCreatesSeededOrPracticeRun(t *testing.T) {
 		if !failure && g.session.Message != "" {
 			t.Fatal("successful start should not display a run-mode announcement")
 		}
-		if failure && g.session.Message != "Leaderboard unavailable for this game." {
-			t.Fatal("missing leaderboard availability warning")
+	}
+}
+
+func TestStartFailuresKeepNameAndExplainRetry(t *testing.T) {
+	for _, result := range []startResult{
+		{err: leaderboard.ErrTimeout}, {err: leaderboard.ErrRateLimited},
+		{err: leaderboard.ErrRejected}, {err: leaderboard.ErrUnavailable},
+		{ticket: leaderboard.Ticket{Ticket: "ticket", Seed: "broken", Version: domain.RulesVersion}},
+		{ticket: leaderboard.Ticket{Ticket: "ticket", Seed: "1", Version: "old"}},
+		{ticket: leaderboard.Ticket{Seed: "1", Version: domain.RulesVersion}},
+	} {
+		results := make(chan startResult, 1)
+		g := &Game{state: StateStarting, startResults: results, playerName: "tester", nameInput: "tester"}
+		results <- result
+		g.pollNetwork()
+		if g.state != StateNameEntry || g.session != nil || g.runTicket != "" || g.nameInput != "tester" || g.submitStatus == "" {
+			t.Fatalf("unsafe failed start: %+v", result)
+		}
+		// A subsequent successful attempt must clear the error and preserve its ticket.
+		g.state = StateStarting
+		g.startResults = make(chan startResult, 1)
+		g.startResults <- startResult{ticket: leaderboard.Ticket{Ticket: "retry-ticket", Seed: "21", Version: domain.RulesVersion}}
+		g.pollNetwork()
+		if g.state != StatePlaying || g.runTicket != "retry-ticket" || g.submitStatus != "" {
+			t.Fatal("retry did not create a submitable game")
 		}
 	}
 }

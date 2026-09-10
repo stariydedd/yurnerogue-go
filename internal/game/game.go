@@ -96,9 +96,13 @@ func (g *Game) State() State { return g.state }
 // Update обрабатывает ввод; вызывается Ebitengine 60 раз в секунду.
 func (g *Game) Update() error {
 	g.pollNetwork()
+	browserNameEntry := g.syncBrowserNameEntry()
+	defer g.syncBrowserNameEntry()
 	g.renderer.Tick()
 	for _, key := range inpututil.AppendJustPressedKeys(nil) {
-		g.HandleKey(key)
+		if !browserNameEntry {
+			g.HandleKey(key)
+		}
 	}
 	// Касания экранных кнопок приходят сюда же, переведённые в клавиши.
 	if g.touch != nil {
@@ -115,7 +119,7 @@ func (g *Game) Update() error {
 			g.handleHUDPointer(x, y)
 		}
 	}
-	if g.state == StateNameEntry {
+	if g.state == StateNameEntry && !browserNameEntry {
 		g.appendTypedRunes()
 	}
 	return nil
@@ -176,6 +180,7 @@ func (g *Game) handleMainMenu(key ebiten.Key) {
 		switch render.MainMenuOptions[g.menuSelected].Key {
 		case "new":
 			g.nameInput = g.playerName
+			g.submitStatus = ""
 			g.state = StateNameEntry
 		case "scoreboard":
 			g.openLeaderboard()

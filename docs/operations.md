@@ -53,8 +53,9 @@ are not public leaderboard fields; only the log hash is stored.
 
 The old arbitrary-score POST protocol is intentionally closed, even for clients
 with a `submission_id`. Players must reload the page before starting a ranked
-run. An unavailable/incompatible start falls back to a clearly announced
-practice run, which is not submitted. There is no mid-run network requirement
+run. An unavailable/incompatible start stays on the name screen with an error;
+PLAY retries the request instead of silently starting an unsubmitable run.
+There is no mid-run network requirement
 or durable offline outbox. A ranked result is submitted automatically once at
 death or victory. There is no manual retry control on the end screen; failure
 is reported there. Server-side idempotency remains in place for repeated HTTP

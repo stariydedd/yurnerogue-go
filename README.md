@@ -150,6 +150,7 @@ browser.
 
 Desktop and mobile menus share the same theme and PLAY, LEADERBOARD and HELP buttons.
 Desktop supports mouse clicks and keyboard selection; mobile uses direct taps.
+Mobile name entry uses a native text field and the phone's on-screen keyboard.
 Menu pages have their own BACK button; the mobile d-pad and item panel appear during gameplay.
 
 ## Enemies
@@ -190,7 +191,7 @@ result is submitted to the global leaderboard.
 
 Ranked runs obtain a server-issued seed and ticket before starting. The server
 replays the input log and computes the score itself. If starting online fails,
-the game starts a practice run that does not enter the leaderboard. A ranked
+the name screen explains the error and PLAY retries; no unsubmitable run starts silently. A ranked
 result is submitted automatically once; there is no manual retry control.
 See [verification limits and operations](docs/operations.md).
 

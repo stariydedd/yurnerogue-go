@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
@@ -67,25 +68,30 @@ func (r *Renderer) drawHeroBanner(screen *ebiten.Image, y float64, scale float64
 	screen.DrawImage(img, op)
 }
 
+func NameEntryBounds(l Layout) image.Rectangle {
+	w := min(460, l.ScreenW-24)
+	return image.Rect((l.ScreenW-w)/2, 420, (l.ScreenW+w)/2, 468)
+}
+
 // DrawNameEntry — экран ввода имени перед новой игрой.
-func (r *Renderer) DrawNameEntry(screen *ebiten.Image, input string) {
+func (r *Renderer) DrawNameEntry(screen *ebiten.Image, input string, status ...string) {
 	l := r.Layout
 	r.backdrop(screen)
 	r.titleWithShadow(screen, "YOUR NAME", 170)
 	r.drawHeroBanner(screen, 260, 3)
 
-	boxW := float64(min(460, l.ScreenW-24))
-	boxH := 48.0
-	boxX := float64(l.ScreenW)/2 - boxW/2
-	boxY := 420.0
-	r.uiSlot(screen, image.Rect(int(boxX), int(boxY), int(boxX+boxW), int(boxY+boxH)), true)
-	r.Text(screen, input+"_", r.Fonts.Menu, boxX+14, boxY+14, uiText)
+	box := NameEntryBounds(l)
+	r.uiSlot(screen, box, true)
+	r.Text(screen, input+"_", r.Fonts.Menu, float64(box.Min.X+14), float64(box.Min.Y+14), uiText)
 
 	hint := "Enter: start   Esc: back   (empty = anonymous)"
 	if l.Touch {
 		hint = "Empty name = anonymous"
 	}
-	r.TextCentered(screen, hint, r.Fonts.Small, boxY+boxH+26, uiMuted)
+	r.TextCentered(screen, hint, r.Fonts.Small, float64(box.Max.Y+26), uiMuted)
+	if len(status) > 0 {
+		r.drawStatusLines(screen, status[0], float64(box.Max.Y+58), r.Fonts.Small)
+	}
 }
 
 // helpEntry — строка легенды: спрайт, имя и описание.
@@ -318,7 +324,7 @@ func (r *Renderer) DrawEndScreen(screen *ebiten.Image, title, submitStatus strin
 		if l.ScreenW < 900 {
 			face = r.Fonts.Small
 		}
-		r.TextCentered(screen, submitStatus, face, float64(l.ScreenH)/2+20, uiAccent)
+		r.drawStatusLines(screen, submitStatus, float64(l.ScreenH)/2+20, face)
 	}
 	hint := "Enter: menu"
 	if l.Touch {
@@ -328,6 +334,17 @@ func (r *Renderer) DrawEndScreen(screen *ebiten.Image, title, submitStatus strin
 		hint = customHint[0]
 	}
 	r.TextCentered(screen, hint, r.Fonts.Small, float64(l.ScreenH)/2+60, uiMuted)
+}
+
+func (r *Renderer) drawStatusLines(screen *ebiten.Image, status string, y float64, face text.Face) {
+	for i, line := range r.statusLines(status, face) {
+		r.TextCentered(screen, line, face, y+float64(i)*18, uiAccent)
+	}
+}
+
+func (r *Renderer) statusLines(status string, face text.Face) []string {
+	maxChars := max(1, int(float64(r.Layout.ScreenW-40)/TextWidth("M", face)))
+	return wrapText(status, maxChars)
 }
 
 // DrawItemMenu — список предметов поверх нижней части поля.

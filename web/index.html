@@ -58,6 +58,23 @@
         white-space: nowrap;
         z-index: 9;
     }
+    #player-name {
+        position: absolute;
+        box-sizing: border-box;
+        min-height: 32px;
+        border: 0;
+        outline: 0;
+        border-radius: 0;
+        padding: 0 8px;
+        background: #121110;
+        color: #f6f5f0;
+        font: 18px ui-monospace, monospace;
+        touch-action: manipulation;
+        user-select: text;
+        -webkit-user-select: text;
+        z-index: 5;
+    }
+    #player-name:focus { outline: 2px solid #ff7018; }
 </style>
 <script id="viewport-sizing">
 ;(function () {
@@ -77,6 +94,61 @@
 </head>
 <body>
 <div id="loader">Loading ...</div>
+<input id="player-name" type="text" hidden aria-label="Player name"
+       placeholder="Tap to enter name" autocomplete="nickname" autocapitalize="off"
+       autocorrect="off" spellcheck="false" enterkeyhint="go" maxlength="32">
+<script id="name-entry">
+;(function () {
+    const input = document.getElementById("player-name");
+    let value = "", action = "", composing = false;
+    const clean = text => Array.from(text).filter(ch => ch.codePointAt(0) >= 32).slice(0, 16).join("");
+    function commit() {
+        value = clean(input.value);
+        if (input.value !== value) input.value = value;
+    }
+    input.addEventListener("compositionstart", () => { composing = true; });
+    input.addEventListener("compositionend", () => { composing = false; commit(); });
+    input.addEventListener("input", () => { if (!composing) commit(); });
+    input.addEventListener("blur", () => { if (!composing) commit(); });
+    for (const event of ["keydown", "keyup", "keypress"]) {
+        input.addEventListener(event, e => {
+            e.stopPropagation();
+            if (event !== "keydown" || composing || e.isComposing) return;
+            if (e.key === "Enter" || e.key === "Escape") {
+                e.preventDefault();
+                commit();
+                action = e.key === "Enter" ? "start" : "back";
+                input.blur();
+            }
+        });
+    }
+    window.yurneNameEntry = {
+        show(name, x, y, width, height, screenW, screenH) {
+            if (input.hidden) {
+                input.value = value = clean(name);
+                action = "";
+                input.hidden = false;
+            }
+            input.style.left = (100*x/screenW) + "%";
+            input.style.top = (100*y/screenH) + "%";
+            input.style.width = (100*width/screenW) + "%";
+            input.style.height = (100*height/screenH) + "%";
+        },
+        read() {
+            const result = {value, action};
+            action = "";
+            return result;
+        },
+        hide() {
+            if (input.hidden) return;
+            input.blur();
+            input.hidden = true;
+            action = "";
+            composing = false;
+        }
+    };
+})();
+</script>
 <script src="wasm_exec.js"></script>
 <script>
 ;(function () {

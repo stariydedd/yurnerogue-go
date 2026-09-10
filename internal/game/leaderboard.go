@@ -37,11 +37,15 @@ func (g *Game) pollNetwork() {
 	select {
 	case result := <-g.startResults:
 		g.startResults = nil
-		g.startNewGame()
 		seed, err := strconv.ParseInt(result.ticket.Seed, 10, 64)
 		if result.err != nil || err != nil || result.ticket.Version != domain.RulesVersion || result.ticket.Ticket == "" {
-			g.session.SetMessage("Leaderboard unavailable for this game.")
+			// Never silently turn a failed server start into an unsubmitable run.
+			g.runTicket = ""
+			g.session = nil
+			g.state = StateNameEntry
+			g.submitStatus = startFailureStatus(result.err)
 		} else {
+			g.startNewGame()
 			g.session = domain.NewSessionSeed(seed)
 			g.runTicket = result.ticket.Ticket
 		}
@@ -93,6 +97,21 @@ func (g *Game) pollNetwork() {
 	}
 }
 
+func startFailureStatus(err error) string {
+	switch {
+	case errors.Is(err, leaderboard.ErrTimeout):
+		return "Connection timed out. Press PLAY to retry."
+	case errors.Is(err, leaderboard.ErrRateLimited):
+		return "Too many starts. Wait, then press PLAY."
+	case errors.Is(err, leaderboard.ErrRejected):
+		return "Server rejected the start. Reload and retry."
+	case err != nil:
+		return "Cannot reach leaderboard. Press PLAY to retry."
+	default:
+		return "Invalid server response. Reload and retry."
+	}
+}
+
 type startResult struct {
 	ticket leaderboard.Ticket
 	err    error
@@ -100,6 +119,7 @@ type startResult struct {
 
 func (g *Game) requestRankedGame() {
 	g.state = StateStarting
+	g.submitStatus = ""
 	results := make(chan startResult, 1)
 	g.startResults = results
 	name := g.playerName
