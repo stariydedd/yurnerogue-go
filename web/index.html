@@ -20,17 +20,23 @@
         overscroll-behavior: none;
         touch-action: none;
     }
+    body {
+        position: relative;
+        width: 100%;
+        /* Keep the engine's body size and the displayed canvas identical. */
+        height: calc(var(--viewport-height, 100vh) - env(safe-area-inset-bottom, 0px)) !important;
+    }
     /* Канвас на весь экран без чёрных полос. !important обязателен: Ebitengine
        выставляет размеры канваса инлайновым стилем и вписывает картинку с
        полями по краям, а инлайн перебивает обычные правила.
        pixelated держит пиксель-арт чётким при растяжении. */
     canvas {
         display: block !important;
-        position: fixed !important;
+        position: absolute !important;
         top: 0 !important;
         left: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
+        width: 100% !important;
+        height: 100% !important;
         max-width: none !important;
         max-height: none !important;
         image-rendering: pixelated !important;
@@ -53,6 +59,21 @@
         z-index: 9;
     }
 </style>
+<script id="viewport-sizing">
+;(function () {
+    function resizeViewport() {
+        const viewport = window.visualViewport;
+        const height = viewport && viewport.height > 0 ? viewport.height : window.innerHeight;
+        document.documentElement.style.setProperty("--viewport-height", height + "px");
+    }
+    resizeViewport();
+    window.addEventListener("resize", resizeViewport);
+    window.addEventListener("pageshow", resizeViewport);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", resizeViewport);
+    }
+})();
+</script>
 </head>
 <body>
 <div id="loader">Loading ...</div>

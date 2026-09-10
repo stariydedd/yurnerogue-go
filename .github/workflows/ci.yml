@@ -64,6 +64,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Test mobile viewport sizing
+        run: node --test web/viewport.test.cjs
       - name: Test browser transport
         run: GOOS=js GOARCH=wasm go test -exec="$(go env GOROOT)/lib/wasm/go_js_wasm_exec" ./internal/leaderboard ./internal/domain
 

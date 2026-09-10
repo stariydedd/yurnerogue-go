@@ -2,6 +2,26 @@ package game
 
 import "github.com/hajimehoshi/ebiten/v2"
 
+var _ ebiten.FinalScreenDrawer = (*Game)(nil)
+
+// DrawFinalScreen scales the original logical surface directly to device pixels.
+// The regular offscreen uses CSS/window pixels: shrinking 480px to a phone's
+// 390px and enlarging that to 1170px loses detail even with nearest filtering.
+// Layout remains in window coordinates so pointer mapping is unchanged.
+func (g *Game) DrawFinalScreen(screen ebiten.FinalScreen, offscreen *ebiten.Image, geoM ebiten.GeoM) {
+	if g.surface == nil {
+		ebiten.DefaultDrawFinalScreen(screen, offscreen, geoM)
+		return
+	}
+
+	bounds := screen.Bounds()
+	source := g.surface.Bounds()
+	op := &ebiten.DrawImageOptions{Filter: ebiten.FilterNearest}
+	op.GeoM.Scale(float64(bounds.Dx())/float64(source.Dx()), float64(bounds.Dy())/float64(source.Dy()))
+	op.GeoM.Translate(float64(bounds.Min.X), float64(bounds.Min.Y))
+	screen.DrawImage(g.surface, op)
+}
+
 // Игра рисуется в поверхность фиксированного логического размера, а та
 // растягивается на всё окно.
 //
