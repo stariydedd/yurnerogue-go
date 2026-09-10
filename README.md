@@ -148,6 +148,10 @@ a 2×2 item grid, `SELECT` to confirm (`HELP` in game, `USE` in item menus) and 
 or exit. Appending `?touch=1` to the URL forces that layout in a desktop
 browser.
 
+Desktop and mobile menus share the same theme and PLAY, LEADERBOARD and HELP buttons.
+Desktop supports mouse clicks and keyboard selection; mobile uses direct taps.
+Menu pages have their own BACK button; the mobile d-pad and item panel appear during gameplay.
+
 ## Enemies
 
 | Enemy | Behaviour |

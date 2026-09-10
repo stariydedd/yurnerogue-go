@@ -36,6 +36,18 @@ const mouseID ebiten.TouchID = -1
 // update обрабатывает касания и возвращает контролы, которые надо «нажать».
 func (t *touchInput) update(g *Game) []string {
 	t.ticks++
+	if _, menu := menuPage(g.state); menu {
+		clear(t.pressed)
+		t.repeatControl = ""
+		// Process only one pointer: no second finger or synthetic mouse click
+		// may activate another screen during the same tick.
+		if ids := inpututil.AppendJustPressedTouchIDs(nil); len(ids) > 0 {
+			g.handleMenuPointer(g.toLogical(ebiten.TouchPosition(ids[0])))
+		} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			g.handleMenuPointer(g.toLogical(ebiten.CursorPosition()))
+		}
+		return nil
+	}
 	var fired []string
 
 	for _, id := range inpututil.AppendJustPressedTouchIDs(nil) {
@@ -72,9 +84,8 @@ func (t *touchInput) repeatFired() []string {
 
 // press запоминает палец и возвращает сработавший контрол.
 func (t *touchInput) press(id ebiten.TouchID, x, y int, state State, fired []string) []string {
-	// В справке панель кнопок скрыта — экран закрывается тапом в любом месте.
-	if state == StateHelp {
-		return append(fired, render.CtrlSelect)
+	if _, menu := menuPage(state); menu {
+		return fired
 	}
 	control := t.controls.ControlAt(x, y)
 	if control == "" {

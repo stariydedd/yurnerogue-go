@@ -109,7 +109,11 @@ func (g *Game) Update() error {
 		}
 	} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := g.toLogical(ebiten.CursorPosition())
-		g.handleHUDPointer(x, y)
+		if _, menu := menuPage(g.state); menu {
+			g.handleMenuPointer(x, y)
+		} else {
+			g.handleHUDPointer(x, y)
+		}
 	}
 	if g.state == StateNameEntry {
 		g.appendTypedRunes()

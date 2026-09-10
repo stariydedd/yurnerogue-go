@@ -26,6 +26,7 @@ type preview struct {
 	firstHash [32]byte
 	walk      []domain.Point
 	step      int
+	page      string
 }
 
 func (p *preview) Update() error {
@@ -42,10 +43,22 @@ func (p *preview) Draw(screen *ebiten.Image) {
 	if p.done {
 		return
 	}
-	p.r.DrawWorld(screen, p.s)
-	p.r.DrawHUD(screen, p.s)
-	if p.r.Layout.Touch {
-		render.NewControls(p.r.Layout).Draw(screen, p.r, nil, render.SelectHelp, true, p.s.Player)
+	switch p.page {
+	case "menu":
+		p.r.DrawMainMenu(screen, 0, "")
+		p.r.DrawMenuButtons(screen, render.MenuHome, 0)
+	case "help":
+		p.r.DrawHelp(screen)
+		p.r.DrawMenuButtons(screen, render.MenuBack, 0)
+	case "name":
+		p.r.DrawNameEntry(screen, "")
+		p.r.DrawMenuButtons(screen, render.MenuName, 0)
+	default:
+		p.r.DrawWorld(screen, p.s)
+		p.r.DrawHUD(screen, p.s)
+		if p.r.Layout.Touch {
+			render.NewControls(p.r.Layout).Draw(screen, p.r, nil, render.SelectHelp, true, p.s.Player)
+		}
 	}
 	pixels := make([]byte, 4*screen.Bounds().Dx()*screen.Bounds().Dy())
 	screen.ReadPixels(pixels)
@@ -174,8 +187,12 @@ func main() {
 	height := flag.Int("height", 960, "touch viewport height")
 	hud := flag.Bool("hud", false, "populate inventory and temporary effects for a HUD preview")
 	frame := flag.Int("frame", 0, "fixed animation frame for all sprite roles")
+	page := flag.String("page", "game", "screen to capture: game, menu, help, name")
 	left := flag.Bool("left", false, "face all characters left")
 	flag.Parse()
+	if *page != "game" && *page != "menu" && *page != "help" && *page != "name" {
+		log.Fatal("unknown preview page")
+	}
 	if *scene != "room" && *scene != "corridor" && *scene != "corridor-bend" && *scene != "seed" && *scene != "heroes" && *scene != "hero-depth" && *scene != "hero-depth-reverse" && *scene != "gate-items" && *scene != "gate-clear" && *scene != "gate-hero" {
 		log.Fatal("unknown scene")
 	}
@@ -220,7 +237,7 @@ func main() {
 			op.Facing = -1
 		}
 	}
-	p := &preview{r: r, s: s, out: *out}
+	p := &preview{r: r, s: s, out: *out, page: *page}
 	if *scene == "corridor-bend" {
 		p.walk = []domain.Point{{X: 19, Y: 19}, {X: 19, Y: 20}, {X: 19, Y: 19}}
 	}

@@ -14,8 +14,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.drawScreen(surface)
 
-	// Справке отдаётся весь экран: панель не рисуется, выход — тап.
-	if g.controls != nil && g.state != StateHelp {
+	page, menu := menuPage(g.state)
+	if menu {
+		r.DrawMenuButtons(surface, page, g.menuSelected)
+	} else if g.controls != nil {
 		var player *domain.Person
 		if g.session != nil {
 			player = g.session.Player
@@ -51,7 +53,11 @@ func (g *Game) drawScreen(screen *ebiten.Image) {
 
 	switch g.state {
 	case StateStarting:
-		r.DrawEndScreen(screen, "CONNECTING", "Starting game...", "Q / Esc / MENU: cancel")
+		hint := "Q / Esc / MENU: cancel"
+		if r.Layout.Touch {
+			hint = ""
+		}
+		r.DrawEndScreen(screen, "CONNECTING", "Starting game...", hint)
 	case StateMainMenu:
 		r.DrawMainMenu(screen, g.menuSelected, g.menuMessage)
 	case StateNameEntry:
