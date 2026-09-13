@@ -8,6 +8,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/stariydedd/yurnerogue-go/internal/render"
+	"github.com/stariydedd/yurnerogue-go/internal/sound"
 )
 
 func TestMobileMenuLeaderboardAndStartUseExistingNetworkFlow(t *testing.T) {
@@ -148,7 +149,7 @@ func TestMenuBackDetachesLeaderboardRequest(t *testing.T) {
 func TestMobileMenusDisableGameplayTargets(t *testing.T) {
 	l := render.TouchLayout(390, 700)
 	ti := newTouchInput(render.NewControls(l))
-	for _, state := range []State{StateMainMenu, StateNameEntry, StateStarting, StateHelp, StateLeaderboard, StateWin, StateDeath} {
+	for _, state := range []State{StateMainMenu, StateNameEntry, StateStarting, StateHelp, StateLeaderboard, StateWin, StateDeath, StatePauseMenu} {
 		if _, ok := menuPage(state); !ok {
 			t.Fatalf("gameplay panel visible on %v", state)
 		}
@@ -159,6 +160,67 @@ func TestMobileMenusDisableGameplayTargets(t *testing.T) {
 	for _, state := range []State{StatePlaying, StateItemMenu, StateQuitDialog} {
 		if _, ok := menuPage(state); ok {
 			t.Fatal("gameplay controls hidden during game")
+		}
+	}
+}
+
+func TestPauseMenuVolumeAndResumePreserveRun(t *testing.T) {
+	config := t.TempDir()
+	t.Setenv("APPDATA", config)
+	t.Setenv("XDG_CONFIG_HOME", config)
+	for _, l := range []render.Layout{render.DesktopLayout(), render.TouchLayout(390, 600)} {
+		g := New(&render.Renderer{Layout: l})
+		// No audio device is needed to exercise settings and input routing.
+		g.audio = &sound.Engine{}
+		g.startNewGame()
+		g.runTicket = "ticket-to-preserve"
+		g.pendingRun = true
+		session, stats, actions := g.session, g.session.Stats, g.session.Actions()
+		g.HandleKey(keyForControl(render.CtrlMenu, StatePlaying))
+		if g.state != StatePauseMenu || g.pendingRun {
+			t.Fatal("MENU did not open pause menu or clear pending RUN")
+		}
+		for _, volume := range []int{25, 50, 75, 100, 0} {
+			tapMenuAction(t, g, "music")
+			if got := g.audio.Settings(); got.Music != volume || got.Effects != 0 {
+				t.Fatalf("music control changed wrong volume: %+v", got)
+			}
+		}
+		g.HandleKey(ebiten.KeyDown)
+		g.HandleKey(ebiten.KeyDown)
+		g.HandleKey(ebiten.KeyEnter)
+		if got := g.audio.Settings(); got.Effects != 25 || got.Music != 0 {
+			t.Fatalf("keyboard volume control failed: %+v", got)
+		}
+		g.HandleKey(ebiten.KeyM)
+		g.HandleKey(ebiten.KeyV)
+		if got := g.audio.Settings(); got != (sound.Settings{Music: 25, Effects: 50}) {
+			t.Fatalf("volume shortcuts failed: %+v", got)
+		}
+		tapMenuAction(t, g, "resume")
+		if g.state != StatePlaying || g.session != session || g.session.Stats != stats || g.session.Actions() != actions || g.runTicket != "ticket-to-preserve" {
+			t.Fatal("pause settings changed or lost run")
+		}
+		g.HandleKey(ebiten.KeyQ)
+		tapMenuAction(t, g, "quit")
+		if g.state != StateQuitDialog || g.session != session {
+			t.Fatal("exit skipped confirmation")
+		}
+		g.HandleKey(ebiten.KeyEnter) // Safe default: cancel.
+		if g.state != StatePlaying || g.session != session {
+			t.Fatal("default confirmation discarded run")
+		}
+		g.HandleKey(ebiten.KeyQ)
+		g.HandleKey(ebiten.KeyEscape)
+		if g.state != StatePlaying {
+			t.Fatal("Escape did not resume")
+		}
+		g.HandleKey(ebiten.KeyQ)
+		tapMenuAction(t, g, "quit")
+		g.HandleKey(ebiten.KeyUp)
+		g.HandleKey(ebiten.KeyEnter)
+		if g.state != StateMainMenu || g.session != nil || g.runTicket != "" {
+			t.Fatal("confirmed exit did not end run")
 		}
 	}
 }

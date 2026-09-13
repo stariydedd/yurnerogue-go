@@ -125,6 +125,15 @@ TLS certificates are issued by Let's Encrypt and renewed automatically by
   Mobile controls use a d-pad, separate RUN button,
   a 2×2 item grid and contextual SELECT/MENU keys.
 - All graphics are pixel art embedded into the binary — no external requests.
+- Original synthesized fantasy music and sound effects: separate menu and dungeon
+  arrangements, item and portal cues. Sword hits use three supplied Juggernaut
+  recordings from Dota 2, embedded in the game and shuffled without consecutive repeats.
+  Misses alternate between two supplied blade-whoosh recordings.
+  MUSIC and SFX in the main menu and the in-game MENU cycle volume in 25% steps,
+  including mute (desktop shortcuts: M and V).
+  Settings are saved locally; browser audio starts after interaction.
+  Grass and trail footsteps each have four shuffled variants, with no consecutive
+  repeats. Steps are quieter than combat and use the same SFX volume setting.
 
 ## Controls
 
@@ -137,15 +146,15 @@ TLS certificates are issued by Let's Encrypt and renewed automatically by
 | `K` | Elixir |
 | `E` | Scroll |
 | `F1` | Help |
-| `Q` | Back to menu |
+| `Q` | In-game menu: resume, volume, exit |
 
 Desktop HUD slots, menu and help also respond to mouse clicks.
 In item menus select with digits or arrows + `Enter`.
 
 On touch devices the game switches to a portrait console layout: d-pad for
 movement and an inactive centre, a separate `RUN` button followed by a direction,
-a 2×2 item grid, `SELECT` to confirm (`HELP` in game, `USE` in item menus) and `MENU` to cancel
-or exit. Appending `?touch=1` to the URL forces that layout in a desktop
+a 2×2 item grid, `SELECT` to confirm (`HELP` in game, `USE` in item menus) and `MENU`
+to open the in-game menu or cancel a dialog. Appending `?touch=1` to the URL forces that layout in a desktop
 browser.
 
 Desktop and mobile menus share the same theme and PLAY, LEADERBOARD and HELP buttons.
@@ -239,3 +248,13 @@ Items and portal are fan interpretations of Dota 2 designs. Hero sprites
 and the favicon come from Dota 2 (© Valve); the font is Press Start 2P.
 Sources and license notices are listed in
 [internal/assets/LICENSE.txt](internal/assets/LICENSE.txt).
+
+## License
+
+Original project code, documentation and procedurally generated music and sound
+effects are available under the [MIT License](LICENSE).
+Artwork, fonts, Dota 2 recordings and other third-party materials are not covered
+by this MIT grant; their rights and applicable terms remain separate.
+See [NOTICE.txt](NOTICE.txt) for the license scope and
+[asset notices](internal/assets/LICENSE.txt) for sources and attribution.
+Attribution does not itself grant permission to redistribute Valve content.

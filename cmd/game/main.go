@@ -20,7 +20,9 @@ func main() {
 
 	ebiten.SetWindowSize(layout.ScreenW, layout.ScreenH)
 	ebiten.SetWindowTitle("YurneROGUE")
-	if err := ebiten.RunGame(game.New(renderer)); err != nil {
+	g := game.New(renderer)
+	g.EnableAudio()
+	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}
 }

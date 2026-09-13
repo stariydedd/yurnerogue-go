@@ -9,6 +9,7 @@ import (
 
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 	"github.com/stariydedd/yurnerogue-go/internal/render"
+	"github.com/stariydedd/yurnerogue-go/internal/sound"
 )
 
 // State — экран, на котором сейчас находится игрок.
@@ -25,6 +26,7 @@ const (
 	StateDeath
 	StateWin
 	StateStarting
+	StatePauseMenu
 )
 
 // MaxNameLength — предел длины имени для лидерборда.
@@ -32,6 +34,7 @@ const MaxNameLength = 16
 
 // Game — конечный автомат игры, он же ebiten.Game.
 type Game struct {
+	audio    *sound.Engine
 	renderer *render.Renderer
 	session  *domain.Session
 
@@ -39,9 +42,10 @@ type Game struct {
 	// helpReturn — экран, на который возвращает справка.
 	helpReturn State
 
-	menuSelected int
-	menuMessage  string
-	quitSelected int
+	menuSelected  int
+	menuMessage   string
+	quitSelected  int
+	pauseSelected int
 
 	playerName string
 	nameInput  string
@@ -95,6 +99,8 @@ func (g *Game) State() State { return g.state }
 
 // Update обрабатывает ввод; вызывается Ebitengine 60 раз в секунду.
 func (g *Game) Update() error {
+	before := g.state
+	defer func() { g.updateAudio(before) }()
 	g.pollNetwork()
 	browserNameEntry := g.syncBrowserNameEntry()
 	defer g.syncBrowserNameEntry()
@@ -154,6 +160,8 @@ func (g *Game) HandleKey(key ebiten.Key) {
 		g.handleItemMenu(key)
 	case StateQuitDialog:
 		g.handleQuitDialog(key)
+	case StatePauseMenu:
+		g.handlePauseMenu(key)
 	case StateLeaderboard:
 		g.topResults = nil
 		g.state = StateMainMenu
@@ -167,6 +175,11 @@ func (g *Game) HandleKey(key ebiten.Key) {
 }
 
 func (g *Game) handleMainMenu(key ebiten.Key) {
+	if key == ebiten.KeyM || key == ebiten.KeyV {
+		g.audio.Adjust(key == ebiten.KeyM)
+		g.audio.Play(sound.Click)
+		return
+	}
 	if g.menuMessage != "" {
 		g.menuMessage = ""
 		return
@@ -174,8 +187,10 @@ func (g *Game) handleMainMenu(key ebiten.Key) {
 	switch key {
 	case ebiten.KeyUp, ebiten.KeyW:
 		g.menuSelected = (g.menuSelected - 1 + len(render.MainMenuOptions)) % len(render.MainMenuOptions)
+		g.audio.Play(sound.Click)
 	case ebiten.KeyDown, ebiten.KeyS:
 		g.menuSelected = (g.menuSelected + 1) % len(render.MainMenuOptions)
+		g.audio.Play(sound.Click)
 	case ebiten.KeyEnter, ebiten.KeyNumpadEnter:
 		switch render.MainMenuOptions[g.menuSelected].Key {
 		case "new":
@@ -230,6 +245,12 @@ var directionKeys = map[ebiten.Key]domain.Point{
 func (g *Game) handlePlaying(key ebiten.Key) {
 	s := g.session
 	s.Message = ""
+	if key == ebiten.KeyQ {
+		g.pauseSelected = 0
+		g.pendingRun = false
+		g.state = StatePauseMenu
+		return
+	}
 	if g.pendingRun {
 		g.pendingRun = false
 		if d, ok := directionKeys[key]; ok {
@@ -238,10 +259,6 @@ func (g *Game) handlePlaying(key ebiten.Key) {
 		return
 	}
 	switch key {
-	case ebiten.KeyQ:
-		g.quitSelected = 0
-		g.state = StateQuitDialog
-		return
 	case ebiten.KeyF1:
 		g.helpReturn = StatePlaying
 		g.state = StateHelp
@@ -292,7 +309,11 @@ func directionAction(d domain.Point, run bool) string {
 }
 
 func (g *Game) performAction(action string) {
+	before := captureActionAudio(g.session)
 	if g.session.ApplyAction(action) == nil {
+		for _, cue := range actionCues(before, captureActionAudio(g.session), action) {
+			g.audio.Play(cue)
+		}
 		g.checkGameOver()
 	}
 }

@@ -1,0 +1,115 @@
+package game
+
+import (
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/stariydedd/yurnerogue-go/internal/domain"
+	"github.com/stariydedd/yurnerogue-go/internal/render"
+	"github.com/stariydedd/yurnerogue-go/internal/sound"
+)
+
+// Only the interactive entry point enables audio; replay verification stays silent.
+func (g *Game) EnableAudio() {
+	if g.audio == nil {
+		g.audio = sound.New()
+	}
+}
+
+func (g *Game) updateAudio(before State) {
+	g.audio.Update(g.session != nil, ebiten.IsFocused())
+	if before == g.state {
+		return
+	}
+	switch g.state {
+	case StateDeath:
+		g.audio.Play(sound.Death)
+	case StateWin:
+		g.audio.Play(sound.Victory)
+	case StatePlaying:
+		if before == StateStarting {
+			g.audio.Play(sound.Start)
+		} else if before != StateItemMenu {
+			g.audio.Play(sound.Click)
+		}
+	default:
+		g.audio.Play(sound.Click)
+	}
+}
+
+type actionAudioSnapshot struct {
+	stats                     domain.Stats
+	level, items, enemyHealth int
+	weapon                    *domain.Item
+	position                  domain.Point
+	stepCue                   sound.Cue
+}
+
+func captureActionAudio(s *domain.Session) actionAudioSnapshot {
+	health := 0
+	for _, enemy := range s.Opponents() {
+		health += max(0, enemy.Health)
+	}
+	step := sound.StepGrass
+	// Same geometry as the renderer's PathCells, independent of items/enemies
+	// drawn over the floor and of which adjacent cells have been revealed.
+	if domain.IsCorridorCell(s.Player.X, s.Player.Y, s.Level.Rooms, s.Level.Passages) {
+		step = sound.StepTrail
+	}
+	return actionAudioSnapshot{
+		stats: s.Stats, level: s.LevelNum, items: len(s.Player.Backpack), enemyHealth: health,
+		weapon: s.Player.Weapon, position: domain.Point{X: s.Player.X, Y: s.Player.Y}, stepCue: step,
+	}
+}
+
+func actionCues(before, after actionAudioSnapshot, action string) []sound.Cue {
+	var cues []sound.Cue
+	// RUN resolves multiple tiles instantly: emit one landing step, not a queued
+	// trail of sounds after the player has stopped. Teleports aren't footsteps.
+	if after.level == before.level && after.stats.TilesMoved > before.stats.TilesMoved && after.position != before.position {
+		cues = append(cues, after.stepCue)
+	}
+	if after.level > before.level {
+		cues = append(cues, sound.Portal)
+	}
+	if after.stats.AttacksMade > before.stats.AttacksMade {
+		if after.level == before.level && after.enemyHealth < before.enemyHealth {
+			cues = append(cues, sound.Hit)
+		} else {
+			cues = append(cues, sound.Swing)
+		}
+	}
+	if after.stats.HitsTaken > before.stats.HitsTaken {
+		cues = append(cues, sound.Hurt)
+	}
+	if after.stats.EnemiesKilled > before.stats.EnemiesKilled {
+		cues = append(cues, sound.Kill)
+	}
+	if after.stats.FoodUsed > before.stats.FoodUsed {
+		cues = append(cues, sound.Heal)
+	}
+	if after.stats.ElixirsUsed > before.stats.ElixirsUsed {
+		cues = append(cues, sound.Clarity)
+	}
+	if after.stats.ScrollsRead > before.stats.ScrollsRead {
+		cues = append(cues, sound.Scroll)
+	}
+	if after.weapon != before.weapon {
+		cues = append(cues, sound.Equip)
+	}
+	if len(action) == 1 && after.items > before.items {
+		cues = append(cues, sound.Pickup)
+	}
+	return cues
+}
+
+func (g *Game) handleAudioPointer(x, y int) bool {
+	if g.state != StateMainMenu {
+		return false
+	}
+	control := render.AudioControlAt(g.renderer.Layout, x, y)
+	if control == "" {
+		return false
+	}
+	g.audio.Adjust(control == "music")
+	g.audio.Play(sound.Click)
+	return true
+}

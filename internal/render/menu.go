@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -12,6 +13,7 @@ const (
 	MenuHome MenuPage = iota
 	MenuName
 	MenuBack
+	MenuPause
 )
 
 type MenuButton struct {
@@ -24,6 +26,15 @@ func MenuButtons(l Layout, page MenuPage) []MenuButton {
 	width := min(360, l.ScreenW-48)
 	left := (l.ScreenW - width) / 2
 	right := left + width
+	if page == MenuPause {
+		top := l.ScreenH/2 - 130
+		return []MenuButton{
+			{"RESUME", "resume", image.Rect(left, top, right, top+64)},
+			{"MUSIC", "music", image.Rect(left, top+80, right, top+144)},
+			{"SFX", "effects", image.Rect(left, top+160, right, top+224)},
+			{"MAIN MENU", "quit", image.Rect(left, top+240, right, top+304)},
+		}
+	}
 	if page == MenuHome {
 		top := l.ScreenH/2 + 8
 		return []MenuButton{
@@ -52,15 +63,44 @@ func MenuActionAt(l Layout, page MenuPage, x, y int) string {
 
 func (r *Renderer) DrawMenuButtons(screen *ebiten.Image, page MenuPage, selected int) {
 	for i, button := range MenuButtons(r.Layout, page) {
-		active := menuButtonActive(page, button, i, selected)
-		r.uiSlot(screen, button.Bounds, active)
-		y := float64(button.Bounds.Min.Y+button.Bounds.Dy()/2) - 10
-		r.TextCentered(screen, button.Label, r.Fonts.Menu, y, uiText)
+		r.drawMenuButton(screen, button, menuButtonActive(page, button, i, selected))
 	}
 }
 
+func (r *Renderer) drawMenuButton(screen *ebiten.Image, button MenuButton, active bool) {
+	r.uiSlot(screen, button.Bounds, active)
+	y := float64(button.Bounds.Min.Y+button.Bounds.Dy()/2) - 10
+	r.TextCentered(screen, button.Label, r.Fonts.Menu, y, uiText)
+}
+
+func pauseButtonLabel(button MenuButton, music, effects int) string {
+	switch button.Action {
+	case "music":
+		return fmt.Sprintf("MUSIC %d%%", music)
+	case "effects":
+		return fmt.Sprintf("SFX %d%%", effects)
+	}
+	return button.Label
+}
+
+func (r *Renderer) DrawPauseMenu(screen *ebiten.Image, selected, music, effects int) {
+	r.dimScreen(screen)
+	buttons := MenuButtons(r.Layout, MenuPause)
+	top := float64(buttons[0].Bounds.Min.Y)
+	r.TextCentered(screen, "MENU", r.Fonts.Menu, top-70, uiAccent)
+	for i, button := range buttons {
+		button.Label = pauseButtonLabel(button, music, effects)
+		r.drawMenuButton(screen, button, i == selected)
+	}
+	hint := "Volume: tap to cycle 0-100%"
+	if !r.Layout.Touch {
+		hint = "M / V: volume   Esc: resume"
+	}
+	r.TextCentered(screen, hint, r.Fonts.Small, top+328, uiMuted)
+}
+
 func menuButtonActive(page MenuPage, button MenuButton, index, selected int) bool {
-	return button.Action == "start" || page == MenuHome && index == selected
+	return button.Action == "start" || (page == MenuHome || page == MenuPause) && index == selected
 }
 
 func (r *Renderer) drawMenuHeader(screen *ebiten.Image, message string) {

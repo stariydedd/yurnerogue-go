@@ -16,7 +16,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	page, menu := menuPage(g.state)
 	if menu {
-		r.DrawMenuButtons(surface, page, g.menuSelected)
+		if g.state == StatePauseMenu {
+			settings := g.audio.Settings()
+			r.DrawPauseMenu(surface, g.pauseSelected, settings.Music, settings.Effects)
+		} else {
+			r.DrawMenuButtons(surface, page, g.menuSelected)
+		}
+		if g.state == StateMainMenu {
+			settings := g.audio.Settings()
+			r.DrawAudioControls(surface, settings.Music, settings.Effects)
+		}
 	} else if g.controls != nil {
 		var player *domain.Person
 		if g.session != nil {
@@ -62,7 +71,7 @@ func (g *Game) drawScreen(screen *ebiten.Image) {
 		r.DrawMainMenu(screen, g.menuSelected, g.menuMessage)
 	case StateNameEntry:
 		r.DrawNameEntry(screen, g.nameInput, g.submitStatus)
-	case StatePlaying:
+	case StatePlaying, StatePauseMenu:
 		r.DrawWorld(screen, g.session)
 		r.DrawHUD(screen, g.session)
 	case StateItemMenu:

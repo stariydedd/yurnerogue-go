@@ -1,3 +1,10 @@
+Asset sources and notices
+
+The project's root MIT license covers original code and documentation, not
+the artwork, fonts, or prerecorded audio listed here. See ../../NOTICE.txt.
+Existing source descriptions below are attribution notices, not a grant of
+rights to third-party materials.
+
 fonts/PressStart2P.ttf
 Press Start 2P by CodeMan38
 https://fonts.google.com/specimen/Press+Start+2P
@@ -27,3 +34,26 @@ via Dota 2 Wiki (dota2.fandom.com). Non-commercial fan content.
 custom/food.png, elixir.png, scroll.png, sword.png, portal.png, heart.png,
 ui_run.png (silhouette from a stock icon) — original pixel art made for this
 project; item designs are fan interpretations of Dota 2 items (© Valve).
+
+Audio (paths relative to the repository root)
+
+internal/sound/clips/attack-{1,2,3}.wav
+Juggernaut attack recordings from Dota 2 (© Valve and/or its licensors).
+Supplied source files: Juggernaut_attack{1,2,3}.mp3.mpeg.
+
+internal/sound/clips/miss-{1,2}.wav
+Small blade whoosh recordings from Dota 2 (© Valve and/or its licensors).
+miss-1.wav corresponds to Shared_small_blade_whoosh2.mp3.mpeg;
+miss-2.wav corresponds to Shared_small_blade_whoosh3.mp3.mpeg.
+
+The supplied MP3 recordings were converted to 22050 Hz stereo PCM WAV.
+Playback lowers their level and applies a 3 ms fade at file boundaries.
+These recordings are not licensed under MIT by this project. This notice
+does not grant permission to redistribute them.
+Valve terms: https://store.steampowered.com/subscriber_agreement/
+
+Music and remaining sound effects
+Generated locally by the procedural synthesis code in internal/sound/;
+no external music recordings are used. Original synthesis code and its
+original generated audio are covered by the root LICENSE and NOTICE.txt,
+not the Dota 2 recordings listed above.

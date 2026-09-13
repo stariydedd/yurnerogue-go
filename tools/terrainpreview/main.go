@@ -47,12 +47,17 @@ func (p *preview) Draw(screen *ebiten.Image) {
 	case "menu":
 		p.r.DrawMainMenu(screen, 0, "")
 		p.r.DrawMenuButtons(screen, render.MenuHome, 0)
+		p.r.DrawAudioControls(screen, 25, 75)
 	case "help":
 		p.r.DrawHelp(screen)
 		p.r.DrawMenuButtons(screen, render.MenuBack, 0)
 	case "name":
 		p.r.DrawNameEntry(screen, "")
 		p.r.DrawMenuButtons(screen, render.MenuName, 0)
+	case "pause":
+		p.r.DrawWorld(screen, p.s)
+		p.r.DrawHUD(screen, p.s)
+		p.r.DrawPauseMenu(screen, 1, 25, 75)
 	default:
 		p.r.DrawWorld(screen, p.s)
 		p.r.DrawHUD(screen, p.s)
@@ -187,10 +192,10 @@ func main() {
 	height := flag.Int("height", 960, "touch viewport height")
 	hud := flag.Bool("hud", false, "populate inventory and temporary effects for a HUD preview")
 	frame := flag.Int("frame", 0, "fixed animation frame for all sprite roles")
-	page := flag.String("page", "game", "screen to capture: game, menu, help, name")
+	page := flag.String("page", "game", "screen to capture: game, menu, help, name, pause")
 	left := flag.Bool("left", false, "face all characters left")
 	flag.Parse()
-	if *page != "game" && *page != "menu" && *page != "help" && *page != "name" {
+	if *page != "game" && *page != "menu" && *page != "help" && *page != "name" && *page != "pause" {
 		log.Fatal("unknown preview page")
 	}
 	if *scene != "room" && *scene != "corridor" && *scene != "corridor-bend" && *scene != "seed" && *scene != "heroes" && *scene != "hero-depth" && *scene != "hero-depth-reverse" && *scene != "gate-items" && *scene != "gate-clear" && *scene != "gate-hero" {

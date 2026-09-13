@@ -11,7 +11,7 @@ func TestMenuButtonsFitAndMatchHitTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, l := range []Layout{DesktopLayout(), TouchLayout(390, 600), TouchLayout(390, 844), TouchLayout(430, 932), TouchLayout(844, 390)} {
-		for _, page := range []MenuPage{MenuHome, MenuName, MenuBack} {
+		for _, page := range []MenuPage{MenuHome, MenuName, MenuBack, MenuPause} {
 			buttons := MenuButtons(l, page)
 			for i, button := range buttons {
 				if !button.Bounds.In(image.Rect(0, 0, l.ScreenW, l.ScreenH)) || button.Bounds.Dy() < 60 {
@@ -32,6 +32,23 @@ func TestMenuButtonsFitAndMatchHitTargets(t *testing.T) {
 			}
 			if MenuActionAt(l, page, 5, l.ScreenH-5) != "" {
 				t.Fatal("empty background is active")
+			}
+		}
+	}
+}
+
+func TestPauseVolumeLabelsFitAtEverySetting(t *testing.T) {
+	fonts, err := loadFonts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range []Layout{DesktopLayout(), TouchLayout(320, 568), TouchLayout(390, 600), TouchLayout(844, 390)} {
+		for _, button := range MenuButtons(l, MenuPause) {
+			for volume := 0; volume <= 100; volume += 25 {
+				label := pauseButtonLabel(button, volume, volume)
+				if TextWidth(label, fonts.Menu) > float64(button.Bounds.Dx()-24) {
+					t.Fatalf("pause label does not fit: %s", label)
+				}
 			}
 		}
 	}
