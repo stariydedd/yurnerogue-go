@@ -20,6 +20,7 @@ type combatMarker struct {
 	event domain.CombatEvent
 	born  int
 	lane  int
+	track *actorMotion
 }
 
 type combatMarkers struct {
@@ -79,7 +80,15 @@ func (r *Renderer) ShowCombat(s *domain.Session, events []domain.CombatEvent) {
 		if len(c.active) == maxCombatMarkers {
 			c.active = c.active[1:]
 		}
-		c.active = append(c.active, combatMarker{event: event, born: r.tick, lane: lane})
+		var track *actorMotion
+		if r.motion.session == s && r.motion.level == s.Level {
+			if event.TargetPlayer {
+				track = &r.motion.player
+			} else {
+				track = r.motion.enemies[s.OpponentAt(event.Target.X, event.Target.Y)]
+			}
+		}
+		c.active = append(c.active, combatMarker{event: event, born: r.tick, lane: lane, track: track})
 	}
 }
 
@@ -109,8 +118,12 @@ func (r *Renderer) drawCombat(dst *ebiten.Image, s *domain.Session, vis domain.V
 			continue
 		}
 		age := r.tick - marker.born
-		x := event.Target.X*TileSize + TileSize/2 - camX
-		feetY := (event.Target.Y+1)*TileSize - camY
+		pos := tilePixels(event.Target.X, event.Target.Y)
+		if marker.track != nil && marker.track.to == pos && (event.TargetPlayer || marker.track.pathVisible(vis)) {
+			pos = marker.track.position(r.tick)
+		}
+		x := pos.X + TileSize/2 - camX
+		feetY := pos.Y + TileSize - camY
 		// Do not pin markers for offscreen actors to the edge of the viewport.
 		if x < 0 || x >= r.Layout.GridW || feetY < 0 || feetY > r.Layout.GridH+TileSize {
 			continue

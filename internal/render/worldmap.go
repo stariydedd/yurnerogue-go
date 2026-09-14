@@ -43,7 +43,7 @@ func (r *Renderer) DrawWorld(screen *ebiten.Image, s *domain.Session) {
 	l := r.Layout
 	grid := s.BuildGrid(false)
 	vis := s.ComputeVisibility(grid)
-	camX, camY := cameraOffset(l, s.Player.X, s.Player.Y)
+	camX, camY := r.motionCamera(s)
 	tick := r.tick / AnimFrameTicks
 	paths := domain.PathCells(s.Level.Rooms, s.Level.Passages)
 
@@ -63,8 +63,9 @@ func (r *Renderer) DrawWorld(screen *ebiten.Image, s *domain.Session) {
 		}
 	}
 
-	for _, actor := range worldActors(s, vis) {
-		r.drawEntity(field, actor.role, actor.x, actor.y, camX, camY, tick, actor.facing)
+	for _, actor := range r.movingActors(s, vis) {
+		r.drawEntity(field, actor.role, actor.x, actor.y,
+			camX+actor.x*TileSize-actor.position.X, camY+actor.y*TileSize-actor.position.Y, tick, actor.facing)
 	}
 	r.drawCombat(field, s, vis, camX, camY)
 }

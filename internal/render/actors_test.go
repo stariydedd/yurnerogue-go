@@ -17,7 +17,7 @@ func TestWorldActorsDepthAndStableTies(t *testing.T) {
 		vis := domain.Visibility{Visible: map[domain.Point]bool{{X: 16, Y: row}: true}}
 		got := worldActors(s, vis)
 		player := worldActor{role: "player", x: 16, y: 10, facing: -1}
-		sky := worldActor{role: "skywrath", x: 16, y: row, facing: 1}
+		sky := worldActor{role: "skywrath", x: 16, y: row, facing: 1, opponent: op}
 		want := []worldActor{sky, player}
 		if row > 10 {
 			want = []worldActor{player, sky}

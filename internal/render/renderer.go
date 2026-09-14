@@ -60,6 +60,7 @@ type Renderer struct {
 	forestMemory forestMemory
 	uiStone      *ebiten.Image
 	combat       combatMarkers
+	motion       worldMotion
 }
 
 // New создаёт рендерер под заданную раскладку.

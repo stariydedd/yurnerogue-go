@@ -30,6 +30,11 @@ type forestCache struct {
 	frame *ebiten.Image
 }
 
+func forestCacheContains(cached, requested forestCacheKey) bool {
+	return cached.level == requested.level && cached.player == requested.player &&
+		cached.visited == requested.visited && requested.viewport.In(cached.viewport)
+}
+
 // Remember only revealed floor, including corridors, for this level. This is
 // rendering state: it must not reveal items or change gameplay visibility.
 type forestMemory struct {
@@ -55,7 +60,10 @@ func (m *forestMemory) reveal(level *domain.Level, grid domain.Grid, vis domain.
 // Terrain is static between player steps. Cache its GPU image instead of
 // rebuilding the forest and its low foliage on every animation frame.
 func (r *Renderer) drawCachedForest(dst *ebiten.Image, grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, key forestCacheKey) {
-	if r.forest == nil || r.forest.key != key {
+	viewport := key.viewport
+	if r.forest == nil || !forestCacheContains(r.forest.key, key) {
+		// Include the entire short camera slide in one terrain render.
+		key.viewport = key.viewport.Inset(-2 * TileSize)
 		var frame *ebiten.Image
 		if r.forest != nil {
 			frame = r.forest.frame
@@ -72,7 +80,9 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, grid domain.Grid, vis dom
 		r.drawForestTerrain(frame, grid, terrainVis, paths, key.viewport.Min.X, key.viewport.Min.Y)
 		r.forest = &forestCache{key: key, frame: frame}
 	}
-	dst.DrawImage(r.forest.frame, nil)
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(r.forest.key.viewport.Min.X-viewport.Min.X), float64(r.forest.key.viewport.Min.Y-viewport.Min.Y))
+	dst.DrawImage(r.forest.frame, op)
 }
 
 func newForestView(grid domain.Grid, vis domain.Visibility) forestView {
@@ -462,7 +472,7 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 }
 
 func (r *Renderer) drawForestTerrain(dst *ebiten.Image, grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, camX, camY int) {
-	viewport := image.Rect(camX, camY, camX+r.Layout.GridW, camY+r.Layout.GridH)
+	viewport := image.Rect(camX, camY, camX+dst.Bounds().Dx(), camY+dst.Bounds().Dy())
 	v := newForestView(grid, vis)
 	props := forestProps(v, viewport)
 	// Continuous shaded grass/soil below the forest. This is decorative ground,

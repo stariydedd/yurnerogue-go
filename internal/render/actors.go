@@ -9,6 +9,7 @@ import (
 type worldActor struct {
 	role         string
 	x, y, facing int
+	opponent     *domain.Opponent
 }
 
 // Sort a render-only list by the ground anchor, not the top of the artwork.
@@ -22,7 +23,7 @@ func worldActors(s *domain.Session, vis domain.Visibility) []worldActor {
 		if !op.IsAlive() || !op.IsVisible || !vis.Visible[domain.Point{X: op.X, Y: op.Y}] {
 			continue
 		}
-		actors = append(actors, worldActor{role: op.Type.SpriteRole(), x: op.X, y: op.Y, facing: op.Facing})
+		actors = append(actors, worldActor{role: op.Type.SpriteRole(), x: op.X, y: op.Y, facing: op.Facing, opponent: op})
 	}
 	actors = append(actors, worldActor{role: "player", x: s.Player.X, y: s.Player.Y, facing: s.Player.Facing})
 	sort.SliceStable(actors, func(i, j int) bool { return actors[i].y < actors[j].y })

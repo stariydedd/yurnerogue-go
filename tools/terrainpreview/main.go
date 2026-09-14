@@ -195,6 +195,7 @@ func main() {
 	page := flag.String("page", "game", "screen to capture: game, menu, help, name, pause")
 	left := flag.Bool("left", false, "face all characters left")
 	combat := flag.Bool("combat", false, "show fixed hit and miss markers in the room fixture")
+	motionFrame := flag.Int("motion-frame", -1, "capture tick 0..8 of a fixed one-tile movement")
 	flag.Parse()
 	if *page != "game" && *page != "menu" && *page != "help" && *page != "name" && *page != "pause" {
 		log.Fatal("unknown preview page")
@@ -258,6 +259,20 @@ func main() {
 			{Target: domain.Point{X: 16, Y: 10}, Level: s.LevelNum, Damage: domain.Miss, TargetPlayer: true},
 		})
 		for i := 0; i < 4; i++ {
+			r.Tick()
+		}
+	}
+	if *motionFrame >= 0 {
+		if *motionFrame > 8 {
+			log.Fatal("motion frame must be between 0 and 8")
+		}
+		r.SyncMotion(s, false)
+		s.Player.X++
+		for _, enemy := range s.Opponents() {
+			enemy.X--
+		}
+		r.SyncMotion(s, true)
+		for i := 0; i < *motionFrame; i++ {
 			r.Tick()
 		}
 	}

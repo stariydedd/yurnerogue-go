@@ -309,8 +309,11 @@ func directionAction(d domain.Point, run bool) string {
 }
 
 func (g *Game) performAction(action string) {
+	g.renderer.SyncMotion(g.session, false)
 	before := captureActionAudio(g.session)
 	if g.session.ApplyAction(action) == nil {
+		animate := g.session.Stats.TilesMoved-before.stats.TilesMoved <= 1
+		g.renderer.SyncMotion(g.session, animate)
 		if g.renderer != nil {
 			g.renderer.ShowCombat(g.session, g.session.CombatEvents)
 		}

@@ -23,8 +23,8 @@ func (r *Renderer) gateForeground(s *domain.Session, vis domain.Visibility, tick
 		}
 		add(image.Rect(it.X*TileSize-1, it.Y*TileSize-1, (it.X+1)*TileSize+1, (it.Y+1)*TileSize+1))
 	}
-	hero := func(role string, x, y int) {
-		img, outlined := r.sprites.heroFrame(role, tick)
+	hero := func(actor worldActor) {
+		img, outlined := r.sprites.heroFrame(actor.role, tick)
 		if img == nil {
 			return
 		}
@@ -33,15 +33,13 @@ func (r *Renderer) gateForeground(s *domain.Session, vis domain.Visibility, tick
 			pad = worldOutlineRadius
 		}
 		size := img.Bounds().Size()
-		left, top := x*TileSize+TileSize/2-size.X/2, (y+1)*TileSize-size.Y+pad
+		pos := r.actorPosition(s, actor, vis)
+		left, top := pos.X+TileSize/2-size.X/2, pos.Y+TileSize-size.Y+pad
 		add(image.Rect(left, top, left+size.X, top+size.Y))
 	}
-	for _, op := range s.Level.AllOpponents() {
-		if op.IsAlive() && op.IsVisible && vis.Visible[domain.Point{X: op.X, Y: op.Y}] {
-			hero(op.Type.SpriteRole(), op.X, op.Y)
-		}
+	for _, actor := range worldActors(s, vis) {
+		hero(actor)
 	}
-	hero("player", s.Player.X, s.Player.Y)
 	return protected
 }
 
