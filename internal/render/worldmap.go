@@ -66,6 +66,7 @@ func (r *Renderer) DrawWorld(screen *ebiten.Image, s *domain.Session) {
 	for _, actor := range worldActors(s, vis) {
 		r.drawEntity(field, actor.role, actor.x, actor.y, camX, camY, tick, actor.facing)
 	}
+	r.drawCombat(field, s, vis, camX, camY)
 }
 
 // isFloor — клетки, под которыми рисуется пол. Сетка помечает предметы и

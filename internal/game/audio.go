@@ -41,6 +41,7 @@ type actionAudioSnapshot struct {
 	weapon                    *domain.Item
 	position                  domain.Point
 	stepCue                   sound.Cue
+	combat                    []domain.CombatEvent
 }
 
 func captureActionAudio(s *domain.Session) actionAudioSnapshot {
@@ -57,6 +58,7 @@ func captureActionAudio(s *domain.Session) actionAudioSnapshot {
 	return actionAudioSnapshot{
 		stats: s.Stats, level: s.LevelNum, items: len(s.Player.Backpack), enemyHealth: health,
 		weapon: s.Player.Weapon, position: domain.Point{X: s.Player.X, Y: s.Player.Y}, stepCue: step,
+		combat: append([]domain.CombatEvent(nil), s.CombatEvents...),
 	}
 }
 
@@ -71,7 +73,14 @@ func actionCues(before, after actionAudioSnapshot, action string) []sound.Cue {
 		cues = append(cues, sound.Portal)
 	}
 	if after.stats.AttacksMade > before.stats.AttacksMade {
-		if after.level == before.level && after.enemyHealth < before.enemyHealth {
+		hit := after.level == before.level && after.enemyHealth < before.enemyHealth
+		for _, event := range after.combat {
+			if !event.TargetPlayer {
+				hit = event.Damage != domain.Miss
+				break
+			}
+		}
+		if hit {
 			cues = append(cues, sound.Hit)
 		} else {
 			cues = append(cues, sound.Swing)

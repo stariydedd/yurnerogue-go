@@ -79,6 +79,7 @@ func (s *Session) UseChoice(t ItemType, choice int) bool {
 // Lowercase WASD is a step; uppercase is a run; hjke + digit selects an item.
 // z is a skipped sleeping turn, never a free wait while awake.
 func (s *Session) ApplyAction(action string) error {
+	s.CombatEvents = s.CombatEvents[:0]
 	if !s.Player.IsAlive() || s.Won() {
 		return ErrAction
 	}

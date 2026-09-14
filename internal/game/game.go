@@ -311,6 +311,9 @@ func directionAction(d domain.Point, run bool) string {
 func (g *Game) performAction(action string) {
 	before := captureActionAudio(g.session)
 	if g.session.ApplyAction(action) == nil {
+		if g.renderer != nil {
+			g.renderer.ShowCombat(g.session, g.session.CombatEvents)
+		}
 		for _, cue := range actionCues(before, captureActionAudio(g.session), action) {
 			g.audio.Play(cue)
 		}

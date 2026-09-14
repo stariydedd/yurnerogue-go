@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
+	"github.com/stariydedd/yurnerogue-go/internal/render"
 	"github.com/stariydedd/yurnerogue-go/internal/sound"
 )
 
@@ -43,7 +44,7 @@ func TestActionSoundsFollowSuccessfulGameEvents(t *testing.T) {
 }
 
 func TestSoundObservationDoesNotChangeReplay(t *testing.T) {
-	g := &Game{session: domain.NewSessionSeed(21), state: StatePlaying}
+	g := &Game{session: domain.NewSessionSeed(21), state: StatePlaying, renderer: &render.Renderer{}}
 	twin := domain.NewSessionSeed(21)
 	for _, action := range []string{"s", "s", "d", "a", "w", "h0"} {
 		g.performAction(action)
@@ -51,5 +52,15 @@ func TestSoundObservationDoesNotChangeReplay(t *testing.T) {
 	}
 	if g.session.Actions() != twin.Actions() || !reflect.DeepEqual(g.session.Stats, twin.Stats) || !reflect.DeepEqual(g.session.Player, twin.Player) {
 		t.Fatal("sound observation altered game simulation")
+	}
+}
+
+func TestZeroDamageHitSoundMatchesCombatMarker(t *testing.T) {
+	before := actionAudioSnapshot{level: 1, enemyHealth: 100}
+	after := before
+	after.stats.AttacksMade = 1
+	after.combat = []domain.CombatEvent{{Damage: 0, Level: 1}}
+	if got := actionCues(before, after, "d"); !reflect.DeepEqual(got, []sound.Cue{sound.Hit}) {
+		t.Fatalf("successful zero-damage hit played a miss: %v", got)
 	}
 }

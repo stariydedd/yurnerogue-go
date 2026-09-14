@@ -23,6 +23,7 @@ type Session struct {
 	Player         *Person
 	Message        string
 	Stats          Stats
+	CombatEvents   []CombatEvent `json:"-"`
 
 	// VisitedRooms — индексы комнат, которые игрок уже видел (для тумана войны).
 	VisitedRooms map[int]bool

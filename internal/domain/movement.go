@@ -50,6 +50,7 @@ func (s *Session) step(nx, ny int) bool {
 func (s *Session) attack(op *Opponent) {
 	goldBefore := s.Player.Treasures
 	damage := PlayerAttacks(s.Player, op)
+	s.recordCombat(CombatEvent{Target: Point{X: op.X, Y: op.Y}, Damage: damage})
 	s.Stats.AttacksMade++
 	if !op.IsAlive() {
 		s.Stats.EnemiesKilled++

@@ -59,6 +59,7 @@ type Renderer struct {
 	forest       *forestCache
 	forestMemory forestMemory
 	uiStone      *ebiten.Image
+	combat       combatMarkers
 }
 
 // New создаёт рендерер под заданную раскладку.
@@ -78,7 +79,10 @@ func New(l Layout) (*Renderer, error) {
 }
 
 // Tick продвигает счётчик кадров: от него зависят idle-анимации.
-func (r *Renderer) Tick() { r.tick++ }
+func (r *Renderer) Tick() {
+	r.tick++
+	r.combat.expire(r.tick)
+}
 
 // Sprites даёт доступ к спрайтам (нужен панели экранных кнопок).
 func (r *Renderer) Sprites() *Sprites { return r.sprites }

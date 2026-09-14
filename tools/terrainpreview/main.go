@@ -194,6 +194,7 @@ func main() {
 	frame := flag.Int("frame", 0, "fixed animation frame for all sprite roles")
 	page := flag.String("page", "game", "screen to capture: game, menu, help, name, pause")
 	left := flag.Bool("left", false, "face all characters left")
+	combat := flag.Bool("combat", false, "show fixed hit and miss markers in the room fixture")
 	flag.Parse()
 	if *page != "game" && *page != "menu" && *page != "help" && *page != "name" && *page != "pause" {
 		log.Fatal("unknown preview page")
@@ -240,6 +241,24 @@ func main() {
 		s.Player.Facing = -1
 		for _, op := range s.Level.AllOpponents() {
 			op.Facing = -1
+		}
+	}
+	if *combat {
+		s.Player.X, s.Player.Y = 16, 10
+		s.Level.Items = nil
+		room := s.Level.RoomAt(s.Player.X, s.Player.Y)
+		if room == nil {
+			log.Fatal("combat preview requires a room scene")
+		}
+		enemy := domain.NewOpponent(domain.Zombie)
+		enemy.X, enemy.Y, enemy.IsVisible = 17, 10, true
+		room.Enemies = []*domain.Opponent{enemy}
+		r.ShowCombat(s, []domain.CombatEvent{
+			{Target: domain.Point{X: 17, Y: 10}, Level: s.LevelNum, Damage: 28},
+			{Target: domain.Point{X: 16, Y: 10}, Level: s.LevelNum, Damage: domain.Miss, TargetPlayer: true},
+		})
+		for i := 0; i < 4; i++ {
+			r.Tick()
 		}
 	}
 	p := &preview{r: r, s: s, out: *out, page: *page}

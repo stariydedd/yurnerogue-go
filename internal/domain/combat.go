@@ -116,7 +116,14 @@ func (s *Session) ProcessEnemyTurns() {
 		if o.Type == Ghost {
 			o.IsChasing = true // Riki перестаёт прятаться, когда бьёт
 		}
+		resting := o.Type == Ogre && o.Resting()
 		damage := OpponentAttacks(o, p)
+		if !resting {
+			s.recordCombat(CombatEvent{
+				Target: Point{X: p.X, Y: p.Y}, Damage: damage,
+				TargetPlayer: true, MaxHP: o.Type == Vampire && damage > 0,
+			})
+		}
 		if damage > 0 {
 			s.Stats.HitsTaken++
 		}
