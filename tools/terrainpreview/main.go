@@ -50,14 +50,39 @@ func (p *preview) Draw(screen *ebiten.Image) {
 		p.r.DrawAudioControls(screen, 25, 75)
 	case "help":
 		p.r.DrawHelp(screen)
-		p.r.DrawMenuButtons(screen, render.MenuBack, 0)
+		p.r.DrawMenuButtons(screen, render.MenuHelp, 0)
+	case "help-bottom":
+		p.r.DrawHelp(screen, render.HelpScrollLimit(p.r.Layout))
+		p.r.DrawMenuButtons(screen, render.MenuHelp, 0)
+	case "leaderboard":
+		records := make([]render.LeaderboardRecord, 10)
+		for i := range records {
+			records[i] = render.LeaderboardRecord{PlayerName: "Juggernaut", Treasures: 2484 - i*100, Level: 14, EnemiesKilled: 38, FoodUsed: 18, ElixirsUsed: 9, ScrollsRead: 20, AttacksMade: 134, HitsTaken: 64, TilesMoved: 2143}
+		}
+		p.r.DrawLeaderboard(screen, records, false, "GLOBAL")
+		p.r.DrawMenuButtons(screen, render.MenuLeaderboard, 0)
 	case "name":
 		p.r.DrawNameEntry(screen, "")
 		p.r.DrawMenuButtons(screen, render.MenuName, 0)
+	case "welcome":
+		p.r.DrawWelcome(screen)
+		p.r.DrawMenuButtons(screen, render.MenuWelcome, 0)
+	case "death", "win":
+		p.s.Stats = domain.Stats{EnemiesKilled: 42, FoodUsed: 8, ElixirsUsed: 3, ScrollsRead: 5, AttacksMade: 127, HitsTaken: 61, TilesMoved: 842}
+		p.s.Turns, p.s.Player.Treasures, p.s.LevelNum = 991, 2840, 7
+		if p.page == "win" {
+			p.s.LevelNum = domain.MaxLevels + 1
+		}
+		p.r.DrawRunSummary(screen, p.s, "Juggernaut", p.page == "win", "Score submitted to global leaderboard!")
+		p.r.DrawMenuButtons(screen, render.MenuResults, 0)
 	case "pause":
 		p.r.DrawWorld(screen, p.s)
 		p.r.DrawHUD(screen, p.s)
 		p.r.DrawPauseMenu(screen, 1, 25, 75)
+	case "quit":
+		p.r.DrawWorld(screen, p.s)
+		p.r.DrawHUD(screen, p.s)
+		p.r.DrawQuitDialog(screen, 1)
 	default:
 		p.r.DrawWorld(screen, p.s)
 		p.r.DrawHUD(screen, p.s)
@@ -192,12 +217,12 @@ func main() {
 	height := flag.Int("height", 960, "touch viewport height")
 	hud := flag.Bool("hud", false, "populate inventory and temporary effects for a HUD preview")
 	frame := flag.Int("frame", 0, "fixed animation frame for all sprite roles")
-	page := flag.String("page", "game", "screen to capture: game, menu, help, name, pause")
+	page := flag.String("page", "game", "screen to capture: game, menu, help, help-bottom, leaderboard, name, pause, quit, welcome, death, win")
 	left := flag.Bool("left", false, "face all characters left")
 	combat := flag.Bool("combat", false, "show fixed hit and miss markers in the room fixture")
 	motionFrame := flag.Int("motion-frame", -1, "capture tick 0..8 of a fixed one-tile movement")
 	flag.Parse()
-	if *page != "game" && *page != "menu" && *page != "help" && *page != "name" && *page != "pause" {
+	if *page != "game" && *page != "menu" && *page != "help" && *page != "help-bottom" && *page != "leaderboard" && *page != "name" && *page != "pause" && *page != "quit" && *page != "welcome" && *page != "death" && *page != "win" {
 		log.Fatal("unknown preview page")
 	}
 	if *scene != "room" && *scene != "corridor" && *scene != "corridor-bend" && *scene != "seed" && *scene != "heroes" && *scene != "hero-depth" && *scene != "hero-depth-reverse" && *scene != "gate-items" && *scene != "gate-clear" && *scene != "gate-hero" {

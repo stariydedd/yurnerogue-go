@@ -41,9 +41,14 @@ func (g *Game) pollNetwork() {
 		if result.err != nil || err != nil || result.ticket.Version != domain.RulesVersion || result.ticket.Ticket == "" {
 			// Never silently turn a failed server start into an unsubmitable run.
 			g.runTicket = ""
-			g.session = nil
-			g.state = StateNameEntry
 			g.submitStatus = startFailureStatus(result.err)
+			if g.startReturn == StateDeath || g.startReturn == StateWin {
+				g.state = g.startReturn
+				g.submitStatus = "New game: " + g.submitStatus
+			} else {
+				g.session = nil
+				g.state = StateNameEntry
+			}
 		} else {
 			g.startNewGame()
 			g.session = domain.NewSessionSeed(seed)
@@ -118,6 +123,7 @@ type startResult struct {
 }
 
 func (g *Game) requestRankedGame() {
+	g.startReturn = g.state
 	g.state = StateStarting
 	g.submitStatus = ""
 	results := make(chan startResult, 1)

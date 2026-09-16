@@ -14,14 +14,24 @@ func menuPage(state State) (render.MenuPage, bool) {
 		return render.MenuName, true
 	case StatePauseMenu:
 		return render.MenuPause, true
-	case StateHelp, StateLeaderboard, StateStarting, StateDeath, StateWin:
+	case StateQuitDialog:
+		return render.MenuQuit, true
+	case StateWelcome:
+		return render.MenuWelcome, true
+	case StateDeath, StateWin:
+		return render.MenuResults, true
+	case StateHelp:
+		return render.MenuHelp, true
+	case StateLeaderboard:
+		return render.MenuLeaderboard, true
+	case StateStarting:
 		return render.MenuBack, true
 	}
 	return 0, false
 }
 
 func (g *Game) handleMenuPointer(x, y int) {
-	if g.handleAudioPointer(x, y) {
+	if g.setAudioSliderAt(x, y) {
 		return
 	}
 	page, ok := menuPage(g.state)
@@ -32,9 +42,22 @@ func (g *Game) handleMenuPointer(x, y int) {
 	if action == "" {
 		return
 	}
+	if g.state == StateWelcome || g.state == StateDeath || g.state == StateWin {
+		g.activateRunAction(action)
+		return
+	}
 	if g.state == StatePauseMenu {
 		g.activatePauseAction(action)
 		return
+	}
+	if g.state == StateQuitDialog {
+		for i, option := range render.QuitOptions {
+			if option.Key == action {
+				g.quitSelected = i
+				g.HandleKey(ebiten.KeyEnter)
+				return
+			}
+		}
 	}
 	if g.state == StateMainMenu {
 		for i, option := range render.MainMenuOptions {
@@ -46,10 +69,45 @@ func (g *Game) handleMenuPointer(x, y int) {
 			}
 		}
 	}
-	if action == "start" || g.state == StateDeath || g.state == StateWin {
+	if action == "start" {
 		g.HandleKey(ebiten.KeyEnter)
 	} else if action == "back" {
 		g.HandleKey(ebiten.KeyEscape)
+	}
+}
+
+func (g *Game) openWelcome() {
+	g.returnToMenu()
+	g.submitStatus = ""
+	g.runMenuSelected = 0
+	g.state = StateWelcome
+}
+
+func (g *Game) handleRunMenu(key ebiten.Key) {
+	switch key {
+	case ebiten.KeyEscape, ebiten.KeyQ:
+		g.returnToMenu()
+	case ebiten.KeyUp, ebiten.KeyW, ebiten.KeyDown, ebiten.KeyS:
+		g.runMenuSelected = 1 - g.runMenuSelected
+		g.audio.Play(sound.Click)
+	case ebiten.KeyEnter, ebiten.KeyNumpadEnter:
+		page, _ := menuPage(g.state)
+		g.activateRunAction(render.MenuButtons(g.renderer.Layout, page)[g.runMenuSelected].Action)
+	}
+}
+
+func (g *Game) activateRunAction(action string) {
+	switch action {
+	case "continue":
+		g.nameInput = g.playerName
+		g.state = StateNameEntry
+	case "again":
+		// Keep the summary for a failed start, but detach the old submission.
+		g.submitResults = nil
+		g.runTicket = ""
+		g.requestRankedGame()
+	case "back":
+		g.returnToMenu()
 	}
 }
 
@@ -64,6 +122,8 @@ func (g *Game) handlePauseMenu(key ebiten.Key) {
 	case ebiten.KeyDown, ebiten.KeyS:
 		g.pauseSelected = (g.pauseSelected + 1) % len(buttons)
 		g.audio.Play(sound.Click)
+	case ebiten.KeyLeft, ebiten.KeyA, ebiten.KeyRight, ebiten.KeyD:
+		g.adjustAudioSlider(buttons[g.pauseSelected].Action, key)
 	case ebiten.KeyEnter, ebiten.KeyNumpadEnter:
 		g.activatePauseAction(buttons[g.pauseSelected].Action)
 	case ebiten.KeyM:

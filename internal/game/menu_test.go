@@ -36,6 +36,7 @@ func TestMobileMenuLeaderboardAndStartUseExistingNetworkFlow(t *testing.T) {
 	}
 	tapMenuAction(t, g, "back")
 	tapMenuAction(t, g, "new")
+	tapMenuAction(t, g, "continue")
 	tapMenuAction(t, g, "start")
 	if g.state != StateStarting || g.startResults == nil {
 		t.Fatal("PLAY did not request a game")
@@ -75,6 +76,10 @@ func TestMobileMenuDirectPlayAndBack(t *testing.T) {
 	g.menuSelected = 2
 	g.menuMessage = "Previous game ended"
 	tapMenuAction(t, g, "new")
+	if g.state != StateWelcome {
+		t.Fatal("PLAY did not open welcome screen")
+	}
+	tapMenuAction(t, g, "continue")
 	if g.state != StateNameEntry || g.nameInput != "tester" {
 		t.Fatal("PLAY did not open name entry")
 	}
@@ -105,7 +110,7 @@ func TestDesktopMenuPointerAndKeyboardUseSameActions(t *testing.T) {
 		t.Fatal("desktop BACK did not return")
 	}
 	tapMenuAction(t, g, "new")
-	if g.state != StateNameEntry {
+	if g.state != StateWelcome {
 		t.Fatal("desktop PLAY used stale selection")
 	}
 	tapMenuAction(t, g, "back")
@@ -149,7 +154,7 @@ func TestMenuBackDetachesLeaderboardRequest(t *testing.T) {
 func TestMobileMenusDisableGameplayTargets(t *testing.T) {
 	l := render.TouchLayout(390, 700)
 	ti := newTouchInput(render.NewControls(l))
-	for _, state := range []State{StateMainMenu, StateNameEntry, StateStarting, StateHelp, StateLeaderboard, StateWin, StateDeath, StatePauseMenu} {
+	for _, state := range []State{StateMainMenu, StateWelcome, StateNameEntry, StateStarting, StateHelp, StateLeaderboard, StateWin, StateDeath, StatePauseMenu, StateQuitDialog} {
 		if _, ok := menuPage(state); !ok {
 			t.Fatalf("gameplay panel visible on %v", state)
 		}
@@ -157,7 +162,7 @@ func TestMobileMenusDisableGameplayTargets(t *testing.T) {
 			t.Fatal("hidden d-pad fired")
 		}
 	}
-	for _, state := range []State{StatePlaying, StateItemMenu, StateQuitDialog} {
+	for _, state := range []State{StatePlaying, StateItemMenu} {
 		if _, ok := menuPage(state); ok {
 			t.Fatal("gameplay controls hidden during game")
 		}
@@ -181,7 +186,7 @@ func TestPauseMenuVolumeAndResumePreserveRun(t *testing.T) {
 			t.Fatal("MENU did not open pause menu or clear pending RUN")
 		}
 		for _, volume := range []int{25, 50, 75, 100, 0} {
-			tapMenuAction(t, g, "music")
+			g.HandleKey(ebiten.KeyM)
 			if got := g.audio.Settings(); got.Music != volume || got.Effects != 0 {
 				t.Fatalf("music control changed wrong volume: %+v", got)
 			}
@@ -221,6 +226,34 @@ func TestPauseMenuVolumeAndResumePreserveRun(t *testing.T) {
 		g.HandleKey(ebiten.KeyEnter)
 		if g.state != StateMainMenu || g.session != nil || g.runTicket != "" {
 			t.Fatal("confirmed exit did not end run")
+		}
+	}
+}
+
+func TestQuitDialogPointerUsesVisibleButtons(t *testing.T) {
+	for _, l := range []render.Layout{render.DesktopLayout(), render.TouchLayout(390, 600)} {
+		g := New(&render.Renderer{Layout: l})
+		g.startNewGame()
+		g.runTicket = "keep-until-confirmed"
+		session := g.session
+		g.HandleKey(ebiten.KeyQ)
+		tapMenuAction(t, g, "quit")
+		if g.quitSelected != 1 {
+			t.Fatal("cancel is not the safe default")
+		}
+		g.handleMenuPointer(5, 5)
+		if g.state != StateQuitDialog {
+			t.Fatal("background tap dismissed confirmation")
+		}
+		tapMenuAction(t, g, "cancel")
+		if g.state != StatePlaying || g.session != session || g.runTicket != "keep-until-confirmed" {
+			t.Fatal("cancel lost the run")
+		}
+		g.HandleKey(ebiten.KeyQ)
+		tapMenuAction(t, g, "quit")
+		tapMenuAction(t, g, "menu")
+		if g.state != StateMainMenu || g.session != nil || g.runTicket != "" {
+			t.Fatal("confirmed exit did not discard the run")
 		}
 	}
 }

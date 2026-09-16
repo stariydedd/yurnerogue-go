@@ -3,7 +3,6 @@ package game
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
-	"github.com/stariydedd/yurnerogue-go/internal/render"
 	"github.com/stariydedd/yurnerogue-go/internal/sound"
 )
 
@@ -108,17 +107,4 @@ func actionCues(before, after actionAudioSnapshot, action string) []sound.Cue {
 		cues = append(cues, sound.Pickup)
 	}
 	return cues
-}
-
-func (g *Game) handleAudioPointer(x, y int) bool {
-	if g.state != StateMainMenu {
-		return false
-	}
-	control := render.AudioControlAt(g.renderer.Layout, x, y)
-	if control == "" {
-		return false
-	}
-	g.audio.Adjust(control == "music")
-	g.audio.Play(sound.Click)
-	return true
 }

@@ -16,10 +16,30 @@ var (
 	uiHighlight = color.RGBA{255, 183, 110, 255}
 	uiText      = color.RGBA{246, 245, 240, 255}
 	uiMuted     = color.RGBA{166, 163, 158, 255}
+	uiSecondary = color.RGBA{224, 207, 185, 255}
 	uiAccent    = color.RGBA{255, 112, 24, 255}
 	uiRecess    = color.RGBA{18, 17, 16, 255}
 	uiPressed   = color.RGBA{65, 33, 17, 255}
 )
+
+func (r *Renderer) secondaryFace() text.Face {
+	if r.Layout.Touch {
+		return r.Fonts.Compact
+	}
+	return r.Fonts.UI
+}
+
+// Secondary captions share readable type and warm contrast with the menu theme.
+func (r *Renderer) secondaryCaption(dst *ebiten.Image, label string, y float64) {
+	face := r.secondaryFace()
+	lineH := TextWidth("M", face) + 6
+	for i, line := range r.statusLines(label, face) {
+		x := float64(r.Layout.ScreenW)/2 - TextWidth(line, face)/2
+		ty := y + float64(i)*lineH
+		r.Text(dst, line, face, x+1, ty+1, uiInk)
+		r.Text(dst, line, face, x, ty, uiSecondary)
+	}
+}
 
 // The small stone tile is generated once; panels reuse it without per-frame uploads.
 func (r *Renderer) stonePanel(dst *ebiten.Image, box image.Rectangle) {

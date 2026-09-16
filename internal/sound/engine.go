@@ -81,13 +81,27 @@ func (e *Engine) Settings() Settings {
 	return e.settings
 }
 func (e *Engine) Adjust(music bool) {
+	settings := e.Settings()
+	value := settings.Effects
+	if music {
+		value = settings.Music
+	}
+	e.SetVolume(music, NextVolume(value))
+}
+
+func (e *Engine) SetVolume(music bool, value int) {
 	if e == nil {
 		return
 	}
+	value = max(0, min(100, value))
+	before := e.settings
 	if music {
-		e.settings.Music = NextVolume(e.settings.Music)
+		e.settings.Music = value
 	} else {
-		e.settings.Effects = NextVolume(e.settings.Effects)
+		e.settings.Effects = value
+	}
+	if e.settings == before {
+		return
 	}
 	saveSettings(e.settings)
 	for _, p := range e.voices {

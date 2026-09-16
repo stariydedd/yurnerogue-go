@@ -27,6 +27,7 @@ const (
 	StateWin
 	StateStarting
 	StatePauseMenu
+	StateWelcome
 )
 
 // MaxNameLength — предел длины имени для лидерборда.
@@ -40,12 +41,19 @@ type Game struct {
 
 	state State
 	// helpReturn — экран, на который возвращает справка.
-	helpReturn State
+	helpReturn        State
+	helpScroll        int
+	referenceDragging bool
+	referenceDragID   ebiten.TouchID
+	referenceDragY    int
 
-	menuSelected  int
-	menuMessage   string
-	quitSelected  int
-	pauseSelected int
+	menuSelected    int
+	menuMessage     string
+	quitSelected    int
+	pauseSelected   int
+	audioDrag       string
+	audioDragID     ebiten.TouchID
+	runMenuSelected int
 
 	playerName string
 	nameInput  string
@@ -73,6 +81,7 @@ type Game struct {
 	submitResults      chan error
 	runTicket          string
 	startResults       chan startResult
+	startReturn        State
 }
 
 // New создаёт игру с заданным рендерером. На тач-раскладке добавляется
@@ -111,7 +120,11 @@ func (g *Game) Update() error {
 		}
 	}
 	// Касания экранных кнопок приходят сюда же, переведённые в клавиши.
-	if g.touch != nil {
+	if g.updateReferenceScroll() {
+		// A scroll gesture cannot activate BACK or another control.
+	} else if g.updateAudioSlider() {
+		// A captured slider pointer cannot activate another control.
+	} else if g.touch != nil {
 		for _, control := range g.touch.update(g) {
 			if key := keyForControl(control, g.state); key != ebiten.KeyMax {
 				g.HandleKey(key)
@@ -163,14 +176,24 @@ func (g *Game) HandleKey(key ebiten.Key) {
 	case StatePauseMenu:
 		g.handlePauseMenu(key)
 	case StateLeaderboard:
-		g.topResults = nil
-		g.state = StateMainMenu
-	case StateHelp:
-		g.state = g.helpReturn
-	case StateDeath, StateWin:
-		if key == ebiten.KeyEnter || key == ebiten.KeyNumpadEnter {
-			g.returnToMenu()
+		if g.handleReferenceKey(key) {
+			return
 		}
+		switch key {
+		case ebiten.KeyEscape, ebiten.KeyQ, ebiten.KeyEnter, ebiten.KeyNumpadEnter:
+			g.topResults = nil
+			g.state = StateMainMenu
+		}
+	case StateHelp:
+		if g.handleReferenceKey(key) {
+			return
+		}
+		switch key {
+		case ebiten.KeyEscape, ebiten.KeyQ, ebiten.KeyEnter, ebiten.KeyNumpadEnter:
+			g.state = g.helpReturn
+		}
+	case StateWelcome, StateDeath, StateWin:
+		g.handleRunMenu(key)
 	}
 }
 
@@ -191,17 +214,20 @@ func (g *Game) handleMainMenu(key ebiten.Key) {
 	case ebiten.KeyDown, ebiten.KeyS:
 		g.menuSelected = (g.menuSelected + 1) % len(render.MainMenuOptions)
 		g.audio.Play(sound.Click)
+	case ebiten.KeyLeft, ebiten.KeyA, ebiten.KeyRight, ebiten.KeyD:
+		g.adjustAudioSlider(render.MainMenuOptions[g.menuSelected].Key, key)
 	case ebiten.KeyEnter, ebiten.KeyNumpadEnter:
 		switch render.MainMenuOptions[g.menuSelected].Key {
 		case "new":
-			g.nameInput = g.playerName
-			g.submitStatus = ""
-			g.state = StateNameEntry
+			g.openWelcome()
 		case "scoreboard":
 			g.openLeaderboard()
 		case "help":
+			g.helpScroll = 0
 			g.helpReturn = StateMainMenu
 			g.state = StateHelp
+		case "music", "effects":
+			g.audio.Adjust(render.MainMenuOptions[g.menuSelected].Key == "music")
 		}
 	}
 }
@@ -260,6 +286,7 @@ func (g *Game) handlePlaying(key ebiten.Key) {
 	}
 	switch key {
 	case ebiten.KeyF1:
+		g.helpScroll = 0
 		g.helpReturn = StatePlaying
 		g.state = StateHelp
 		return
@@ -456,6 +483,10 @@ func (g *Game) checkGameOver() {
 
 // finishRun завершает забег и отправляет результат в лидерборд.
 func (g *Game) finishRun(end State) {
+	if g.state == StateDeath || g.state == StateWin {
+		return
+	}
 	g.state = end
+	g.runMenuSelected = 0
 	g.submitRun()
 }

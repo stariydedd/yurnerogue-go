@@ -19,12 +19,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		if g.state == StatePauseMenu {
 			settings := g.audio.Settings()
 			r.DrawPauseMenu(surface, g.pauseSelected, settings.Music, settings.Effects)
+		} else if g.state == StateQuitDialog {
+			r.DrawQuitDialog(surface, g.quitSelected)
 		} else {
-			r.DrawMenuButtons(surface, page, g.menuSelected)
+			selected := g.menuSelected
+			if g.state == StateWelcome || g.state == StateDeath || g.state == StateWin {
+				selected = g.runMenuSelected
+			}
+			r.DrawMenuButtons(surface, page, selected)
 		}
 		if g.state == StateMainMenu {
 			settings := g.audio.Settings()
-			r.DrawAudioControls(surface, settings.Music, settings.Effects)
+			r.DrawAudioControls(surface, settings.Music, settings.Effects, g.menuSelected)
 		}
 	} else if g.controls != nil {
 		var player *domain.Person
@@ -62,15 +68,13 @@ func (g *Game) drawScreen(screen *ebiten.Image) {
 
 	switch g.state {
 	case StateStarting:
-		hint := "Q / Esc / MENU: cancel"
-		if r.Layout.Touch {
-			hint = ""
-		}
-		r.DrawEndScreen(screen, "CONNECTING", "Starting game...", hint)
+		r.DrawEndScreen(screen, "CONNECTING", "Starting game...")
 	case StateMainMenu:
 		r.DrawMainMenu(screen, g.menuSelected, g.menuMessage)
 	case StateNameEntry:
 		r.DrawNameEntry(screen, g.nameInput, g.submitStatus)
+	case StateWelcome:
+		r.DrawWelcome(screen)
 	case StatePlaying, StatePauseMenu:
 		r.DrawWorld(screen, g.session)
 		r.DrawHUD(screen, g.session)
@@ -81,14 +85,11 @@ func (g *Game) drawScreen(screen *ebiten.Image) {
 	case StateQuitDialog:
 		r.DrawWorld(screen, g.session)
 		r.DrawHUD(screen, g.session)
-		r.DrawQuitDialog(screen, g.quitSelected)
 	case StateLeaderboard:
 		r.DrawLeaderboard(screen, g.leaderboard, g.leaderboardLoading, g.leaderboardSource)
 	case StateHelp:
-		r.DrawHelp(screen)
-	case StateDeath:
-		r.DrawEndScreen(screen, "YOU DIED", g.submitStatus)
-	case StateWin:
-		r.DrawEndScreen(screen, "YOU WIN!", g.submitStatus)
+		r.DrawHelp(screen, g.helpScroll)
+	case StateDeath, StateWin:
+		r.DrawRunSummary(screen, g.session, g.playerName, g.state == StateWin, g.submitStatus)
 	}
 }

@@ -5,13 +5,12 @@ import (
 	"image"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
-
-const KeyBinds = "[WASD] Move  [F+dir] Run  [H] Weapon  [J] Food  [K] Elixir  [E] Scroll  [F1] Help  [Q] Menu"
 
 func (r *Renderer) DrawHUD(dst *ebiten.Image, s *domain.Session) {
 	l := r.Layout
@@ -241,7 +240,7 @@ func wrapText(s string, maxChars int) []string {
 		if current != "" {
 			candidate = current + " " + word
 		}
-		if len(candidate) > maxChars && current != "" {
+		if utf8.RuneCountInString(candidate) > maxChars && current != "" {
 			lines = append(lines, current)
 			current = word
 			continue
