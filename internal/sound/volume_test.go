@@ -3,9 +3,7 @@ package sound
 import "testing"
 
 func TestSetVolumeClampsAndPersistsBothChannels(t *testing.T) {
-	config := t.TempDir()
-	t.Setenv("APPDATA", config)
-	t.Setenv("XDG_CONFIG_HOME", config)
+	setupTestSettingsStorage(t)
 	e := &Engine{settings: Defaults()}
 	e.SetVolume(true, 37)
 	e.SetVolume(false, 63)
