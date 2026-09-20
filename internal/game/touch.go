@@ -7,10 +7,10 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/render"
 )
 
-// Автоповтор зажатой крестовины, в тиках при 60 TPS.
+// Общий темп удержания клавиатуры и крестовины, в тиках при 60 TPS.
 const (
 	repeatDelay    = 16 // ~260 мс до первого повтора
-	repeatInterval = 9  // ~150 мс между повторами
+	repeatInterval = 8  // ~133 мс между повторами, как анимация шага
 )
 
 // touchInput переводит касания экранных кнопок в клавиши: игровая логика
@@ -30,15 +30,24 @@ func newTouchInput(c *render.Controls) *touchInput {
 	return &touchInput{controls: c, pressed: map[ebiten.TouchID]string{}}
 }
 
+func (t *touchInput) reset() {
+	clear(t.pressed)
+	t.repeatControl = ""
+	t.repeatAt = 0
+}
+
 // mouseID — псевдопалец для мыши: так тач-раскладку можно щёлкать на десктопе.
 const mouseID ebiten.TouchID = -1
 
 // update обрабатывает касания и возвращает контролы, которые надо «нажать».
 func (t *touchInput) update(g *Game) []string {
 	t.ticks++
+	if !ebiten.IsFocused() {
+		t.reset()
+		return nil
+	}
 	if _, menu := menuPage(g.state); menu {
-		clear(t.pressed)
-		t.repeatControl = ""
+		t.reset()
 		// Process only one pointer: no second finger or synthetic mouse click
 		// may activate another screen during the same tick.
 		if ids := inpututil.AppendJustPressedTouchIDs(nil); len(ids) > 0 {
@@ -54,8 +63,16 @@ func (t *touchInput) update(g *Game) []string {
 		x, y := g.toLogical(ebiten.TouchPosition(id))
 		fired = t.press(id, x, y, g.state, fired)
 	}
+	activeTouches := ebiten.AppendTouchIDs(nil)
 	for id := range t.pressed {
-		if id != mouseID && inpututil.IsTouchJustReleased(id) {
+		if id == mouseID {
+			continue
+		}
+		active := false
+		for _, current := range activeTouches {
+			active = active || current == id
+		}
+		if !active {
 			t.release(id)
 		}
 	}
@@ -64,7 +81,7 @@ func (t *touchInput) update(g *Game) []string {
 		x, y := g.toLogical(ebiten.CursorPosition())
 		fired = t.press(mouseID, x, y, g.state, fired)
 	}
-	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		t.release(mouseID)
 	}
 

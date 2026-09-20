@@ -68,6 +68,7 @@ type Game struct {
 
 	touch    *touchInput
 	controls *render.Controls
+	keyboard keyboardInput
 
 	// surface — логическая поверхность игры; растягивается на всё окно.
 	surface    *ebiten.Image
@@ -110,14 +111,22 @@ func (g *Game) State() State { return g.state }
 func (g *Game) Update() error {
 	before := g.state
 	defer func() { g.updateAudio(before) }()
+	defer func() {
+		if g.state != before {
+			g.keyboard.reset()
+			if g.touch != nil {
+				g.touch.reset()
+			}
+		}
+	}()
 	g.pollNetwork()
 	browserNameEntry := g.syncBrowserNameEntry()
 	defer g.syncBrowserNameEntry()
 	g.renderer.Tick()
-	for _, key := range inpututil.AppendJustPressedKeys(nil) {
-		if !browserNameEntry {
-			g.HandleKey(key)
-		}
+	if !browserNameEntry {
+		g.handleKeyboard(inpututil.AppendJustPressedKeys(nil), ebiten.IsKeyPressed, ebiten.IsFocused())
+	} else {
+		g.keyboard.reset()
 	}
 	// Касания экранных кнопок приходят сюда же, переведённые в клавиши.
 	if g.updateReferenceScroll() {

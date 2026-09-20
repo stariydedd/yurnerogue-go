@@ -89,12 +89,30 @@ func TestDPadHoldAutoRepeats(t *testing.T) {
 	if fired := ti.repeatFired(); len(fired) != 1 || fired[0] != render.CtrlRight {
 		t.Fatalf("ожидался повтор направления, получено %q", fired)
 	}
+	for tick := 1; tick <= repeatInterval; tick++ {
+		ti.ticks++
+		fired := ti.repeatFired()
+		if (tick < repeatInterval && len(fired) != 0) || (tick == repeatInterval && len(fired) != 1) {
+			t.Fatal("touch repeat must use the same cadence as the keyboard")
+		}
+	}
 
 	// Палец отпущен — повторы прекращаются.
 	ti.release(7)
 	ti.ticks += repeatInterval
 	if fired := ti.repeatFired(); len(fired) != 0 {
 		t.Fatalf("после отпускания повторов быть не должно, получено %q", fired)
+	}
+}
+
+func TestDPadResetStopsHeldMovement(t *testing.T) {
+	ti := newTouchInput(render.NewControls(render.TouchLayout(390, 844)))
+	ti.pressed[1] = render.CtrlRight
+	ti.repeatControl = render.CtrlRight
+	ti.reset()
+	ti.ticks = repeatDelay * 2
+	if len(ti.pressed) != 0 || len(ti.repeatFired()) != 0 {
+		t.Fatal("focus or screen changes must clear held touch controls")
 	}
 }
 
