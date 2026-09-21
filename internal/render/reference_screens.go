@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/stariydedd/yurnerogue-go/internal/locale"
 )
 
 func helpAvailableBounds(l Layout) image.Rectangle {
@@ -29,13 +30,20 @@ type helpContentRow struct {
 	lines        []string
 }
 
+func mobileHelpRowGap(size int) int {
+	if size == 12 {
+		return 0
+	}
+	return 2
+}
+
 func mobileHelpSize(l Layout) int {
 	view := HelpViewBounds(l).Inset(16)
 	for _, size := range []int{14, 12} {
 		height := 44
 		for _, entries := range [][]helpEntry{helpEnemies, helpItems} {
 			for _, entry := range entries {
-				height += size + 10 + len(wrapText(entry.desc, view.Dx()/size))*(size+4)
+				height += size + 8 + mobileHelpRowGap(size) + len(wrapText(locale.Text(l.Language, entry.desc), view.Dx()/size))*(size+4)
 			}
 		}
 		if height <= view.Dy() {
@@ -51,7 +59,7 @@ func helpContent(l Layout) ([]helpContentRow, int) {
 	headingH, rowGap, sectionH, groupGap := 28, 16, 38, 16
 	if l.Touch {
 		size = mobileHelpSize(l)
-		headingH, rowGap, sectionH, groupGap = size+8, 2, 22, 0
+		headingH, rowGap, sectionH, groupGap = size+8, mobileHelpRowGap(size), 22, 0
 	}
 	if l.ScreenW >= 900 {
 		columns, size = 2, 18
@@ -78,7 +86,7 @@ func helpContent(l Layout) ([]helpContentRow, int) {
 		rows = append(rows, helpContentRow{section: section, x: x, y: y, height: sectionH})
 		y += sectionH
 		for _, entry := range entries {
-			lines := wrapText(entry.desc, chars)
+			lines := wrapText(locale.Text(l.Language, entry.desc), chars)
 			height := headingH + len(lines)*(size+4) + rowGap
 			rows = append(rows, helpContentRow{entry: entry, x: x, y: y, height: height, lines: lines})
 			y += height
@@ -149,7 +157,7 @@ func (r *Renderer) DrawHelp(screen *ebiten.Image, scrollArg ...int) {
 		}
 		x := view.Min.X + row.x
 		if row.section != "" {
-			r.Text(clip, row.section, r.Fonts.Menu, float64(x), float64(y), uiAccent)
+			r.Text(clip, r.tr(row.section), r.Fonts.Menu, float64(x), float64(y), uiAccent)
 			continue
 		}
 		nameX, descX := x+52, x+52
@@ -159,7 +167,7 @@ func (r *Renderer) DrawHelp(screen *ebiten.Image, scrollArg ...int) {
 		} else {
 			r.drawFitted(clip, row.entry.role, float64(x), float64(y+4), 36)
 		}
-		r.Text(clip, strings.ToUpper(row.entry.name), nameFace, float64(nameX), float64(y), uiAccent)
+		r.Text(clip, strings.ToUpper(helpEntryName(r.Layout, row.entry)), nameFace, float64(nameX), float64(y), uiAccent)
 		for j, line := range row.lines {
 			r.Text(clip, line, face, float64(descX), float64(y+headingH+j*lineH), uiText)
 		}
@@ -190,8 +198,10 @@ func leaderboardColumns(l Layout) []leaderboardColumn {
 	box := LeaderboardViewBounds(l).Inset(16)
 	if leaderboardDetailed(l) {
 		labels := []string{"#", "NAME", "GOLD", "LVL", "KILLS", "ATK", "HIT", "STEPS", "FOOD", "CLARITY", "SCROLL"}
-		chars := []int{2, 16, 7, 3, 5, 6, 6, 6, 4, 7, 6}
-		used := (len(labels) - 1) * 8
+		// Leave a full character of space between even the longest headings.
+		const gap = 15
+		chars := []int{2, 16, 6, 3, 5, 5, 5, 5, 4, 7, 6}
+		used := (len(labels) - 1) * gap
 		for _, count := range chars {
 			used += count * 14
 		}
@@ -203,7 +213,7 @@ func leaderboardColumns(l Layout) []leaderboardColumn {
 				width += box.Dx() - used
 			}
 			columns = append(columns, leaderboardColumn{label, x, width})
-			x += width + 8
+			x += width + gap
 		}
 		return columns
 	}
@@ -216,6 +226,21 @@ func leaderboardColumns(l Layout) []leaderboardColumn {
 	x := box.Min.X
 	columns := []leaderboardColumn{{"#", x, rankW}, {"NAME", x + rankW + 8, nameW}, {"GOLD", box.Max.X - levelW - 8 - goldW, goldW}, {"LVL", box.Max.X - levelW, levelW}}
 	return columns
+}
+
+func leaderboardCellX(column leaderboardColumn, textWidth float64) float64 {
+	x := float64(column.x)
+	if column.label != "NAME" {
+		x += (float64(column.width) - textWidth) / 2
+	}
+	return x
+}
+
+func leaderboardHeading(l Layout, column leaderboardColumn) string {
+	if l.Language == locale.Russian && column.label == "KILLS" {
+		return "УБИТО"
+	}
+	return locale.Text(l.Language, column.label)
 }
 
 func leaderboardValues(place int, rec LeaderboardRecord, detailed ...bool) []string {
@@ -245,7 +270,7 @@ func (r *Renderer) DrawLeaderboard(screen *ebiten.Image, records []LeaderboardRe
 		} else if source == "SERVER UNAVAILABLE" {
 			label = "SERVER UNAVAILABLE"
 		}
-		r.TextCentered(screen, label, r.Fonts.Menu, float64(box.Min.Y+box.Dy()/2-10), uiText)
+		r.TextCentered(screen, r.tr(label), r.Fonts.Menu, float64(box.Min.Y+box.Dy()/2-10), uiText)
 		return
 	}
 	face := r.Fonts.Menu
@@ -257,10 +282,7 @@ func (r *Renderer) DrawLeaderboard(screen *ebiten.Image, records []LeaderboardRe
 	columns := leaderboardColumns(r.Layout)
 	drawCell := func(value string, column leaderboardColumn, y float64, highlight bool) {
 		value = fitLabel(value, face, float64(column.width))
-		x := float64(column.x)
-		if column.label != "NAME" {
-			x += float64(column.width) - TextWidth(value, face)
-		}
+		x := leaderboardCellX(column, TextWidth(value, face))
 		clr := uiText
 		if highlight {
 			clr = uiAccent
@@ -268,7 +290,8 @@ func (r *Renderer) DrawLeaderboard(screen *ebiten.Image, records []LeaderboardRe
 		r.Text(screen, value, face, x, y, clr)
 	}
 	for _, column := range columns {
-		drawCell(column.label, column, float64(box.Min.Y+18), true)
+		label := leaderboardHeading(r.Layout, column)
+		drawCell(label, column, float64(box.Min.Y+18), true)
 	}
 	fillBox(screen, image.Rect(box.Min.X+16, box.Min.Y+46, box.Max.X-16, box.Min.Y+47), uiEdge)
 	rowH := leaderboardRowHeight(r.Layout)

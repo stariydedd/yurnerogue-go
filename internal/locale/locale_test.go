@@ -1,0 +1,83 @@
+package locale
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestTranslationsPreserveProperNames(t *testing.T) {
+	for _, name := range []string{"Juggernaut", "Skywrath Mage", "Tango", "Healing Salve", "Phantom Clarity", "Aghanim's Scroll", "Quelling Blade", "YurneROGUE"} {
+		if Text(Russian, name) != name || Message(Russian, name) != name {
+			t.Fatalf("proper name translated: %s", name)
+		}
+	}
+	cases := map[string]string{
+		"PLAY":                          "ИГРАТЬ",
+		"Picked up: Tango [+30 HP].":    "Подобрано: Tango [+30 ОЗ].",
+		"You hit the Pudge for 12 dmg.": "Удар по Pudge: 12 урона.",
+		"The Bloodseeker drained your max HP by 10!":                   "Bloodseeker снижает максимальное здоровье на 10!",
+		"The Skywrath Mage hit you for 10 dmg. You fall asleep!":       "Skywrath Mage наносит 10 урона. Вы засыпаете!",
+		"You equipped Yasha [+5 STR]. Dropped Quelling Blade.":         "Экипировано: Yasha [+5 СИЛ]. Сброшено: Quelling Blade.",
+		"You equipped Yasha [+5 STR]. Stowed Silver Edge in backpack.": "Экипировано: Yasha [+5 СИЛ]. В рюкзаке: Silver Edge.",
+		"You used Phantom Clarity [+3 AGI].":                           "Использовано: Phantom Clarity [+3 ЛОВ].",
+		"You used Vital Scroll [+5 MAX HP].":                           "Использовано: Vital Scroll [+5 МАКС ОЗ].",
+		"RUN SUMMARY / [+5 STR]":                                       "ИТОГИ / [+5 STR]",
+		"RUN SUMMARY / PLAY":                                           "ИТОГИ / PLAY",
+		"New game: Starting game...":                                   "Новый забег: Запуск игры...",
+	}
+	for source, want := range cases {
+		if got := Message(Russian, source); got != want {
+			t.Errorf("%q: got %q, want %q", source, got, want)
+		}
+		if Message(English, source) != source {
+			t.Errorf("English changed: %s", source)
+		}
+	}
+}
+
+func TestRussianTerminologyAndStatSuffixes(t *testing.T) {
+	if Text(Russian, "MISS") != "ПРОМАХ" || Text(English, "MISS") != "MISS" {
+		t.Fatal("combat miss labels should be localized independently")
+	}
+	if got := Text(Russian, "Steals your max HP. Deflects your first strike."); got != "Крадёт максимальное здоровье. Блокирует первый удар." {
+		t.Fatalf("help should spell out health: %s", got)
+	}
+	intro := Text(Russian, "Enemies act when you take a turn. Food heals, clarity buffs are temporary, scrolls are permanent. MENU pauses; HELP has details.")
+	if !strings.Contains(intro, "Еда лечит") || strings.Contains(intro, "Tango") {
+		t.Fatal("intro must describe the food category")
+	}
+	for key, translated := range russian {
+		if strings.ContainsAny(translated, "—–") {
+			t.Errorf("unwanted dash in %s", key)
+		}
+	}
+	for key, want := range map[string]string{
+		"HELP": "ПОМОЩЬ", "HUD HELP": "ПОМОЩЬ", "FOOD": "ЕДА",
+		"CLARITY": "ЗЕЛЬЯ", "CLARITIES": "ЗЕЛЬЯ", "SCROLL": "СВИТКИ", "WEAPON": "ОРУЖИЕ", "PORTAL": "ПОРТАЛ",
+	} {
+		if Text(Russian, key) != want {
+			t.Errorf("wrong category %s", key)
+		}
+	}
+	for source, want := range map[string]string{
+		" [+5 STR]": " [+5 СИЛ]", " [+4 AGI]": " [+4 ЛОВ]", " [+10 HP]": " [+10 ОЗ]", " [+5 MAX HP]": " [+5 МАКС ОЗ]",
+		"STR Blade": "STR Blade",
+	} {
+		if StatSuffix(Russian, source) != want || StatSuffix(English, source) != source {
+			t.Errorf("bad stat suffix %s", source)
+		}
+	}
+}
+
+func TestLanguageStorage(t *testing.T) {
+	setupStorage(t)
+	if Load() != English {
+		t.Fatal("first launch must default to English")
+	}
+	for _, language := range []Language{Russian, English, Russian, "invalid"} {
+		Save(language)
+		if got := Load(); got != Normalize(language) {
+			t.Fatalf("language not saved: %s", got)
+		}
+	}
+}

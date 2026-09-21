@@ -2,6 +2,7 @@ package game
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/stariydedd/yurnerogue-go/internal/locale"
 	"github.com/stariydedd/yurnerogue-go/internal/render"
 	"github.com/stariydedd/yurnerogue-go/internal/sound"
 )
@@ -31,6 +32,13 @@ func menuPage(state State) (render.MenuPage, bool) {
 }
 
 func (g *Game) handleMenuPointer(x, y int) {
+	if g.state == StateMainMenu {
+		if language := render.LanguageAt(g.renderer.Layout, x, y); language != "" {
+			g.renderer.Layout.Language = language
+			locale.Save(language)
+			return
+		}
+	}
 	if g.setAudioSliderAt(x, y) {
 		return
 	}

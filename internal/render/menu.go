@@ -104,6 +104,7 @@ func (r *Renderer) DrawMenuButtons(screen *ebiten.Image, page MenuPage, selected
 }
 
 func (r *Renderer) drawMenuButton(screen *ebiten.Image, button MenuButton, active bool) {
+	button.Label = r.tr(button.Label)
 	r.uiSlot(screen, button.Bounds, active)
 	y := float64(button.Bounds.Min.Y+button.Bounds.Dy()/2) - 10
 	x := float64(button.Bounds.Min.X+button.Bounds.Dx()/2) - TextWidth(button.Label, r.Fonts.Menu)/2
@@ -160,7 +161,7 @@ func menuButtonActive(page MenuPage, button MenuButton, index, selected int) boo
 }
 
 func homeMenuTop(l Layout) int {
-	return min(l.ScreenH/2+8, l.ScreenH-440)
+	return min(l.ScreenH/2+8, l.ScreenH-476)
 }
 
 func (r *Renderer) drawMenuHeader(screen *ebiten.Image, message string) {
@@ -171,6 +172,6 @@ func (r *Renderer) drawMenuHeader(screen *ebiten.Image, message string) {
 	r.secondaryCaption(screen, strings.ToUpper(Tagline), y+62)
 	r.drawHeroBanner(screen, y+110, 3)
 	if message != "" {
-		r.secondaryCaption(screen, fitLabel(message, r.secondaryFace(), float64(r.Layout.ScreenW-40)), float64(h-24))
+		r.secondaryCaption(screen, fitLabel(r.translateMessage(message), r.secondaryFace(), float64(r.Layout.ScreenW-40)), float64(h-224))
 	}
 }

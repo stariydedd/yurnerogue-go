@@ -67,7 +67,7 @@ jobs:
       - name: Test browser UI
         run: node --test web/*.test.cjs
       - name: Test browser transport
-        run: GOOS=js GOARCH=wasm go test -exec="$(go env GOROOT)/lib/wasm/go_js_wasm_exec" ./internal/leaderboard ./internal/domain ./internal/sound
+        run: GOOS=js GOARCH=wasm go test -exec="$(go env GOROOT)/lib/wasm/go_js_wasm_exec" ./internal/leaderboard ./internal/domain ./internal/sound ./internal/locale
 
   test-backend:
     runs-on: ubuntu-latest

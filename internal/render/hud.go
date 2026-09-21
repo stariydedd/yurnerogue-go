@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
@@ -31,7 +32,7 @@ func (r *Renderer) drawHUDDesktop(dst *ebiten.Image, s *domain.Session) {
 	r.drawHUDPortrait(dst, portrait)
 	r.Text(dst, strings.ToUpper(domain.PlayerName), r.Fonts.UI, 112, float64(y+26), uiText)
 	r.drawHPBar(dst, p, image.Rect(112, y+56, 418, y+82))
-	r.Text(dst, fitLabel(fmt.Sprintf("STR %d   AGI %d", p.Strength, p.Agility), r.Fonts.Compact, 308), r.Fonts.Compact, 112, float64(y+100), uiText)
+	r.Text(dst, r.hudStatsLabel(p, r.Fonts.Compact, 308, "STRENGTH %d   AGILITY %d"), r.Fonts.Compact, 112, float64(y+100), uiText)
 	for _, x := range []int{444, 830, 1170} {
 		vector.StrokeLine(dst, float32(x), float32(y+26), float32(x), float32(y+122), 1, uiEdge, false)
 	}
@@ -49,11 +50,14 @@ func (r *Renderer) drawHUDDesktop(dst *ebiten.Image, s *domain.Session) {
 			caption := "MENU"
 			if name == CtrlSelect {
 				caption = "HELP"
+				if r.tr("HELP") != "HELP" {
+					caption = "HUD HELP"
+				}
 			}
-			r.slotLabel(dst, caption, rect, uiText)
+			r.slotLabel(dst, r.tr(caption), rect, uiText)
 		}
 	}
-	status := fmt.Sprintf("LEVEL %d/%d  GOLD %d", s.LevelNum, domain.MaxLevels, p.Treasures)
+	status := fmt.Sprintf(r.tr("LEVEL %d/%d  GOLD %d"), s.LevelNum, domain.MaxLevels, p.Treasures)
 	width := min(414, int(TextWidth(status, r.Fonts.Small))+28)
 	box := image.Rect(r.Layout.ScreenW-12-width, y-32, r.Layout.ScreenW-12, y+1)
 	r.stonePanel(dst, box)
@@ -66,12 +70,28 @@ func (r *Renderer) drawHUDTouch(dst *ebiten.Image, s *domain.Session) {
 	r.uiSlot(dst, portrait, false)
 	r.drawHUDPortrait(dst, portrait)
 	r.drawHPBar(dst, p, image.Rect(76, y+16, 314, y+42))
-	r.Text(dst, fitLabel(fmt.Sprintf("STR %d  AGI %d", p.Strength, p.Agility), r.Fonts.Small, 238), r.Fonts.Small, 76, float64(y+53), uiText)
+	r.Text(dst, r.hudStatsLabel(p, r.Fonts.Small, 238, "STRENGTH %d  AGILITY %d"), r.Fonts.Small, 76, float64(y+53), uiText)
 	r.Text(dst, fitLabel(weaponLabel(p), r.Fonts.Small, 238), r.Fonts.Small, 76, float64(y+80), uiText)
 	vector.StrokeLine(dst, 326, float32(y+16), 326, float32(y+92), 1, uiEdge, false)
-	r.Text(dst, fmt.Sprintf("LEVEL %d/%d", s.LevelNum, domain.MaxLevels), r.Fonts.Small, 338, float64(y+17), uiText)
-	r.Text(dst, fitLabel("GOLD "+strconv.Itoa(p.Treasures), r.Fonts.Small, 130), r.Fonts.Small, 338, float64(y+40), uiText)
+	r.Text(dst, fmt.Sprintf(r.tr("LEVEL %d/%d"), s.LevelNum, domain.MaxLevels), r.Fonts.Small, 338, float64(y+17), uiText)
+	r.Text(dst, fitLabel(r.tr("GOLD")+" "+strconv.Itoa(p.Treasures), r.Fonts.Small, 130), r.Fonts.Small, 338, float64(y+40), uiText)
 	r.drawEffects(dst, p, image.Rect(338, y+58, 468, y+100))
+}
+
+func (r *Renderer) hudStatsLabel(p *domain.Person, face text.Face, width float64, format string) string {
+	label := fmt.Sprintf(r.tr(format), p.Strength, p.Agility)
+	if TextWidth(label, face) > width {
+		label = fmt.Sprintf("%s %d  %s %d", r.tr("STR"), p.Strength, r.tr("AGI"), p.Agility)
+	}
+	return fitLabel(label, face, width)
+}
+
+func (r *Renderer) hudHealthLabel(p *domain.Person, width float64) string {
+	label := fmt.Sprintf(r.tr("HEALTH %d / %d"), p.Health, p.MaxHealth)
+	if TextWidth(label, r.Fonts.Small) > width {
+		label = fmt.Sprintf("%s %d / %d", r.tr("HP"), p.Health, p.MaxHealth)
+	}
+	return label
 }
 
 func (r *Renderer) drawHPBar(dst *ebiten.Image, p *domain.Person, box image.Rectangle) {
@@ -89,7 +109,7 @@ func (r *Renderer) drawHPBar(dst *ebiten.Image, p *domain.Person, box image.Rect
 		fillBox(dst, image.Rect(fill.Min.X, fill.Min.Y, fill.Max.X, fill.Min.Y+3), uiHighlight)
 	}
 	strokeBox(dst, box, 1, uiEdge)
-	r.slotLabel(dst, fmt.Sprintf("HP %d / %d", p.Health, p.MaxHealth), box, uiText)
+	r.slotLabel(dst, r.hudHealthLabel(p, float64(box.Dx()-8)), box, uiText)
 }
 
 func itemSlotValue(p *domain.Person, control string) (string, bool) {
@@ -169,10 +189,11 @@ func bonusLabel(bonus domain.EffectStatus, compact bool) string {
 func (r *Renderer) drawEffects(dst *ebiten.Image, p *domain.Person, box image.Rectangle) {
 	rowH := box.Dy() / 3
 	for i, bonus := range statusBonuses(p) {
-		label := fitLabel(bonusLabel(bonus, r.Layout.Touch), r.Fonts.Small, float64(box.Dx()))
+		stat := r.tr(bonusStatLabel(bonus.Stat, r.Layout.Touch))
+		label := fitLabel(fmt.Sprintf(r.tr("%s %+d %dT"), stat, bonus.Amount, bonus.TurnsLeft), r.Fonts.Small, float64(box.Dx()))
 		x, y := float64(box.Min.X), float64(box.Min.Y+i*rowH)
 		r.Text(dst, label, r.Fonts.Small, x, y, uiText)
-		r.Text(dst, bonusStatLabel(bonus.Stat, r.Layout.Touch), r.Fonts.Small, x, y, uiAccent)
+		r.Text(dst, stat, r.Fonts.Small, x, y, uiAccent)
 	}
 }
 
@@ -181,14 +202,15 @@ func (r *Renderer) drawSleepStatus(dst *ebiten.Image, p *domain.Person) {
 		return
 	}
 	x, y := 286, r.Layout.GridTop()+28
-	label := fmt.Sprintf("SLEEP %dT", p.SleepTurns)
+	label := fmt.Sprintf(r.tr("SLEEP %dT"), p.SleepTurns)
 	if r.Layout.Touch {
-		x, y, label = 12, r.Layout.GridTop()+90, fmt.Sprintf("ZZ %dT", p.SleepTurns)
+		x, y, label = 12, r.Layout.GridTop()+90, fmt.Sprintf(r.tr("ZZ %dT"), p.SleepTurns)
 	}
 	r.Text(dst, label, r.Fonts.Small, float64(x), float64(y), uiAccent)
 }
 
 func (r *Renderer) drawNotification(dst *ebiten.Image, message string) {
+	message = r.translateMessage(message)
 	if strings.TrimSpace(message) == "" {
 		return
 	}

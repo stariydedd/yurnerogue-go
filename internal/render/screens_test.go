@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/stariydedd/yurnerogue-go/internal/locale"
 )
 
 func TestLeaderboardOverviewHasScoreAndLevelWithoutVerificationMarker(t *testing.T) {
@@ -51,6 +53,43 @@ func TestDesktopLeaderboardIsCompact(t *testing.T) {
 	mobile := TouchLayout(390, 600)
 	if LeaderboardViewBounds(mobile).Max.Y != mobile.ScreenH-108 {
 		t.Fatal("mobile layout changed")
+	}
+}
+
+func TestLeaderboardLocalizedHeadersAndValuesAreAligned(t *testing.T) {
+	fonts, err := loadFonts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range []Layout{DesktopLayout(), TouchLayout(390, 600), TouchLayout(390, 844)} {
+		face := fonts.UI
+		if !leaderboardDetailed(l) {
+			face = fonts.Compact
+		}
+		for _, language := range []locale.Language{locale.English, locale.Russian} {
+			l.Language = language
+			columns := leaderboardColumns(l)
+			for i, column := range columns {
+				heading := leaderboardHeading(l, column)
+				if TextWidth(heading, face) > float64(column.width) {
+					t.Fatalf("localized header clipped: %s", heading)
+				}
+				if i > 0 && leaderboardDetailed(l) && column.x-columns[i-1].x-columns[i-1].width < 14 {
+					t.Fatal("desktop headings must have at least a character-wide gap")
+				}
+				for _, value := range []string{heading, "1", "10", "9999"} {
+					width := TextWidth(fitLabel(value, face, float64(column.width)), face)
+					x := leaderboardCellX(column, width)
+					if column.label == "NAME" {
+						if x != float64(column.x) {
+							t.Fatal("names must stay left aligned")
+						}
+					} else if x+width/2 != float64(column.x)+float64(column.width)/2 {
+						t.Fatal("numeric cells and their headings must share a center")
+					}
+				}
+			}
+		}
 	}
 }
 

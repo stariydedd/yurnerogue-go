@@ -7,11 +7,13 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"github.com/stariydedd/yurnerogue-go/internal/game"
+	"github.com/stariydedd/yurnerogue-go/internal/locale"
 	"github.com/stariydedd/yurnerogue-go/internal/render"
 )
 
 func main() {
 	layout := chooseLayout()
+	layout.Language = locale.Load()
 
 	renderer, err := render.New(layout)
 	if err != nil {

@@ -123,7 +123,9 @@
         });
     }
     window.yurneNameEntry = {
-        show(name, x, y, width, height, screenW, screenH) {
+        show(name, x, y, width, height, screenW, screenH, language = "en") {
+            input.placeholder = language === "ru" ? "Нажмите для ввода имени" : "Tap to enter name";
+            input.ariaLabel = language === "ru" ? "Имя игрока" : "Player name";
             if (input.hidden) {
                 input.value = value = clean(name);
                 action = "";

@@ -17,6 +17,24 @@ func TestSelectCaptionFitsTouchButton(t *testing.T) {
 	}
 }
 
+func TestMenuAndHelpButtonsHaveMatchingEdges(t *testing.T) {
+	for _, l := range []Layout{DesktopLayout(), TouchLayout(390, 600), TouchLayout(390, 844)} {
+		targets := HUDTargets(l)
+		if l.Touch {
+			targets = NewControls(l).targets
+		}
+		menu, help := targets[CtrlMenu], targets[CtrlSelect]
+		if menu.Min.X != help.Min.X || menu.Max.X != help.Max.X || menu.Dx() != 72 {
+			t.Fatal("MENU must be widened to match HELP")
+		}
+		for _, x := range []int{menu.Min.X, menu.Max.X - 1} {
+			if controlAt(targets, x, menu.Min.Y+menu.Dy()/2) != CtrlMenu {
+				t.Fatal("widened MENU edges are not clickable")
+			}
+		}
+	}
+}
+
 func TestControlsFitAndHitWithoutOverlap(t *testing.T) {
 	for _, viewport := range []image.Point{{320, 568}, {360, 640}, {390, 844}, {480, 960}, {768, 1024}, {844, 390}} {
 		l := TouchLayout(viewport.X, viewport.Y)

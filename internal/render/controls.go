@@ -44,7 +44,7 @@ func NewControls(l Layout) *Controls {
 	c.targets[CtrlLeft] = image.Rect(14, top+84, 74, top+144)
 	c.targets[CtrlRight] = image.Rect(134, top+84, 194, top+144)
 	c.targets[CtrlRun] = image.Rect(216, top+22, 280, top+82)
-	c.targets[CtrlMenu] = image.Rect(216, top+100, 280, top+146)
+	c.targets[CtrlMenu] = image.Rect(212, top+100, 284, top+146)
 	c.targets[CtrlSelect] = image.Rect(212, top+160, 284, top+206)
 	for i, name := range []string{CtrlWeapon, CtrlFood, CtrlElixir, CtrlScroll} {
 		x, y := 297+(i%2)*88, top+23+(i/2)*92
@@ -75,8 +75,8 @@ func HUDTargets(l Layout) map[string]image.Rectangle {
 		CtrlFood:   image.Rect(854, y+30, 934, y+114),
 		CtrlElixir: image.Rect(960, y+30, 1040, y+114),
 		CtrlScroll: image.Rect(1066, y+30, 1146, y+114),
-		CtrlMenu:   image.Rect(1190, y+30, 1254, y+70),
-		CtrlSelect: image.Rect(1190, y+80, 1254, y+120),
+		CtrlMenu:   image.Rect(1182, y+30, 1254, y+70),
+		CtrlSelect: image.Rect(1182, y+80, 1254, y+120),
 	}
 }
 
@@ -112,18 +112,21 @@ func (c *Controls) Draw(dst *ebiten.Image, r *Renderer, pressed map[string]bool,
 		switch name {
 		case CtrlRun:
 			r.drawCentered(dst, "ui_run", boxCenter(rect).Sub(image.Pt(0, 8)), 28)
-			r.slotLabel(dst, "RUN", image.Rect(rect.Min.X, rect.Max.Y-23, rect.Max.X, rect.Max.Y-3), uiText)
+			r.slotLabel(dst, r.tr("RUN"), image.Rect(rect.Min.X, rect.Max.Y-23, rect.Max.X, rect.Max.Y-3), uiText)
 		case CtrlMenu:
-			r.slotLabel(dst, "MENU", rect, uiText)
+			r.slotLabel(dst, r.tr("MENU"), rect, uiText)
 		case CtrlSelect:
 			caption := "SELECT"
 			if label == SelectHelp {
 				caption = "HELP"
+				if r.tr("HELP") != "HELP" {
+					caption = "HUD HELP"
+				}
 			}
 			if label == SelectUse {
 				caption = "USE"
 			}
-			r.slotLabel(dst, caption, rect, uiText)
+			r.slotLabel(dst, r.tr(caption), rect, uiText)
 		}
 	}
 }

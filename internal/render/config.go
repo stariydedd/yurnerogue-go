@@ -2,6 +2,8 @@
 // Зависит от domain, но не наоборот.
 package render
 
+import "github.com/stariydedd/yurnerogue-go/internal/locale"
+
 // Размер тайла и видимой области. Исходные спрайты 16px, множитель 2.
 const (
 	SpriteScale = 2
@@ -14,6 +16,7 @@ const (
 // Layout — размеры кадра. Меняется на портретную «консоль» на тач-устройствах,
 // поэтому рендер берёт значения отсюда, а не из констант.
 type Layout struct {
+	Language         locale.Language
 	ScreenW, ScreenH int
 	GridW, GridH     int // игровое поле
 	PanelH           int // статус-панель

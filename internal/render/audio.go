@@ -11,7 +11,7 @@ import (
 func AudioTargets(l Layout) map[string]image.Rectangle {
 	w := min(172, l.ScreenW-48)
 	x := (l.ScreenW - w) / 2
-	y := l.ScreenH - 184
+	y := l.ScreenH - 232
 	return map[string]image.Rectangle{
 		"music":   image.Rect(x, y, x+w, y+64),
 		"effects": image.Rect(x, y+80, x+w, y+144),
@@ -30,13 +30,18 @@ func (r *Renderer) DrawAudioControls(screen *ebiten.Image, music, effects int, s
 		if name == "music" {
 			value, label = music, "MUSIC"
 		}
-		label = fmt.Sprintf("%s %d%%", label, value)
+		label = fmt.Sprintf("%s %d%%", r.tr(label), value)
 		button.Label = label
 		r.drawVolumeButton(screen, button, value, len(selected) > 0 && selected[0] == i, r.Fonts.UI)
 	}
 }
 
 func (r *Renderer) drawVolumeButton(screen *ebiten.Image, button MenuButton, volume int, active bool, face text.Face) {
+	if button.Action == "music" {
+		button.Label = fmt.Sprintf(r.tr("MUSIC %d%%"), volume)
+	} else if button.Action == "effects" {
+		button.Label = fmt.Sprintf(r.tr("SFX %d%%"), volume)
+	}
 	r.uiSlot(screen, button.Bounds, active)
 	fillBox(screen, button.Bounds.Inset(8), uiRecess)
 	fillBox(screen, PauseVolumeFill(button.Bounds, volume), uiEdge)

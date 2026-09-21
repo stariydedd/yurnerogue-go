@@ -22,7 +22,7 @@ func (g *Game) syncBrowserNameEntry() bool {
 		return false
 	}
 	box := render.NameEntryBounds(l).Inset(6)
-	bridge.Call("show", g.nameInput, box.Min.X, box.Min.Y, box.Dx(), box.Dy(), l.ScreenW, l.ScreenH)
+	bridge.Call("show", g.nameInput, box.Min.X, box.Min.Y, box.Dx(), box.Dy(), l.ScreenW, l.ScreenH, string(l.Language))
 	value := bridge.Call("read")
 	g.nameInput = value.Get("value").String()
 	switch value.Get("action").String() {

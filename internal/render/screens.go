@@ -11,6 +11,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
+	"github.com/stariydedd/yurnerogue-go/internal/locale"
 )
 
 // Tagline — слоган под названием в главном меню.
@@ -42,15 +43,21 @@ func (r *Renderer) backdrop(screen *ebiten.Image) { screen.Fill(Black) }
 
 // titleWithShadow uses the shared orange menu heading on both layouts.
 func (r *Renderer) titleWithShadow(screen *ebiten.Image, s string, y float64) {
-	w := TextWidth(s, r.Fonts.Title)
+	s = r.tr(s)
+	face := r.Fonts.Title
+	if TextWidth(s, face) > float64(r.Layout.ScreenW-32) {
+		face = r.Fonts.Menu
+	}
+	w := TextWidth(s, face)
 	x := float64(r.Layout.ScreenW)/2 - w/2
-	r.Text(screen, s, r.Fonts.Title, x+2, y+2, uiInk)
-	r.Text(screen, s, r.Fonts.Title, x, y, uiAccent)
+	r.Text(screen, s, face, x+2, y+2, uiInk)
+	r.Text(screen, s, face, x, y, uiAccent)
 }
 
 // DrawMainMenu — заглавный экран с героем и списком пунктов.
 func (r *Renderer) DrawMainMenu(screen *ebiten.Image, selected int, message string) {
 	r.drawMenuHeader(screen, message)
+	r.DrawLanguageControls(screen)
 }
 
 // drawHeroBanner рисует увеличенного игрока по центру экрана.
@@ -180,6 +187,7 @@ func (r *Renderer) drawStatusLines(screen *ebiten.Image, status string, y float6
 }
 
 func (r *Renderer) statusLines(status string, face text.Face) []string {
+	status = r.translateMessage(status)
 	maxChars := max(1, int(float64(r.Layout.ScreenW-40)/TextWidth("M", face)))
 	return wrapText(status, maxChars)
 }
@@ -193,7 +201,7 @@ func (r *Renderer) DrawItemMenu(screen *ebiten.Image, items []*domain.Item, allo
 		lines = append(lines, domain.BaseWeaponName)
 	}
 	for _, it := range items {
-		lines = append(lines, it.Name+it.StatLabel())
+		lines = append(lines, it.Name+locale.StatSuffix(l.Language, it.StatLabel()))
 	}
 
 	rowH := 22.0
@@ -237,8 +245,8 @@ func (r *Renderer) DrawQuitDialog(screen *ebiten.Image, selected int) {
 	box := QuitDialogBounds(r.Layout)
 	r.stonePanel(screen, box)
 	y := float64(box.Min.Y)
-	r.TextCentered(screen, "LEAVE RUN?", r.Fonts.Menu, y+28, uiAccent)
-	r.TextCentered(screen, "This run will be lost.", r.Fonts.UI, y+78, uiText)
+	r.TextCentered(screen, r.tr("LEAVE RUN?"), r.Fonts.Menu, y+28, uiAccent)
+	r.TextCentered(screen, r.tr("This run will be lost."), r.Fonts.UI, y+78, uiText)
 	r.DrawMenuButtons(screen, MenuQuit, selected)
 }
 

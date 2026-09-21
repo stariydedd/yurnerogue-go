@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"strconv"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -129,6 +130,11 @@ func (r *Renderer) drawCombat(dst *ebiten.Image, s *domain.Session, vis domain.V
 			continue
 		}
 		label, ink := combatLabel(event)
+		if event.Damage == domain.Miss {
+			label = r.tr(label)
+		} else if event.MaxHP {
+			label = strings.TrimSuffix(label, "MAX HP") + r.tr("MAX HP")
+		}
 		if age > 30 {
 			ink.A = uint8(255 * (combatMarkerTicks - age) / (combatMarkerTicks - 30))
 		}

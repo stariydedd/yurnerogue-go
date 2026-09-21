@@ -13,6 +13,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
+	"github.com/stariydedd/yurnerogue-go/internal/locale"
 	"github.com/stariydedd/yurnerogue-go/internal/render"
 )
 
@@ -213,6 +214,7 @@ func main() {
 	scene := flag.String("scene", "room", "room, corridor, corridor-bend (four walking frames), heroes, hero-depth, hero-depth-reverse, gate-items, gate-clear, gate-hero, or seeded gameplay (seed)")
 	out := flag.String("out", "build/radiant-room.png", "screenshot destination")
 	touch := flag.Bool("touch", false, "capture the portrait touch layout")
+	language := flag.String("lang", "en", "interface language: en or ru")
 	width := flag.Int("width", 480, "touch viewport width")
 	height := flag.Int("height", 960, "touch viewport height")
 	hud := flag.Bool("hud", false, "populate inventory and temporary effects for a HUD preview")
@@ -235,6 +237,7 @@ func main() {
 	if *touch {
 		l = render.TouchLayout(*width, *height)
 	}
+	l.Language = locale.Normalize(locale.Language(*language))
 	r, err := render.New(l)
 	if err != nil {
 		log.Fatal(err)

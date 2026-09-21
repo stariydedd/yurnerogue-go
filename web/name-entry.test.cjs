@@ -20,6 +20,17 @@ function setup() {
     return {input, events, bridge, show};
 }
 
+test("name input translates hints without changing the player name", () => {
+    const {input, bridge} = setup();
+    bridge.show("PLAY", 18, 426, 444, 36, 480, 860, "ru");
+    assert.equal(input.placeholder, "Нажмите для ввода имени");
+    assert.equal(input.ariaLabel, "Имя игрока");
+    assert.equal(input.value, "PLAY");
+    bridge.show("ignored", 18, 426, 444, 36, 480, 860, "en");
+    assert.equal(input.placeholder, "Tap to enter name");
+    assert.equal(input.value, "PLAY");
+});
+
 test("real name input stays aligned and does not reset while typing", () => {
     assert.match(html, /<input id="player-name" type="text"/);
     const {input, bridge, events, show} = setup();
