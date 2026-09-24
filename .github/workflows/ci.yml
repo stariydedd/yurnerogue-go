@@ -195,7 +195,10 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          # Без ssh-keyscan: его пробные рукопожатия с разными типами ключей
+          # fail2ban на сервере считает атакой и банит раннер. Ключ хоста
+          # принимается при первом обычном подключении.
+          printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
       - name: Upload game static and infra files
         if: steps.release.outputs.current == 'true'
         env:
