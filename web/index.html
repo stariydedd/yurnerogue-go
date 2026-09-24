@@ -151,6 +151,41 @@
     };
 })();
 </script>
+<script id="audio-headroom">
+// The Go audio library (oto) feeds an AudioWorklet that holds only about 46 ms
+// of sound at 44.1 kHz. On a slow machine one long frame empties it and every
+// sound, music included, drops out. The worklet is taught to double its buffer
+// after an underrun, up to about 190 ms: fast machines never underrun and keep
+// the short latency. If oto's script ever changes shape, it loads untouched.
+(function () {
+    const maxFrames = 8192;
+    function patchOtoWorklet(source) {
+        if (!source.includes("oto-worklet-processor")) return null;
+        const received = /this\.buf_ = newBuf;/;
+        const starving = /if \(this\.buf_\.length < output\[0\]\.length\s*\*\s*this\.channelCount_\) \{/;
+        if (!received.test(source) || !starving.test(source)) return null;
+        return source
+            .replace(received, "this.buf_ = newBuf;\nthis.started_ = true;\nthis.starving_ = false;")
+            .replace(starving, (head) => head +
+                "\nif (this.started_ && !this.starving_) {" +
+                "\nthis.starving_ = true;" +
+                "\nthis.bufferSize_ = Math.min(" + maxFrames + ", this.bufferSize_ * 2);" +
+                "\n}");
+    }
+    window.yurnePatchOtoWorklet = patchOtoWorklet;
+    const worklet = window.AudioWorklet && window.AudioWorklet.prototype;
+    if (!worklet || !worklet.addModule) return;
+    const addModule = worklet.addModule;
+    worklet.addModule = function (url, options) {
+        const load = (src) => addModule.call(this, src, options);
+        return fetch(url).then((r) => r.text()).then((source) => {
+            const patched = patchOtoWorklet(source);
+            if (!patched) return load(url);
+            return load(URL.createObjectURL(new Blob([patched], {type: "text/javascript"})));
+        }, () => load(url));
+    };
+})();
+</script>
 <script src="wasm_exec.js"></script>
 <script>
 ;(function () {

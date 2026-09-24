@@ -14,7 +14,58 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
 
+// hudCache keeps the HUD drawn for one game state. Its panels are vector
+// strokes and shaped text, too slow to rebuild every frame on a weak machine:
+// the long frames starved the browser audio buffer. Only the portrait is
+// animated, so it is drawn on top every frame.
+type hudCache struct {
+	key      string
+	frame    *ebiten.Image
+	portrait image.Rectangle
+	caching  bool
+}
+
+// hudKey lists everything the HUD shows. A state that changes the HUD must
+// change this key, or the HUD would stay stale.
+func (r *Renderer) hudKey(s *domain.Session) string {
+	p := s.Player
+	var b strings.Builder
+	fmt.Fprintf(&b, "%+v|%d|%d|%d/%d|%d|%d|%v|%d|%d|%d|%v|%v|%v|", r.Layout, s.LevelNum, p.Treasures,
+		p.Health, p.MaxHealth, p.Strength, p.Agility, p.Sleeping, p.SleepTurns,
+		p.StrikeCooldown, p.GuardCooldown, p.StrikeArmed, p.Guarding, p.EffectStatuses())
+	if p.Weapon != nil {
+		fmt.Fprintf(&b, "%s/%d", p.Weapon.Name, p.Weapon.StrengthEffect)
+	}
+	for _, it := range p.Backpack {
+		fmt.Fprintf(&b, "|%d/%s", it.Type, it.Name)
+	}
+	b.WriteString("|" + s.Message)
+	for _, line := range s.EventLog {
+		b.WriteString("\n" + line)
+	}
+	return b.String()
+}
+
 func (r *Renderer) DrawHUD(dst *ebiten.Image, s *domain.Session) {
+	key, size := r.hudKey(s), dst.Bounds().Size()
+	if r.hud == nil || r.hud.frame.Bounds().Size() != size {
+		if r.hud != nil {
+			r.hud.frame.Deallocate()
+		}
+		r.hud = &hudCache{frame: ebiten.NewImage(size.X, size.Y)}
+	}
+	if r.hud.key != key || r.hud.key == "" {
+		r.hud.frame.Clear()
+		r.hud.caching = true
+		r.drawHUDLayers(r.hud.frame, s)
+		r.hud.caching = false
+		r.hud.key = key
+	}
+	dst.DrawImage(r.hud.frame, nil)
+	r.drawHUDPortrait(dst, r.hud.portrait)
+}
+
+func (r *Renderer) drawHUDLayers(dst *ebiten.Image, s *domain.Session) {
 	l := r.Layout
 	r.stonePanel(dst, image.Rect(0, l.GridTop(), l.ScreenW, l.ControlsTop()))
 	if l.Touch {

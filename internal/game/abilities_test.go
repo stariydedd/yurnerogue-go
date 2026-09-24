@@ -148,3 +148,53 @@ func TestCriticalStrikeHitPlaysBladeDance(t *testing.T) {
 		t.Fatalf("critical miss cues: %v", cues)
 	}
 }
+
+func TestRapidAttacksKeepOneSwingPerStepAndQueueTheLatest(t *testing.T) {
+	s := domain.NewSessionSeed(21)
+	p := s.Player
+	p.X, p.Y, p.Agility = 12, 10, 1000000
+	enemy := domain.NewOpponent(domain.Zombie)
+	enemy.X, enemy.Y, enemy.Health = 13, 10, 100000
+	s.Level.Rooms = []*domain.Room{{X: 8, Y: 6, W: 16, H: 9, Enemies: []*domain.Opponent{enemy}}}
+	s.Level.Items = nil
+	s.Level.Exit = domain.Point{X: 20, Y: 12}
+	g := &Game{session: s, state: StatePlaying}
+	for i := 0; i < 5; i++ { // five taps in one frame
+		g.HandleKey(ebiten.KeyRight)
+	}
+	if s.Actions() != "d" || g.queuedAttack != "d" {
+		t.Fatalf("taps inside the interval must give one swing and one queued, got %q", s.Actions())
+	}
+	g.ticks = attackInterval - 1
+	g.releaseQueuedAttack()
+	if s.Actions() != "d" {
+		t.Fatal("queued swing came before the interval")
+	}
+	g.ticks = attackInterval
+	g.releaseQueuedAttack()
+	if s.Actions() != "dd" || g.queuedAttack != "" {
+		t.Fatal("queued swing did not come right after the interval")
+	}
+
+	// A step is never delayed, and it drops a swing queued before it.
+	g.HandleKey(ebiten.KeyRight)
+	g.HandleKey(ebiten.KeyUp)
+	if s.Actions() != "ddw" || g.queuedAttack != "" {
+		t.Fatalf("a step must go at once and cancel the queued swing, got %q", s.Actions())
+	}
+
+	// A queued swing whose enemy has gone does not turn into a step.
+	p.X, p.Y = 12, 10
+	enemy.X, enemy.Y = 13, 10
+	g.attackReady = g.ticks + attackInterval
+	g.HandleKey(ebiten.KeyRight)
+	if g.queuedAttack != "d" {
+		t.Fatal("the swing was not queued")
+	}
+	enemy.Health = 0
+	g.ticks = g.attackReady
+	g.releaseQueuedAttack()
+	if s.Actions() != "ddw" || p.X != 12 {
+		t.Fatal("a stale swing moved the hero")
+	}
+}

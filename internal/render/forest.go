@@ -4,6 +4,7 @@ import (
 	"image"
 	"math"
 	"sort"
+	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
@@ -18,11 +19,34 @@ type forestView struct {
 
 var forestDirs = []domain.Point{{X: 1}, {X: -1}, {Y: 1}, {Y: -1}}
 
+// The terrain depends on what is visible, not on where the hero stands: inside
+// a room every tile shows the whole room, so walking there keeps the cache.
+// Keying it on the hero redrew the whole forest on every step, a long frame
+// that starved the browser audio buffer on slow machines.
 type forestCacheKey struct {
 	level    *domain.Level
-	player   domain.Point
+	visible  uint64
 	visited  int
 	viewport image.Rectangle
+}
+
+// visibleSignature fingerprints a visible set regardless of map order.
+func visibleSignature(visible map[domain.Point]bool) uint64 {
+	sum := uint64(len(visible))
+	for p, seen := range visible {
+		if !seen {
+			continue
+		}
+		// splitmix64 finalizer spreads neighbouring cells apart.
+		h := uint64(uint32(p.X))<<32 | uint64(uint32(p.Y))
+		h ^= h >> 30
+		h *= 0xbf58476d1ce4e5b9
+		h ^= h >> 27
+		h *= 0x94d049bb133111eb
+		h ^= h >> 31
+		sum += h
+	}
+	return sum
 }
 
 type forestCache struct {
@@ -31,7 +55,7 @@ type forestCache struct {
 }
 
 func forestCacheContains(cached, requested forestCacheKey) bool {
-	return cached.level == requested.level && cached.player == requested.player &&
+	return cached.level == requested.level && cached.visible == requested.visible &&
 		cached.visited == requested.visited && requested.viewport.In(cached.viewport)
 }
 
@@ -57,32 +81,94 @@ func (m *forestMemory) reveal(level *domain.Level, grid domain.Grid, vis domain.
 	return domain.Visibility{Visible: vis.Visible, Explored: m.ground}
 }
 
+// forestStrips is how many frames a terrain rebuild is spread over. A whole
+// rebuild in one frame took long enough on a slow machine to starve the
+// browser audio buffer; one strip per frame keeps every frame short.
+const forestStrips = 6
+
+// forestBuild is the next terrain cache, rendered a strip per frame while the
+// previous cache stays on screen.
+type forestBuild struct {
+	forestCache
+	scene *forestScene
+	strip int
+}
+
+func sameForestContent(a, b forestCacheKey) bool {
+	return a.level == b.level && a.visible == b.visible && a.visited == b.visited
+}
+
 // Terrain is static between player steps. Cache its GPU image instead of
 // rebuilding the forest and its low foliage on every animation frame.
 func (r *Renderer) drawCachedForest(dst *ebiten.Image, grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, key forestCacheKey) {
 	viewport := key.viewport
-	if r.forest == nil || !forestCacheContains(r.forest.key, key) {
-		// Include the entire short camera slide in one terrain render.
-		key.viewport = key.viewport.Inset(-2 * TileSize)
-		var frame *ebiten.Image
-		if r.forest != nil {
-			frame = r.forest.frame
-			if frame.Bounds().Size() != key.viewport.Size() {
-				frame.Deallocate()
-				frame = nil
-			}
+	// The next cache is started early: when the terrain changed, or when the
+	// camera has used half of the margin, so it is ready before it is needed.
+	settled := r.forest != nil && forestCacheContains(r.forest.key, key) &&
+		viewport.In(r.forest.key.viewport.Inset(TileSize))
+	if !settled {
+		b := r.forestBuild
+		if b == nil || !sameForestContent(b.key, key) || !viewport.In(b.key.viewport.Inset(TileSize)) {
+			r.startForestBuild(grid, vis, paths, key)
 		}
-		if frame == nil {
-			frame = ebiten.NewImage(key.viewport.Dx(), key.viewport.Dy())
+	}
+	if r.forestBuild != nil {
+		// A stale cache of the same level may stay on screen for a few frames
+		// (lighting catches up); a cache that does not cover the view may not.
+		shown := r.forest != nil && r.forest.key.level == key.level && viewport.In(r.forest.key.viewport)
+		strips := 1
+		if !shown {
+			strips = forestStrips
 		}
-		frame.Fill(Black)
-		terrainVis := r.forestMemory.reveal(key.level, grid, vis)
-		r.drawForestTerrain(frame, grid, terrainVis, paths, key.viewport.Min.X, key.viewport.Min.Y)
-		r.forest = &forestCache{key: key, frame: frame}
+		r.stepForestBuild(strips)
 	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(r.forest.key.viewport.Min.X-viewport.Min.X), float64(r.forest.key.viewport.Min.Y-viewport.Min.Y))
 	dst.DrawImage(r.forest.frame, op)
+}
+
+func (r *Renderer) startForestBuild(grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, key forestCacheKey) {
+	// Include the entire short camera slide in one terrain render.
+	key.viewport = key.viewport.Inset(-2 * TileSize)
+	frame := r.forestSpare
+	r.forestSpare = nil
+	if r.forestBuild != nil {
+		frame = r.forestBuild.frame
+	}
+	if frame != nil && frame.Bounds().Size() != key.viewport.Size() {
+		frame.Deallocate()
+		frame = nil
+	}
+	if frame == nil {
+		frame = ebiten.NewImage(key.viewport.Dx(), key.viewport.Dy())
+	}
+	terrainVis := r.forestMemory.reveal(key.level, grid, vis)
+	r.forestBuild = &forestBuild{
+		forestCache: forestCache{key: key, frame: frame},
+		scene:       newForestScene(grid, terrainVis, paths, key.viewport),
+	}
+}
+
+// stepForestBuild renders up to n strips and swaps the finished cache in.
+func (r *Renderer) stepForestBuild(n int) {
+	b := r.forestBuild
+	area := b.key.viewport
+	for ; n > 0 && b.strip < forestStrips; n-- {
+		region := image.Rect(area.Min.X, area.Min.Y+area.Dy()*b.strip/forestStrips,
+			area.Max.X, area.Min.Y+area.Dy()*(b.strip+1)/forestStrips)
+		strip := b.frame.SubImage(region.Sub(area.Min)).(*ebiten.Image)
+		strip.Fill(Black)
+		r.drawForestRegion(strip, b.scene, region, area.Min.X, area.Min.Y)
+		b.strip++
+	}
+	if b.strip < forestStrips {
+		return
+	}
+	if r.forest != nil {
+		r.forestSpare = r.forest.frame
+	}
+	r.forest = &b.forestCache
+	r.forestBuild = nil
 }
 
 func newForestView(grid domain.Grid, vis domain.Visibility) forestView {
@@ -270,10 +356,14 @@ func (s forestSpace) protectTree(p forestProp) {
 	s.occupy(trunk)
 }
 
+// worldTrees is the tree layout of an unrevealed world. It depends on nothing,
+// so it is computed once instead of on every terrain redraw.
+var worldTrees = sync.OnceValue(func() []forestProp { return forestTrees(forestView{}) })
+
 func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 	// All tall/solid props participate in spacing even outside the viewport.
 	// Verge is ground cover and intentionally overlaps roots and other fringes.
-	scenery := forestTrees(forestView{})
+	scenery := append([]forestProp(nil), worldTrees()...)
 	space := forestSpace{}
 	for _, tree := range scenery {
 		space.protectTree(tree)
@@ -471,14 +561,50 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 	return props
 }
 
-func (r *Renderer) drawForestTerrain(dst *ebiten.Image, grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, camX, camY int) {
-	viewport := image.Rect(camX, camY, camX+dst.Bounds().Dx(), camY+dst.Bounds().Dy())
+// forestScene is what a terrain render computes before drawing: the view,
+// the props and the clearings of the whole cached area. Strips of one rebuild
+// share it, so each strip only draws.
+type forestScene struct {
+	vis       domain.Visibility
+	paths     map[domain.Point]bool
+	view      forestView
+	props     []forestProp
+	clearings []sceneClearing
+}
+
+type sceneClearing struct {
+	clearing
+	plants []forestProp
+}
+
+func newForestScene(grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, area image.Rectangle) *forestScene {
 	v := newForestView(grid, vis)
-	props := forestProps(v, viewport)
+	s := &forestScene{vis: vis, paths: paths, view: v, props: forestProps(v, area)}
+	for _, c := range knownClearings(v, paths) {
+		if c.bounds.Overlaps(area) {
+			s.clearings = append(s.clearings, sceneClearing{c, c.plants(v)})
+		}
+	}
+	return s
+}
+
+// propReach is how far a prop's pixels may extend past its rectangle
+// (rotation, root grass, contact shadow), so strips never clip one away.
+const propReach = 64
+
+func propNear(p forestProp, region image.Rectangle) bool {
+	return p.rect.Union(p.lightAnchor).Inset(-propReach).Overlaps(region)
+}
+
+// drawForestRegion draws the terrain of one world region into dst, whose
+// origin is at world (camX, camY). Every layer keeps the full-render order,
+// so strips of one scene join without seams.
+func (r *Renderer) drawForestRegion(dst *ebiten.Image, s *forestScene, region image.Rectangle, camX, camY int) {
+	v, vis, paths := s.view, s.vis, s.paths
 	// Continuous shaded grass/soil below the forest. This is decorative ground,
 	// unrelated to hidden rooms, rather than a second layer of floating crowns.
-	for y := camY / TileSize; y <= viewport.Max.Y/TileSize; y++ {
-		for x := camX / TileSize; x <= viewport.Max.X/TileSize; x++ {
+	for y := region.Min.Y / TileSize; y <= region.Max.Y/TileSize; y++ {
+		for x := region.Min.X / TileSize; x <= region.Max.X/TileSize; x++ {
 			rect := image.Rect(x*TileSize, y*TileSize, (x+1)*TileSize, (y+1)*TileSize)
 			r.drawForestSoil(dst, v, rect, camX, camY, cellHash(x, y))
 		}
@@ -486,20 +612,20 @@ func (r *Renderer) drawForestTerrain(dst *ebiten.Image, grid domain.Grid, vis do
 	// Dense low foliage goes below root beds, not around large exclusion halos.
 	// Moss then restores the grounded contact point without clearing a gap in
 	// the surrounding vegetation. Both remain below opaque walkable tiles.
-	for _, prop := range props {
-		if prop.groundCover && prop.role == "bush" {
+	for _, prop := range s.props {
+		if prop.groundCover && prop.role == "bush" && propNear(prop, region) {
 			r.drawForestProp(dst, prop, camX, camY, v.light(prop.lightingBounds())*.66)
 		}
 	}
-	for _, prop := range props {
-		if prop.role == "moss" {
+	for _, prop := range s.props {
+		if prop.role == "moss" && propNear(prop, region) {
 			r.drawForestProp(dst, prop, camX, camY, v.light(prop.lightingBounds())*.85)
 			r.drawForestContact(dst, prop.lightAnchor, camX, camY)
 		}
 	}
-	// Include cells just outside the camera whose decorative bank reaches in.
-	for y := max(0, (camY-10)/TileSize); y <= min(domain.Rows-1, (viewport.Max.Y+10)/TileSize); y++ {
-		for x := max(0, (camX-10)/TileSize); x <= min(domain.Cols-1, (viewport.Max.X+10)/TileSize); x++ {
+	// Include cells just outside the region whose decorative bank reaches in.
+	for y := max(0, (region.Min.Y-TileSize)/TileSize); y <= min(domain.Rows-1, (region.Max.Y+TileSize)/TileSize); y++ {
+		for x := max(0, (region.Min.X-TileSize)/TileSize); x <= min(domain.Cols-1, (region.Max.X+TileSize)/TileSize); x++ {
 			p := domain.Point{X: x, Y: y}
 			if !v.ground[p] {
 				continue
@@ -516,9 +642,9 @@ func (r *Renderer) drawForestTerrain(dst *ebiten.Image, grid domain.Grid, vis do
 			}
 		}
 	}
-	r.drawClearingBanks(dst, v, vis, paths, camX, camY)
-	for _, prop := range props {
-		if prop.groundCover {
+	r.drawClearingBanks(dst, v, vis, s.clearings, region, camX, camY)
+	for _, prop := range s.props {
+		if prop.groundCover || !propNear(prop, region) {
 			continue
 		}
 		light := v.light(prop.lightingBounds())

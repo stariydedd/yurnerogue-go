@@ -57,7 +57,11 @@ type Renderer struct {
 	dim          *ebiten.Image // полупрозрачный слой тумана войны
 	tick         int
 	forest       *forestCache
+	forestBuild  *forestBuild
+	forestSpare  *ebiten.Image
 	forestMemory forestMemory
+	hud          *hudCache
+	paths        pathCache
 	uiStone      *ebiten.Image
 	combat       combatMarkers
 	motion       worldMotion

@@ -265,3 +265,41 @@ func TestWrapTextHandlesOverlongWord(t *testing.T) {
 		t.Fatalf("длинное слово должно остаться целым, получено %q", got)
 	}
 }
+
+func TestHUDCacheKeyFollowsEverythingShown(t *testing.T) {
+	r := &Renderer{Layout: DesktopLayout()}
+	s := domain.NewSessionSeed(21)
+	base := r.hudKey(s)
+	r.tick += 100 // animation alone must not rebuild the HUD
+	if r.hudKey(s) != base {
+		t.Fatal("HUD key depends on animation")
+	}
+	changes := map[string]func(){
+		"health":   func() { s.Player.Health-- },
+		"max hp":   func() { s.Player.MaxHealth++ },
+		"strength": func() { s.Player.Strength++ },
+		"agility":  func() { s.Player.Agility++ },
+		"gold":     func() { s.Player.Treasures++ },
+		"level":    func() { s.LevelNum++ },
+		"strike":   func() { s.Player.StrikeCooldown++ },
+		"parry":    func() { s.Player.GuardCooldown++ },
+		"armed":    func() { s.Player.StrikeArmed = !s.Player.StrikeArmed },
+		"sleep":    func() { s.Player.FallAsleep(2) },
+		"weapon":   func() { s.Player.Weapon = &domain.Item{Type: domain.ItemWeapon, Name: "Yasha", StrengthEffect: 9} },
+		"backpack": func() { s.Player.PickUpItem(&domain.Item{Type: domain.ItemFood, Name: "Tango"}) },
+		"buff": func() {
+			e := &domain.Item{Type: domain.ItemElixir, StrengthEffect: 3}
+			s.Player.PickUpItem(e)
+			s.Player.UseItem(e)
+		},
+		"log":      func() { s.SetMessage("You wait.") },
+		"language": func() { r.Layout.Language = locale.Russian },
+	}
+	for name, change := range changes {
+		before := r.hudKey(s)
+		change()
+		if r.hudKey(s) == before {
+			t.Fatalf("%s change keeps a stale HUD", name)
+		}
+	}
+}

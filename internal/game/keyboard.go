@@ -7,6 +7,8 @@ import "github.com/hajimehoshi/ebiten/v2"
 type keyboardInput struct {
 	held []ebiten.Key
 	next int
+	// repeated — последняя выданная клавиша пришла из автоповтора.
+	repeated bool
 }
 
 func (k *keyboardInput) reset() {
@@ -41,6 +43,7 @@ func (k *keyboardInput) update(pressed []ebiten.Key, down func(ebiten.Key) bool)
 	key := k.held[len(k.held)-1]
 	if newDirection {
 		k.next = repeatDelay
+		k.repeated = false
 		return key
 	}
 	if key != previous {
@@ -50,6 +53,7 @@ func (k *keyboardInput) update(pressed []ebiten.Key, down func(ebiten.Key) bool)
 	k.next--
 	if k.next <= 0 {
 		k.next = repeatInterval
+		k.repeated = true
 		return key
 	}
 	return ebiten.KeyMax
@@ -81,6 +85,8 @@ func (g *Game) handleKeyboard(pressed []ebiten.Key, down func(ebiten.Key) bool, 
 		}
 	}
 	if key := g.keyboard.update(pressed, down); key != ebiten.KeyMax {
+		g.heldStep = g.keyboard.repeated
 		g.HandleKey(key)
+		g.heldStep = false
 	}
 }

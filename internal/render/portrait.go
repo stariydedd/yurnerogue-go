@@ -22,6 +22,10 @@ func portraitPlacement(frame image.Point, slot image.Rectangle) (int, image.Poin
 }
 
 func (r *Renderer) drawHUDPortrait(dst *ebiten.Image, slot image.Rectangle) {
+	if r.hud != nil && r.hud.caching {
+		r.hud.portrait = slot // animated: drawn over the cached HUD every frame
+		return
+	}
 	frame := r.sprites.Frame("player", r.AnimTick())
 	if frame == nil {
 		return

@@ -119,3 +119,19 @@ func TestKeyboardNonMovementControlsDoNotRepeat(t *testing.T) {
 		t.Fatal("menu navigation should remain single-press")
 	}
 }
+
+func TestKeyboardMarksOnlyAutoRepeatsAsHeldSteps(t *testing.T) {
+	var input keyboardInput
+	held := func(k ebiten.Key) bool { return k == ebiten.KeyD }
+	if input.update([]ebiten.Key{ebiten.KeyD}, held) != ebiten.KeyD || input.repeated {
+		t.Fatal("a fresh press is a tapped step, not held movement")
+	}
+	for i := 0; i < repeatDelay; i++ {
+		if key := input.update(nil, held); key == ebiten.KeyD && !input.repeated {
+			t.Fatal("an auto-repeat was not marked as held movement")
+		}
+	}
+	if repeatInterval != render.HeldMoveTicks {
+		t.Fatal("held repeats must match the held step animation")
+	}
+}

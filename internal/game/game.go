@@ -41,6 +41,13 @@ type Game struct {
 	audio    *sound.Engine
 	renderer *render.Renderer
 	session  *domain.Session
+	// heldStep — текущая клавиша пришла из автоповтора зажатого направления.
+	heldStep bool
+	// ticks считает кадры Update; attackReady — тик, с которого разрешён
+	// следующий удар, queuedAttack — удар, нажатый раньше этого тика.
+	ticks        int
+	attackReady  int
+	queuedAttack string
 
 	state State
 	// helpReturn — экран, на который возвращает справка.
@@ -130,11 +137,13 @@ func (g *Game) Update() error {
 	defer func() {
 		if g.state != before {
 			g.keyboard.reset()
+			g.queuedAttack = ""
 			if g.touch != nil {
 				g.touch.reset()
 			}
 		}
 	}()
+	g.ticks++
 	g.pollNetwork()
 	browserNameEntry := g.syncBrowserNameEntry()
 	defer g.syncBrowserNameEntry()
@@ -150,9 +159,13 @@ func (g *Game) Update() error {
 	} else if g.updateAudioSlider() {
 		// A captured slider pointer cannot activate another control.
 	} else if g.touch != nil {
-		for _, control := range g.touch.update(g) {
+		controls := g.touch.update(g)
+		for i, control := range controls {
 			if key := keyForControl(control, g.state); key != ebiten.KeyMax {
+				// The auto-repeat, if any, is the last control of the frame.
+				g.heldStep = g.touch.repeated && i == len(controls)-1
 				g.HandleKey(key)
+				g.heldStep = false
 			}
 		}
 	} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
@@ -166,6 +179,7 @@ func (g *Game) Update() error {
 	if g.state == StateNameEntry && !browserNameEntry {
 		g.appendTypedRunes()
 	}
+	g.releaseQueuedAttack()
 	return nil
 }
 
@@ -392,11 +406,47 @@ func directionAction(d domain.Point, run bool) string {
 	return string(code)
 }
 
+// attackInterval — не чаще одного удара за шаг ходьбы при удержании: частые
+// нажатия дают ровный ритм, а не наложенные друг на друга удары и метки.
+const attackInterval = render.HeldMoveTicks
+
+// isAttack — действие бьёт врага: шаг в его клетку или критический удар.
+func (g *Game) isAttack(action string) bool {
+	if len(action) == 2 && action[0] == 't' {
+		return true
+	}
+	d, ok := map[string]domain.Point{"w": {Y: -1}, "a": {X: -1}, "s": {Y: 1}, "d": {X: 1}}[action]
+	p := g.session.Player
+	return ok && !p.Sleeping && g.session.OpponentAt(p.X+d.X, p.Y+d.Y) != nil
+}
+
+// releaseQueuedAttack выполняет удар, нажатый до конца интервала, если он
+// всё ещё удар: враг мог уйти, и тогда случайный шаг хуже пропуска.
+func (g *Game) releaseQueuedAttack() {
+	if g.queuedAttack == "" || g.ticks < g.attackReady {
+		return
+	}
+	action := g.queuedAttack
+	g.queuedAttack = ""
+	if g.state == StatePlaying && g.isAttack(action) {
+		g.performAction(action)
+	}
+}
+
 func (g *Game) performAction(action string) {
+	if g.isAttack(action) {
+		if g.ticks < g.attackReady {
+			g.queuedAttack = action
+			return
+		}
+		g.attackReady = g.ticks + attackInterval
+	}
+	g.queuedAttack = ""
 	g.renderer.SyncMotion(g.session, false)
 	before := captureActionAudio(g.session)
 	if g.session.ApplyAction(action) == nil {
 		animate := g.session.Stats.TilesMoved-before.stats.TilesMoved <= 1
+		g.renderer.SetHeldStep(g.heldStep)
 		g.renderer.SyncMotion(g.session, animate)
 		if g.renderer != nil {
 			g.renderer.ShowCombat(g.session, g.session.CombatEvents)

@@ -152,9 +152,8 @@ func (c clearing) plants(v forestView) []forestProp {
 	return props
 }
 
-func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain.Visibility, paths map[domain.Point]bool, camX, camY int) {
-	viewport := dst.Bounds().Add(image.Pt(camX, camY))
-	for _, c := range knownClearings(v, paths) {
+func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain.Visibility, clearings []sceneClearing, viewport image.Rectangle, camX, camY int) {
+	for _, c := range clearings {
 		if !c.bounds.Overlaps(viewport) {
 			continue
 		}
@@ -189,7 +188,7 @@ func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain
 					x := e.start.X + along*e.dir.X + across*e.dir.Y
 					y := e.start.Y + along*e.dir.Y - across*e.dir.X
 					rect := image.Rect(x, y, x+2, y+2)
-					if !c.contains(rect) {
+					if !rect.Overlaps(viewport) || !c.contains(rect) {
 						continue
 					}
 					fade := float32(1 - math.Pow(float64(along)/float64(e.length), 1.4))
@@ -199,8 +198,8 @@ func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain
 				}
 			}
 		}
-		for _, p := range c.plants(v) {
-			if !p.rect.Overlaps(viewport) {
+		for _, p := range c.plants {
+			if !propNear(p, viewport) {
 				continue
 			}
 			r.drawForestProp(dst, p, camX, camY, clearingPlantLight(v, p.rect))

@@ -2,8 +2,10 @@ package sound
 
 import (
 	"bytes"
+	"encoding/binary"
 	"log"
 	"math"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2/audio"
 )
@@ -14,6 +16,13 @@ type Settings struct{ Music, Effects int }
 const masterGain = 0.85
 const musicGain, effectsGain = 0.30 * masterGain, 0.20 * masterGain
 const maxVoices = 4
+
+// Player.Play fills the whole player buffer on the game thread before it
+// returns, 0.5 s by default. The browser audio worklet keeps only about 46 ms
+// at 44.1 kHz, so on a slow machine that fill starved the mix and cut the
+// music at every effect. Effects start with a short buffer instead; the mixer
+// tops it up in the background.
+const voiceBuffer = 100 * time.Millisecond
 
 func Defaults() Settings { return Settings{Music: 25, Effects: 75} }
 func (s Settings) Valid() bool {
@@ -27,6 +36,37 @@ type bank struct {
 	steps       [2][stepVariants][]byte
 	attacks     [attackVariants][]byte
 	misses      [missVariants][]byte
+}
+
+// toFloat32 converts every effect clip once at load, so starting a voice
+// copies ready float32 samples instead of converting 16-bit PCM on the game
+// thread. Music keeps 16-bit: it loops from the start and is twice as large.
+func (b *bank) toFloat32() {
+	convert := func(clip *[]byte) { *clip = float32PCM(*clip) }
+	for c := range b.cues {
+		convert(&b.cues[c])
+	}
+	for surface := range b.steps {
+		for variant := range b.steps[surface] {
+			convert(&b.steps[surface][variant])
+		}
+	}
+	for i := range b.attacks {
+		convert(&b.attacks[i])
+	}
+	for i := range b.misses {
+		convert(&b.misses[i])
+	}
+}
+
+// float32PCM turns 16-bit little-endian PCM into float32 little-endian PCM.
+func float32PCM(pcm []byte) []byte {
+	out := make([]byte, len(pcm)/2*4)
+	for i := 0; i+1 < len(pcm); i += 2 {
+		v := float32(int16(binary.LittleEndian.Uint16(pcm[i:]))) / (1 << 15)
+		binary.LittleEndian.PutUint32(out[i*2:], math.Float32bits(v))
+	}
+	return out
 }
 
 type Engine struct {
@@ -75,6 +115,7 @@ func New() *Engine {
 				b.steps[surface][variant] = footstep(StepGrass+Cue(surface), variant)
 			}
 		}
+		b.toFloat32()
 		e.ready <- b
 	}()
 	return e
@@ -214,7 +255,8 @@ func (e *Engine) startVoice(data []byte) {
 		e.voices[0].Close()
 		e.voices = e.voices[1:]
 	}
-	p := e.context.NewPlayerFromBytes(data)
+	p := e.context.NewPlayerF32FromBytes(data)
+	p.SetBufferSize(voiceBuffer)
 	p.SetVolume(float64(e.settings.Effects) / 100 * effectsGain)
 	p.Play()
 	e.voices = append(e.voices, p)

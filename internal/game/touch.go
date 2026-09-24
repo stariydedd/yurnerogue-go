@@ -9,8 +9,10 @@ import (
 
 // Общий темп удержания клавиатуры и крестовины, в тиках при 60 TPS.
 const (
-	repeatDelay    = 16 // ~260 мс до первого повтора
-	repeatInterval = 8  // ~133 мс между повторами, как анимация шага
+	repeatDelay = 16 // ~260 мс до первого повтора
+	// ~200 мс между повторами: шаг при удержании анимируется ровно столько же,
+	// поэтому шаги стыкуются в ровную ходьбу без рывков.
+	repeatInterval = render.HeldMoveTicks
 )
 
 // touchInput переводит касания экранных кнопок в клавиши: игровая логика
@@ -23,7 +25,9 @@ type touchInput struct {
 	// repeatControl и repeatAt — автоповтор зажатой крестовины.
 	repeatControl string
 	repeatAt      int
-	ticks         int
+	// repeated — последний контрол update пришёл из автоповтора.
+	repeated bool
+	ticks    int
 }
 
 func newTouchInput(c *render.Controls) *touchInput {
@@ -92,9 +96,11 @@ func (t *touchInput) update(g *Game) []string {
 // сперва выдерживается пауза repeatDelay, дальше шаги идут через
 // repeatInterval. Вынесено из update, чтобы проверяться без ввода Ebitengine.
 func (t *touchInput) repeatFired() []string {
+	t.repeated = false
 	if t.repeatControl == "" || t.ticks < t.repeatAt {
 		return nil
 	}
+	t.repeated = true
 	t.repeatAt = t.ticks + repeatInterval
 	return []string{t.repeatControl}
 }

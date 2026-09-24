@@ -10,10 +10,16 @@ import (
 
 const moveTicks = 8 // 133 ms at 60 TPS, independent of simulation turns.
 
+// HeldMoveTicks is one step of held movement: slower than a tap, and linear,
+// so consecutive steps join into one steady walk instead of easing in and out
+// on every tile. The game repeats a held direction at the same interval.
+const HeldMoveTicks = 12 // 200 ms
+
 type actorMotion struct {
 	path    []image.Point
 	to      image.Point
 	started int
+	held    bool
 }
 
 func (m *actorMotion) position(tick int) image.Point {
@@ -31,9 +37,17 @@ func pathLength(path []image.Point) float64 {
 }
 
 func (m *actorMotion) sample(tick int) (image.Point, int) {
+	if m.held {
+		t := min(1., max(0., float64(tick-m.started)/HeldMoveTicks))
+		return m.along(t)
+	}
 	t := min(1., max(0., float64(tick-m.started)/moveTicks))
 	// Smoothstep keeps the short slide from starting/stopping abruptly.
-	t = t * t * (3 - 2*t)
+	return m.along(t * t * (3 - 2*t))
+}
+
+// along returns the point at fraction t of the path.
+func (m *actorMotion) along(t float64) (image.Point, int) {
 	distance := pathLength(m.path) * t
 	for i := 1; i < len(m.path); i++ {
 		from, to := m.path[i-1], m.path[i]
@@ -49,7 +63,7 @@ func (m *actorMotion) sample(tick int) (image.Point, int) {
 	return m.to, len(m.path)
 }
 
-func (m *actorMotion) move(to image.Point, tick int, animate bool) {
+func (m *actorMotion) move(to image.Point, tick int, animate, held bool) {
 	if m.to == to {
 		return // A blocked step or attack must not restart an existing slide.
 	}
@@ -75,7 +89,7 @@ func (m *actorMotion) move(to image.Point, tick int, animate bool) {
 		*m = stillMotion(to) // Rapid input must not build up visual lag.
 		return
 	}
-	*m = actorMotion{path: path, to: to, started: tick}
+	*m = actorMotion{path: path, to: to, started: tick, held: held}
 }
 
 func absMotion(n int) int {
@@ -102,6 +116,7 @@ func (m *actorMotion) pathVisible(vis domain.Visibility) bool {
 
 type worldMotion struct {
 	session *domain.Session
+	held    bool // the next observed step comes from a held direction
 	level   *domain.Level
 	player  actorMotion
 	enemies map[*domain.Opponent]*actorMotion
@@ -113,7 +128,7 @@ func (m *worldMotion) observe(s *domain.Session, tick int, animate bool) {
 			player: stillMotion(tilePixels(s.Player.X, s.Player.Y)), enemies: map[*domain.Opponent]*actorMotion{}}
 		animate = false
 	}
-	m.player.move(tilePixels(s.Player.X, s.Player.Y), tick, animate)
+	m.player.move(tilePixels(s.Player.X, s.Player.Y), tick, animate, m.held)
 	living := make(map[*domain.Opponent]bool)
 	for _, op := range s.Opponents() {
 		if !op.IsAlive() || !op.IsVisible {
@@ -122,7 +137,7 @@ func (m *worldMotion) observe(s *domain.Session, tick int, animate bool) {
 		living[op] = true
 		pos := tilePixels(op.X, op.Y)
 		if track := m.enemies[op]; track != nil {
-			track.move(pos, tick, animate && (op.Type != domain.Ghost || op.IsChasing))
+			track.move(pos, tick, animate && (op.Type != domain.Ghost || op.IsChasing), m.held)
 		} else {
 			track := stillMotion(pos)
 			m.enemies[op] = &track
@@ -132,6 +147,13 @@ func (m *worldMotion) observe(s *domain.Session, tick int, animate bool) {
 		if !living[op] {
 			delete(m.enemies, op)
 		}
+	}
+}
+
+// SetHeldStep marks the next step as part of held movement.
+func (r *Renderer) SetHeldStep(held bool) {
+	if r != nil {
+		r.motion.held = held
 	}
 }
 

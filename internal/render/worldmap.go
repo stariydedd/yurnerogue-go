@@ -45,14 +45,14 @@ func (r *Renderer) DrawWorld(screen *ebiten.Image, s *domain.Session) {
 	vis := s.ComputeVisibility(grid)
 	camX, camY := r.motionCamera(s)
 	tick := r.tick / AnimFrameTicks
-	paths := domain.PathCells(s.Level.Rooms, s.Level.Passages)
+	paths := r.levelPaths(s.Level)
 
 	// Игровое поле отделено от панели: рисуем только в его пределах.
 	field := screen.SubImage(image.Rect(0, 0, l.GridW, l.GridH)).(*ebiten.Image)
 	field.Fill(Black)
 
 	r.drawCachedForest(field, grid, vis, paths, forestCacheKey{
-		level: s.Level, player: domain.Point{X: s.Player.X, Y: s.Player.Y}, visited: len(s.VisitedRooms),
+		level: s.Level, visible: visibleSignature(vis.Visible), visited: len(s.VisitedRooms),
 		viewport: image.Rect(camX, camY, camX+l.GridW, camY+l.GridH),
 	})
 	r.drawGate(field, s, vis, camX, camY, tick)
@@ -123,4 +123,18 @@ func (r *Renderer) dimCell(dst *ebiten.Image, x, y, camX, camY int) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(x*TileSize-camX), float64(y*TileSize-camY))
 	dst.DrawImage(r.dim, op)
+}
+
+type pathCache struct {
+	level *domain.Level
+	cells map[domain.Point]bool
+}
+
+// levelPaths caches the trail cells of a level: rooms and passages are fixed
+// once the level is generated, and the map was rebuilt on every frame.
+func (r *Renderer) levelPaths(level *domain.Level) map[domain.Point]bool {
+	if r.paths.level != level {
+		r.paths.level, r.paths.cells = level, domain.PathCells(level.Rooms, level.Passages)
+	}
+	return r.paths.cells
 }
