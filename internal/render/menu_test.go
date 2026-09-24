@@ -116,14 +116,17 @@ func TestPauseVolumeFillMatchesPercentage(t *testing.T) {
 
 func TestReferenceBackButtonAlwaysHighlighted(t *testing.T) {
 	for _, l := range []Layout{DesktopLayout(), TouchLayout(390, 600)} {
-		for _, page := range []MenuPage{MenuHelp, MenuLeaderboard} {
+		for _, page := range []MenuPage{MenuHelp, MenuGlossary, MenuLeaderboard} {
 			buttons := MenuButtons(l, page)
-			if len(buttons) != 1 || buttons[0].Action != "back" {
-				t.Fatal("reference screen should have only BACK")
+			back := buttons[len(buttons)-1]
+			if back.Action != "back" || len(buttons) != map[bool]int{true: 2, false: 1}[IsHelpPage(page)] {
+				t.Fatal("reference screen has unexpected buttons")
 			}
 			for selected := range MainMenuOptions {
-				if !menuButtonActive(page, buttons[0], 0, selected) {
-					t.Fatal("BACK highlight depends on previous menu selection")
+				for i, button := range buttons {
+					if menuButtonActive(page, button, i, selected) != (button.Action == "back") {
+						t.Fatal("only BACK is highlighted, independent of the previous menu selection")
+					}
 				}
 			}
 		}

@@ -115,21 +115,21 @@ func TestScrollBuffIsPermanent(t *testing.T) {
 func TestBackpackLimitPerType(t *testing.T) {
 	p := NewPerson()
 	for i := 0; i < MaxBackpackItemsPerType; i++ {
-		if !p.PickUpItem(NewFood(p)) {
+		if !p.PickUpItem(NewFood(p, 1)) {
 			t.Fatalf("предмет %d должен помещаться в рюкзак", i+1)
 		}
 	}
-	if p.PickUpItem(NewFood(p)) {
+	if p.PickUpItem(NewFood(p, 1)) {
 		t.Fatal("сверх лимита предмет того же типа браться не должен")
 	}
-	if !p.PickUpItem(NewWeapon()) {
+	if !p.PickUpItem(NewWeapon(1)) {
 		t.Fatal("лимит считается по типам: оружие должно помещаться")
 	}
 }
 
 func TestEquipWeaponReturnsOldOne(t *testing.T) {
 	p := NewPerson()
-	first, second := NewWeapon(), NewWeapon()
+	first, second := NewWeapon(1), NewWeapon(1)
 	p.Backpack = append(p.Backpack, first, second)
 
 	if old := p.EquipWeapon(first); old != nil {

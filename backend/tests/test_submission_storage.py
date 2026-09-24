@@ -41,7 +41,7 @@ def test_concurrent_verified_submissions_are_atomic():
     Base.metadata.create_all(engine)
     key, name = str(uuid4()), uuid4().hex
     with Session(engine) as db:
-        db.add(RankedTicket(id=key, seed="1", player_name=name, version="1",
+        db.add(RankedTicket(id=key, seed="1", player_name=name, version="2",
                             expires_at=datetime.now(UTC) + timedelta(hours=1)))
         db.commit()
     barrier = Barrier(2)

@@ -7,9 +7,18 @@ a global leaderboard and a full CI/CD pipeline deploying to a VPS.
 
 [Русская версия](README_RU.md)
 
-| Desktop | Mobile |
-|---------|--------|
-| [![Radiant forest and black-orange desktop HUD](docs/screenshots/gameplay.png)](docs/screenshots/gameplay.png) | [![Mobile HUD, separate RUN button and 2x2 item grid](docs/screenshots/mobile.png)](docs/screenshots/mobile.png) |
+### Desktop
+
+[![Radiant forest, desktop HUD with abilities and event log](docs/screenshots/gameplay.png)](docs/screenshots/gameplay.png)
+
+[![Juggernaut against Axe: parry with a riposte, two hits and a Critical Strike](docs/screenshots/fight.gif)](docs/screenshots/fight.gif)
+
+### Mobile
+
+<p align="center">
+  <a href="docs/screenshots/mobile.png"><img src="docs/screenshots/mobile.png" width="320" alt="Mobile HUD, separate RUN button and 2x2 ability and item grid"></a>
+  <a href="docs/screenshots/fight-mobile.gif"><img src="docs/screenshots/fight-mobile.gif" width="320" alt="Fight against Axe on mobile"></a>
+</p>
 
 Current local build, captured from the game renderer in a fixed showcase scene
 with an equipped weapon, inventory counts and active stat bonuses.
@@ -116,19 +125,25 @@ TLS certificates are issued by Let's Encrypt and renewed automatically by
   in depth order, with those lower on the screen in front. Static scenery is cached.
 - 5 recognizable Dota heroes as enemies, each with distinct behaviour and
   breadth-first chasing.
-- Items and buffs, plus the classic run command (`F` + direction) that follows
+- Items and buffs, plus the classic run command (`R` + direction) that follows
   corridor turns and stops at doorways.
+- Two abilities: Critical Strike for 1.5× damage and Parry
+  that blocks incoming hits for a turn and strikes attackers back.
 - Global leaderboard with server-replayed new scores. Historical records are
   accepted as trusted; the table has no verification labels or extra column.
 - Black, orange and white desktop and mobile HUDs with animated portraits,
-  framed item slots, inventory counts, health and temporary effect timers.
+  framed ability and item slots, cooldowns, inventory counts, health (red below
+  25%), temporary effect timers and a log of recent events.
   Mobile controls use a d-pad, separate RUN button,
-  a 2×2 item grid and contextual SELECT/MENU keys.
+  a 2×2 ability and item grid and contextual SELECT/MENU keys.
 - All graphics are pixel art embedded into the binary — no external requests.
 - Original synthesized fantasy music and sound effects: separate menu and dungeon
   arrangements, item and portal cues. Sword hits use three supplied Juggernaut
   recordings from Dota 2, embedded in the game and shuffled without consecutive repeats.
-  Misses alternate between two supplied blade-whoosh recordings.
+  Misses alternate between two supplied blade-whoosh recordings. A Critical Strike
+  hit plays one of the attack recordings with the supplied Blade Dance on top;
+  a parried hit plays a blade ring;
+  weapon sharpening has its own synthesized whetstone cue.
   MUSIC and SFX in the main menu and the in-game MENU cycle volume in 25% steps,
   including mute (desktop shortcuts: M and V).
   Settings are saved locally; browser audio starts after interaction.
@@ -140,20 +155,25 @@ TLS certificates are issued by Let's Encrypt and renewed automatically by
 | Key | Action |
 |-----|--------|
 | `W A S D` / arrows | Move |
-| `F` + direction | Run until an obstacle |
-| `H` | Weapon |
-| `J` | Food |
-| `K` | Elixir |
-| `E` | Scroll |
+| `R` + direction | Run until an obstacle |
+| `Z` | Wait a turn (let enemies come to you) |
+| `F` + direction | Critical Strike |
+| `E` | Parry |
+| `C` | Food |
+| `X` | Elixir |
 | `F1` | Help |
 | `Q` | In-game menu: resume, volume, exit |
 
 Desktop HUD slots, menu and help also respond to mouse clicks.
+Help has two pages: CONTROLS (keys or touch buttons and abilities) and
+GLOSSARY (enemies and items); switch with ←/→ or the button next to BACK.
 In item menus select with digits or arrows + `Enter`.
+The desktop build opens a resizable 1280×720 window; `F11` toggles fullscreen
+(in the browser, use the browser's own fullscreen).
 
 On touch devices the game switches to a portrait console layout: d-pad for
-movement and an inactive centre, a separate `RUN` button followed by a direction,
-a 2×2 item grid, `SELECT` to confirm (`HELP` in game, `USE` in item menus) and `MENU`
+movement with a wait button (Zzz) in its centre, a separate `RUN` button followed by a direction,
+a 2×2 grid of Critical Strike, food, Parry and elixir buttons, `SELECT` to confirm (`HELP` in game, `USE` in item menus) and `MENU`
 to open the in-game menu or cancel a dialog. Appending `?touch=1` to the URL forces that layout in a desktop
 browser.
 
@@ -172,21 +192,32 @@ Menu pages have their own BACK button; the mobile d-pad and item panel appear du
 | **Axe** | Moves 2 tiles per turn. Rests after attacking, then counters. His strikes cannot be dodged. |
 | **Skywrath Mage** | Moves and attacks diagonally. Hits may put the player to sleep. |
 
-Enemy stats grow with each floor while useful items become rarer.
+Enemies grow with each floor: +8% health, +4% strength and +1.5% agility per
+level after the first. Bloodseeker drains 10 + 2 × level max HP per hit.
+Rooms hold more enemies and fewer items deeper down.
 
 ## Items
 
 | Item | Effect |
 |------|--------|
-| Food (Tango) | Restores health. |
-| Elixir (Clarity) | Temporary buff to strength, agility or max HP for 20 turns. |
-| Scroll (TP Scroll artwork) | Permanent buff to one stat. |
-| Weapon (Juggernaut blade) | Equipped via `H`; the previous weapon drops onto a free adjacent tile in a room, corridor or doorway. If none is available, it goes into the backpack. |
+| Food (Tango) | Restores health by depth, not by max HP: 25-50 on level 1 up to 75-150 on level 21, never above max HP. |
+| Elixir (Clarity) | Temporary buff to strength, agility or max HP for 20 turns, twice a scroll of the same depth. |
+| Scroll (TP Scroll artwork) | Read on pickup: permanent buff to one stat, growing with depth (strength or agility +2…+3 on level 1 and +6…+9 on level 21; max HP +13…+25 and +63…+125, which also heals the same amount). Never takes a backpack slot. |
+| Weapon (Juggernaut blade) | Bonus from +1 to +50, growing with depth: +1…+17 on level 1, +36…+50 on level 21. The name shows the strength, ordered by Dota 2 item cost in steps of five: Crystalys (+1…+5), Yasha, Diffusal Blade, Shadow Blade, Desolator, Battle Fury, Radiance, Butterfly, Silver Edge, Abyssal Blade (+46…+50). The bonus adds to the Quelling Blade damage and scales with strength (about +1.2 damage per point at the starting strength). Equipped on pickup if it hits harder, so any weapon replaces the starter; otherwise it sharpens the equipped weapon by +1, so every weapon found makes you stronger. A sharpened weapon is renamed by its new bonus, e.g. Shadow Blade +20 becomes Desolator +21. |
 | Treasure | Credited for slain enemies; determines leaderboard rank. |
 
 Quelling Blade is the permanent starting weapon, with no stat bonus and the
-original base attack damage. Selecting it in the weapon menu stows the equipped
-upgrade; the starter itself never takes a backpack slot or drops on the ground.
+original base attack damage. Any stronger weapon replaces it.
+
+## Abilities
+
+| Ability | Effect |
+|---------|--------|
+| Critical Strike (`F`, then direction) | Hits the adjacent enemy in that direction for 1.5× damage. Recharges after 3 ordinary attacks (misses count), not over turns, so walking between fights does not recharge it. Choosing a direction is free; `F` or `Esc` cancels, and a direction without an enemy spends no turn. |
+| Parry (`E`) | Only next to an enemy that can hit you (Skywrath also diagonally); otherwise it spends no turn. Every enemy hit during that turn is blocked completely (no damage, no max HP drain from Bloodseeker, no sleep from Skywrath), and the attacker is struck back for half your normal damage. Misses and a resting Axe are not struck back. Recharges after taking 3 enemy hits, like the Critical Strike needs 3 attacks; hits blocked by the parry and walking do not count. |
+
+Ability buttons show attacks left for the strike and hits left for the parry. Abilities do nothing while the
+hero is asleep: the turn is skipped as usual.
 
 Item names are short Dota-inspired variants, including Phantom Clarity,
 Aghanim's Scroll and Yasha. Names do not change their category's effects.
@@ -217,6 +248,14 @@ cp web/index.html web/favicon.png build/web/       # then serve build/web
 docker compose -f infra/docker-compose.yml up      # backend + PostgreSQL on :8000
 cd backend && python -m pytest tests               # backend tests
 ```
+
+The native build talks to production (`https://yurnerogue.ru`) unless
+`ROGUE_API` is set. When the local rules differ from production (a new
+`domain.RulesVersion`), production rejects ranked starts with "Game rules
+changed", so run the local backend and point the game at it:
+`ROGUE_API=http://localhost:8000 go run ./cmd/game`
+(PowerShell: `$env:ROGUE_API="http://localhost:8000"; go run ./cmd/game`).
+Rebuild the backend image after rule changes: `docker compose -f infra/docker-compose.yml up --build`.
 
 Before backend tests, build `go build -o build/verifier ./cmd/verifier` from the
 repository root (`build/verifier.exe` on Windows). The Docker image includes

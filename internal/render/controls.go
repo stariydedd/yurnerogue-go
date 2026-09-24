@@ -14,16 +14,18 @@ const (
 	CtrlLeft   = "left"
 	CtrlRight  = "right"
 	CtrlRun    = "run"
-	CtrlWeapon = "weapon"
 	CtrlFood   = "food"
 	CtrlElixir = "elixir"
-	CtrlScroll = "scroll"
+	CtrlStrike = "strike"
+	CtrlGuard  = "guard"
+	CtrlWait   = "wait"
 	CtrlMenu   = "menu"
 	CtrlSelect = "select"
 )
 
 var DPadControls = map[string]bool{CtrlUp: true, CtrlDown: true, CtrlLeft: true, CtrlRight: true}
-var itemButtonRole = map[string]string{CtrlWeapon: "sword", CtrlFood: "food", CtrlElixir: "elixir", CtrlScroll: "scroll"}
+var itemButtonRole = map[string]string{CtrlFood: "food", CtrlElixir: "elixir"}
+var abilityButtonRole = map[string]string{CtrlStrike: "special-strike", CtrlGuard: "defense"}
 
 // Controls shares the exact, non-overlapping geometry between drawing and input.
 type Controls struct {
@@ -43,10 +45,11 @@ func NewControls(l Layout) *Controls {
 	c.targets[CtrlDown] = image.Rect(74, top+144, 134, top+204)
 	c.targets[CtrlLeft] = image.Rect(14, top+84, 74, top+144)
 	c.targets[CtrlRight] = image.Rect(134, top+84, 194, top+144)
+	c.targets[CtrlWait] = c.hub.Inset(8) // leave a dead zone around the wait button
 	c.targets[CtrlRun] = image.Rect(216, top+22, 280, top+82)
 	c.targets[CtrlMenu] = image.Rect(212, top+100, 284, top+146)
 	c.targets[CtrlSelect] = image.Rect(212, top+160, 284, top+206)
-	for i, name := range []string{CtrlWeapon, CtrlFood, CtrlElixir, CtrlScroll} {
+	for i, name := range []string{CtrlStrike, CtrlFood, CtrlGuard, CtrlElixir} {
 		x, y := 297+(i%2)*88, top+23+(i/2)*92
 		c.targets[name] = image.Rect(x, y, x+78, y+78)
 	}
@@ -62,22 +65,52 @@ func controlAt(targets map[string]image.Rectangle, x, y int) string {
 	return ""
 }
 
-func (c *Controls) ControlAt(x, y int) string { return controlAt(c.targets, x, y) }
+func (c *Controls) ControlAt(x, y int) string {
+	return controlAt(c.targets, x, y)
+}
 
 // HUDTargets are clickable desktop slots; touch controls live below the HUD.
 func HUDTargets(l Layout) map[string]image.Rectangle {
 	if l.Touch {
 		return nil
 	}
+	return desktopHUDGeometry(l).targets
+}
+
+type desktopHUDLayout struct {
+	portrait, health, inventory, effects, status, log image.Rectangle
+	targets                                           map[string]image.Rectangle
+}
+
+func desktopHUDGeometry(l Layout) desktopHUDLayout {
 	y := l.GridTop()
-	return map[string]image.Rectangle{
-		CtrlWeapon: image.Rect(470, y+30, 550, y+114),
-		CtrlFood:   image.Rect(854, y+30, 934, y+114),
-		CtrlElixir: image.Rect(960, y+30, 1040, y+114),
-		CtrlScroll: image.Rect(1066, y+30, 1146, y+114),
-		CtrlMenu:   image.Rect(1182, y+30, 1254, y+70),
-		CtrlSelect: image.Rect(1182, y+80, 1254, y+120),
+	heroRight := 418
+	statusLeft := 800
+	h := desktopHUDLayout{
+		portrait:  image.Rect(16, y+14, 104, y+114),
+		health:    image.Rect(116, y+16, heroRight, y+42),
+		inventory: image.Rect(heroRight+32, y+12, 768, y+124),
+		effects:   image.Rect(statusLeft, y+28, l.ScreenW-112, y+38),
+		status:    image.Rect(statusLeft, y+16, l.ScreenW-112, y+28),
+		log:       image.Rect(statusLeft, y+38, l.ScreenW-112, y+114),
+		targets: map[string]image.Rectangle{
+			CtrlMenu:   image.Rect(l.ScreenW-88, y+16, l.ScreenW-16, y+56),
+			CtrlSelect: image.Rect(l.ScreenW-88, y+74, l.ScreenW-16, y+114),
+		},
 	}
+	const slotSize = 72
+	stride := 82
+	for i, name := range []string{CtrlStrike, CtrlGuard, CtrlFood, CtrlElixir} {
+		x := h.inventory.Min.X + i*stride
+		h.targets[name] = image.Rect(x, h.portrait.Min.Y, x+slotSize, h.portrait.Min.Y+slotSize)
+	}
+	return h
+}
+
+func (h desktopHUDLayout) keyBadge(slot image.Rectangle) image.Rectangle {
+	bottom := h.portrait.Max.Y
+	center := slot.Min.X + slot.Dx()/2
+	return image.Rect(center-14, bottom-20, center+14, bottom)
 }
 
 func HUDControlAt(l Layout, x, y int) string { return controlAt(HUDTargets(l), x, y) }
@@ -93,6 +126,10 @@ const (
 func (c *Controls) Draw(dst *ebiten.Image, r *Renderer, pressed map[string]bool, label SelectLabel, showRun bool, player *domain.Person) {
 	r.stonePanel(dst, c.Panel)
 	for name, rect := range c.targets {
+		if role := abilityButtonRole[name]; role != "" {
+			r.abilitySlot(dst, rect, name, player, pressed[name])
+			continue
+		}
 		if name == CtrlRun && !showRun {
 			continue
 		}
@@ -113,6 +150,8 @@ func (c *Controls) Draw(dst *ebiten.Image, r *Renderer, pressed map[string]bool,
 		case CtrlRun:
 			r.drawCentered(dst, "ui_run", boxCenter(rect).Sub(image.Pt(0, 8)), 28)
 			r.slotLabel(dst, r.tr("RUN"), image.Rect(rect.Min.X, rect.Max.Y-23, rect.Max.X, rect.Max.Y-3), uiText)
+		case CtrlWait:
+			r.slotLabel(dst, "Zzz", rect, uiText)
 		case CtrlMenu:
 			r.slotLabel(dst, r.tr("MENU"), rect, uiText)
 		case CtrlSelect:

@@ -97,6 +97,12 @@ func combatLabel(event domain.CombatEvent) (string, color.NRGBA) {
 	if event.Damage == domain.Miss {
 		return "MISS", color.NRGBA{R: 193, G: 210, B: 219, A: 255}
 	}
+	if event.Parried {
+		return "PARRY", color.NRGBA{R: 112, G: 200, B: 255, A: 255}
+	}
+	if event.Critical {
+		return "-" + strconv.Itoa(event.Damage) + "!", color.NRGBA{R: 255, G: 52, B: 44, A: 255}
+	}
 	label := "-" + strconv.Itoa(event.Damage)
 	if event.Damage == 0 {
 		label = "0"
@@ -130,8 +136,8 @@ func (r *Renderer) drawCombat(dst *ebiten.Image, s *domain.Session, vis domain.V
 			continue
 		}
 		label, ink := combatLabel(event)
-		if event.Damage == domain.Miss {
-			label = r.tr(label)
+		if event.Damage == domain.Miss || event.Parried {
+			label = r.tr(label) // MISS and PARRY are words, not numbers
 		} else if event.MaxHP {
 			label = strings.TrimSuffix(label, "MAX HP") + r.tr("MAX HP")
 		}

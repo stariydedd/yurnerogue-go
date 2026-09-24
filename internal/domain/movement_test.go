@@ -187,7 +187,7 @@ func TestMoveUpdatesFacingEvenIntoWall(t *testing.T) {
 
 func TestPickupPutsItemInBackpack(t *testing.T) {
 	s := cleanSession(t)
-	item := NewFood(s.Player)
+	item := NewFood(s.Player, 1)
 	item.X, item.Y = s.Player.X, s.Player.Y
 	s.Level.Items = append(s.Level.Items, item)
 
@@ -203,7 +203,7 @@ func TestPickupPutsItemInBackpack(t *testing.T) {
 
 func TestDropItemNearPlayerUsesAdjacentCell(t *testing.T) {
 	s := cleanSession(t)
-	weapon := NewWeapon()
+	weapon := NewWeapon(1)
 	playerPos := Point{s.Player.X, s.Player.Y}
 
 	s.DropItemNearPlayer(weapon)

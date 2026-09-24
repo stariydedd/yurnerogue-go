@@ -95,25 +95,61 @@ func (r *Renderer) DrawNameEntry(screen *ebiten.Image, input string, status ...s
 	}
 }
 
-// helpEntry — строка легенды: спрайт, имя и описание.
+// helpEntry: строка легенды, спрайт, имя и описание. keys: клавиши в стиле
+// бейджей HUD: ряды через "/", клавиши в ряду через пробел ("W/A S D").
 type helpEntry struct {
-	role, name, desc string
+	role, name, desc, keys string
 }
 
 var helpEnemies = []helpEntry{
-	{"pudge", "Pudge", "Tough and slow. Wanders randomly."},
-	{"bloodseeker", "Bloodseeker", "Steals your max HP. Deflects your first strike."},
-	{"riki", "Riki", "Blinks around the room, mostly invisible."},
-	{"axe", "Axe", "Moves 2 tiles. Rests, counters, never misses."},
-	{"skywrath", "Skywrath Mage", "Moves diagonally. Hits may put you to sleep."},
+	{"pudge", "Pudge", "Tough and slow. Wanders randomly.", ""},
+	{"bloodseeker", "Bloodseeker", "Steals your max HP. Deflects your first strike.", ""},
+	{"riki", "Riki", "Blinks around the room, mostly invisible.", ""},
+	{"axe", "Axe", "Moves 2 tiles. Rests, counters, never misses.", ""},
+	{"skywrath", "Skywrath Mage", "Moves diagonally. Hits may put you to sleep.", ""},
 }
 
 var helpItems = []helpEntry{
-	{"food", "Tango", "Restores health."},
-	{"elixir", "Clarity", "Temporary stat buff for 20 turns."},
-	{"scroll", "Scroll", "Permanent stat buff."},
-	{"sword", "Weapon", "Equip it; the old one drops nearby."},
-	{"portal", "Exit", "Descend deeper. Clear level 21 to win."},
+	{"food", "Tango", "Restores health.", ""},
+	{"elixir", "Clarity", "Temporary stat buff for 20 turns.", ""},
+	{"scroll", "Scroll", "Permanent buff applied on pickup.", ""},
+	{"sword", "Weapon", "Equips if stronger, else sharpens yours.", ""},
+	{"portal", "Exit", "Descend deeper. Clear level 21 to win.", ""},
+}
+
+// Desktop bindings are drawn as keycaps like the HUD badges; abilities and
+// items show their HUD icon in a slot with the key under it.
+var helpDesktopControls = []helpEntry{
+	{"", "Move", "Step into an enemy to attack. Hold to keep walking. Arrows work too.", "W/A S D"},
+	{"", "Run", "Then a direction: run until something blocks the way.", "R"},
+	{"", "Wait", "Wait a turn: let enemies come to you.", "Z"},
+	{"food", "Food", "Eat one: restores health.", "C"},
+	{"elixir", "Clarity", "Drink one: stat buff for 20 turns.", "X"},
+}
+
+var helpDesktopInterface = []helpEntry{
+	{"", "Pause", "Resume, volume, exit.", "Q"},
+	{"", "Help", "Open this help.", "F1"},
+	{"", "Fullscreen", "Window or full screen.", "F11"},
+}
+
+var helpTouchControls = []helpEntry{
+	{"", "D-pad", "Move. Step into an enemy to attack. Hold to keep walking.", ""},
+	{"", "RUN", "Then a direction: run until something blocks the way.", ""},
+	{"", "D-pad centre", "Wait a turn: let enemies come to you.", ""},
+	{"", "Food / clarity", "Choose an item, then USE.", ""},
+	{"", "MENU", "Pause: resume, volume, exit.", ""},
+	{"", "HELP", "Open this help.", ""},
+}
+
+var helpDesktopAbilities = []helpEntry{
+	{"special-strike", "Critical Strike", "Then a direction: damage x1.5. Recharges after 3 attacks.", "F"},
+	{"defense", "Parry", "Next to an enemy: blocks hits for a turn and strikes back. Recharges after 3 hits taken.", "E"},
+}
+
+var helpTouchAbilities = []helpEntry{
+	{"special-strike", "Critical Strike", "Tap, then a direction: damage x1.5. Recharges after 3 attacks.", ""},
+	{"defense", "Parry", "Tap next to an enemy: blocks hits for a turn and strikes attackers back. Recharges after 3 hits taken.", ""},
 }
 
 // drawFitted вписывает спрайт роли в квадратный слот.
@@ -193,13 +229,10 @@ func (r *Renderer) statusLines(status string, face text.Face) []string {
 }
 
 // DrawItemMenu — список предметов поверх нижней части поля.
-func (r *Renderer) DrawItemMenu(screen *ebiten.Image, items []*domain.Item, allowBareHands bool, selected int) {
+func (r *Renderer) DrawItemMenu(screen *ebiten.Image, items []*domain.Item, selected int) {
 	l := r.Layout
 
 	var lines []string
-	if allowBareHands {
-		lines = append(lines, domain.BaseWeaponName)
-	}
 	for _, it := range items {
 		lines = append(lines, it.Name+locale.StatSuffix(l.Language, it.StatLabel()))
 	}
@@ -221,13 +254,8 @@ func (r *Renderer) DrawItemMenu(screen *ebiten.Image, items []*domain.Item, allo
 			prefix, clr = "> ", uiAccent
 		}
 		// На тач-экране цифровые префиксы бессмысленны — клавиатуры нет.
-		// На десктопе номер 0 возвращает базовый Quelling Blade.
 		if !l.Touch {
-			number := i
-			if !allowBareHands {
-				number = i + 1
-			}
-			line = strconv.Itoa(number) + ": " + line
+			line = strconv.Itoa(i+1) + ": " + line
 		}
 		r.Text(screen, prefix+line, face, 10, boxY+6+float64(i)*rowH, clr)
 	}

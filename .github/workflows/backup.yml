@@ -1,0 +1,48 @@
+name: Database backup
+
+# Ежедневная копия production-базы вне сервера. Репозиторий публичный,
+# поэтому дамп шифруется до загрузки: без BACKUP_PASSPHRASE артефакт бесполезен.
+# Восстановление описано в docs/operations.md.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency: backup
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+      - name: Dump database on server
+        id: dump
+        run: |
+          remote=$(ssh root@${{ secrets.DEPLOY_HOST }} "sh /opt/rogue/scripts/backup.sh daily")
+          name=$(basename "$remote")
+          ssh root@${{ secrets.DEPLOY_HOST }} "cat '$remote'" > "$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - name: Verify dump
+        run: |
+          docker run --rm -i postgres:16-alpine pg_restore --list < "${{ steps.dump.outputs.name }}" > toc.txt
+          grep -q "TABLE DATA public ranked_results" toc.txt
+          grep -q "TABLE DATA public infra_meta" toc.txt
+      - name: Encrypt
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$BACKUP_PASSPHRASE"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:BACKUP_PASSPHRASE \
+            -in "${{ steps.dump.outputs.name }}" -out "${{ steps.dump.outputs.name }}.enc"
+          rm "${{ steps.dump.outputs.name }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-${{ steps.dump.outputs.name }}
+          path: ${{ steps.dump.outputs.name }}.enc
+          retention-days: 90
+          if-no-files-found: error

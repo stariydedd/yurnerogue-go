@@ -9,6 +9,8 @@ type CombatEvent struct {
 	Damage       int // Miss means no contact; zero is still a successful hit.
 	TargetPlayer bool
 	MaxHP        bool
+	Parried      bool // the hero blocked this hit completely
+	Critical     bool // a Critical Strike that landed
 }
 
 const maxCombatEvents = 64

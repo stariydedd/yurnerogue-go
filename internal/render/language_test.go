@@ -90,16 +90,21 @@ func TestRussianScreensFitAndRetainNames(t *testing.T) {
 	for _, l := range []Layout{DesktopLayout(), TouchLayout(390, 600), TouchLayout(390, 844), TouchLayout(844, 390)} {
 		l.Language = locale.Russian
 		r := &Renderer{Layout: l, Fonts: fonts}
-		rows, height := helpContent(l)
-		if height > HelpViewBounds(l).Inset(16).Dy() || HelpScrollLimit(l) != 0 {
-			t.Fatalf("Russian help scrolls at %+v", l)
-		}
-		for _, row := range rows {
-			if row.section != "" {
-				continue
+		for _, page := range HelpPages {
+			rows, height := helpContent(l, page)
+			if height > HelpViewBounds(l).Inset(16).Dy() || HelpScrollLimit(l, page) != 0 {
+				t.Fatalf("Russian %s scrolls at %+v", HelpTitle(page), l)
 			}
-			if strings.Join(row.lines, " ") != r.tr(row.entry.desc) {
-				t.Fatal("translated help lost words")
+			for _, row := range rows {
+				if row.section != "" {
+					continue
+				}
+				if strings.Join(row.lines, " ") != r.tr(row.entry.desc) {
+					t.Fatal("translated help lost words")
+				}
+				if row.entry.role == "" && r.tr(row.entry.name) == row.entry.name && strings.ContainsAny(row.entry.name, "abcdefghijklmnopqrstuvwxyz") {
+					t.Fatalf("key binding %q is not translated", row.entry.name)
+				}
 			}
 		}
 		for i, entry := range helpItems {

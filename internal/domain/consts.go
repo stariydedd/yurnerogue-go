@@ -23,6 +23,7 @@ const (
 const (
 	MaxLevels               = 21
 	MaxBackpackItemsPerType = 9
+	MaxWeaponBonus          = 50
 	ElixirDuration          = 20
 	MaxMonstersPerRoom      = 2
 	MaxConsumablesPerRoom   = 3
@@ -69,19 +70,34 @@ const (
 
 // Формулы боя.
 const (
-	InitialHitChance   = 70
-	StandardAgility    = 50
-	AgilityFactor      = 0.3
-	InitialDamage      = 30
-	StandardStrength   = 50
-	StrengthFactor     = 0.3
-	StrengthAddition   = 65
-	MaxHPPart          = 10
-	SleepChance        = 15
-	ChanceGhostVisible = 20
-	OgreStep           = 2
+	InitialHitChance = 70
+	StandardAgility  = 50
+	AgilityFactor    = 0.3
+	InitialDamage    = 30
+	StandardStrength = 50
+	StrengthFactor   = 0.3
+	StrengthAddition = 65
+	// Critical Strike recharges with ordinary attacks, not with turns, so walking
+	// between fights does not make every fight start with it.
+	StrikeRechargeAttacks = 3
+	// Parry needs an enemy in contact. It recharges with enemy hits
+	// taken outside the parry turn, blocks incoming hits completely and strikes back
+	// every attacker for this share of a hit.
+	GuardRechargeHits    = 3
+	RiposteDamagePercent = 50
 
-	PercentsUpdateDifficultyMonsters = 2
+	// Bloodseeker drains max HP: base + per-level amount, fully blocked by a parry.
+	BloodseekerDrainBase     = 10
+	BloodseekerDrainPerLevel = 2
+	SleepChance              = 15
+	ChanceGhostVisible       = 20
+	OgreStep                 = 2
+
+	// Enemy stats grow per level by these percents. Health and strength grow
+	// fastest; agility changes hit chances directly, so it grows slowly.
+	EnemyHealthGrowthPercent   = 8.0
+	EnemyStrengthGrowthPercent = 4.0
+	EnemyAgilityGrowthPercent  = 1.5
 )
 
 // Радиусы агрессии врагов.

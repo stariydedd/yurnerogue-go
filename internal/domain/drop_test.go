@@ -25,7 +25,7 @@ func TestDropInPassagesAndPickUp(t *testing.T) {
 				s.Level.Passages = append(s.Level.Passages, Rect{X: c.X - 1, Y: c.Y - 1, W: 3, H: 3})
 			}
 			s.Level.Doors = DoorCells(s.Level.Rooms, s.Level.Passages)
-			weapon := NewWeapon()
+			weapon := NewWeapon(1)
 			if !s.DropItemNearPlayer(weapon) {
 				t.Fatal("drop failed with a free adjacent passage cell")
 			}
@@ -38,7 +38,7 @@ func TestDropInPassagesAndPickUp(t *testing.T) {
 				t.Fatal("dropped weapon must be represented on the map and visible")
 			}
 			for i := 0; i < MaxBackpackItemsPerType; i++ {
-				s.Player.PickUpItem(NewWeapon())
+				s.Player.PickUpItem(NewWeapon(1))
 			}
 			if dx != 0 {
 				s.MoveX(dx)
@@ -46,15 +46,10 @@ func TestDropInPassagesAndPickUp(t *testing.T) {
 				s.MoveY(dy)
 			}
 			s.CheckItemPickup()
-			if len(s.Level.Items) != 1 || s.Level.Items[0] != weapon {
-				t.Fatal("full backpack must leave the weapon on the floor")
-			}
-			s.Player.EquipWeapon(s.Player.Backpack[0]) // Освобождаем слот.
-			s.CheckItemPickup()
 			s.CheckItemPickup() // Повторная проверка не должна дублировать предмет.
 			if len(s.Level.Items) != 0 || len(s.Player.Backpack) != MaxBackpackItemsPerType ||
-				s.Player.Backpack[MaxBackpackItemsPerType-1] != weapon {
-				t.Fatal("weapon must move from floor to backpack exactly once")
+				s.Player.Weapon != weapon {
+				t.Fatal("upgrade must equip once even with a full backpack")
 			}
 			s.Player.X, s.Player.Y = tc.start.X, tc.start.Y
 			want := SymCorridor
@@ -84,12 +79,12 @@ func TestDropAvoidsOccupiedCellsAndPortal(t *testing.T) {
 			}
 		}
 	}
-	weapon := NewWeapon()
+	weapon := NewWeapon(1)
 	if !s.DropItemNearPlayer(weapon) || weapon.X != 11 || weapon.Y != 10 {
 		t.Fatal("drop must use the only unoccupied non-portal cell")
 	}
 	before := len(s.Level.Items)
-	if s.DropItemNearPlayer(NewWeapon()) || len(s.Level.Items) != before {
+	if s.DropItemNearPlayer(NewWeapon(1)) || len(s.Level.Items) != before {
 		t.Fatal("drop must fail without changing floor items when all neighbors are blocked")
 	}
 }
@@ -100,7 +95,7 @@ func TestDropDoesNotCrossWallCorner(t *testing.T) {
 		Passages: []Rect{{X: 9, Y: 9, W: 3, H: 3}, {X: 10, Y: 10, W: 3, H: 3}},
 	}}
 	s.Player.X, s.Player.Y = 10, 10
-	if s.DropItemNearPlayer(NewWeapon()) || len(s.Level.Items) != 0 {
+	if s.DropItemNearPlayer(NewWeapon(1)) || len(s.Level.Items) != 0 {
 		t.Fatal("a diagonally adjacent passage behind walls must not receive the weapon")
 	}
 }
@@ -113,7 +108,7 @@ func TestDropUsesFreeDiagonalInRoom(t *testing.T) {
 	for _, d := range dirs4 {
 		s.Level.Items = append(s.Level.Items, &Item{Type: ItemFood, X: 10 + d.X, Y: 10 + d.Y})
 	}
-	weapon := NewWeapon()
+	weapon := NewWeapon(1)
 	if !s.DropItemNearPlayer(weapon) || abs(weapon.X-10) != 1 || abs(weapon.Y-10) != 1 {
 		t.Fatal("free diagonal must remain usable when cardinal neighbors contain items")
 	}
@@ -121,7 +116,7 @@ func TestDropUsesFreeDiagonalInRoom(t *testing.T) {
 
 func TestDescendingLeavesFloorItemsBehind(t *testing.T) {
 	s := NewSession()
-	weapon := NewWeapon()
+	weapon := NewWeapon(1)
 	s.Level.Items = append(s.Level.Items, weapon)
 	s.Player.X, s.Player.Y = s.Level.Exit.X, s.Level.Exit.Y
 	if !s.CheckExit() {

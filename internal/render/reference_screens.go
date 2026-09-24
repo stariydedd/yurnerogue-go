@@ -14,10 +14,19 @@ func helpAvailableBounds(l Layout) image.Rectangle {
 	return image.Rect((l.ScreenW-w)/2, 104, (l.ScreenW+w)/2, l.ScreenH-108)
 }
 
+// HelpPages are the help screens in paging order.
+var HelpPages = []MenuPage{MenuHelp, MenuGlossary}
+
+// HelpViewBounds is shared by both help pages, so switching pages never moves
+// the panel or its buttons.
 func HelpViewBounds(l Layout) image.Rectangle {
 	box := helpAvailableBounds(l)
 	if !l.Touch {
-		_, height := helpContent(l)
+		height := 0
+		for _, page := range HelpPages {
+			_, pageHeight := helpContent(l, page)
+			height = max(height, pageHeight)
+		}
 		box.Max.Y = min(box.Max.Y, box.Min.Y+height+32)
 	}
 	return box
@@ -27,6 +36,7 @@ type helpContentRow struct {
 	entry        helpEntry
 	section      string
 	x, y, height int
+	iconW        int
 	lines        []string
 }
 
@@ -37,12 +47,30 @@ func mobileHelpRowGap(size int) int {
 	return 2
 }
 
-func mobileHelpSize(l Layout) int {
-	view := HelpViewBounds(l).Inset(16)
+// helpGroup is one help section; on wide screens column picks its column.
+type helpGroup struct {
+	section string
+	entries []helpEntry
+	column  int
+}
+
+func helpGroups(l Layout, page MenuPage) []helpGroup {
+	if page == MenuGlossary {
+		return []helpGroup{{"ENEMIES", helpEnemies, 0}, {"ITEMS", helpItems, 1}}
+	}
+	if l.Touch {
+		return []helpGroup{{"BUTTONS", helpTouchControls, 0}, {"ABILITIES", helpTouchAbilities, 1}}
+	}
+	return []helpGroup{{"KEYS", helpDesktopControls, 0}, {"ABILITIES", helpDesktopAbilities, 1}, {"INTERFACE", helpDesktopInterface, 1}}
+}
+
+func mobileHelpSize(l Layout, page MenuPage) int {
+	view := helpAvailableBounds(l).Inset(16)
+	groups := helpGroups(l, page)
 	for _, size := range []int{14, 12} {
-		height := 44
-		for _, entries := range [][]helpEntry{helpEnemies, helpItems} {
-			for _, entry := range entries {
+		height := 22 * len(groups)
+		for _, group := range groups {
+			for _, entry := range group.entries {
 				height += size + 8 + mobileHelpRowGap(size) + len(wrapText(locale.Text(l.Language, entry.desc), view.Dx()/size))*(size+4)
 			}
 		}
@@ -53,12 +81,13 @@ func mobileHelpSize(l Layout) int {
 	return 12
 }
 
-func helpContent(l Layout) ([]helpContentRow, int) {
+func helpContent(l Layout, page MenuPage) ([]helpContentRow, int) {
 	view := helpAvailableBounds(l).Inset(16)
+	groups := helpGroups(l, page)
 	columns, size := 1, 14
 	headingH, rowGap, sectionH, groupGap := 28, 16, 38, 16
 	if l.Touch {
-		size = mobileHelpSize(l)
+		size = mobileHelpSize(l, page)
 		headingH, rowGap, sectionH, groupGap = size+8, mobileHelpRowGap(size), 22, 0
 	}
 	if l.ScreenW >= 900 {
@@ -70,34 +99,38 @@ func helpContent(l Layout) ([]helpContentRow, int) {
 		chars = max(1, width/size)
 	}
 	var rows []helpContentRow
-	y, total := 0, 0
-	for group, entries := range [][]helpEntry{helpEnemies, helpItems} {
+	y, total, count := 0, 0, 0
+	for i, group := range groups {
 		x := 0
 		if columns == 2 {
-			x = group * (width + 24)
+			x = group.column * (width + 24)
+		}
+		switch {
+		case columns == 2 && (i == 0 || group.column != groups[i-1].column):
 			y = 0
-		} else if group > 0 {
+		case i > 0:
 			y += groupGap
 		}
-		section := "ENEMIES"
-		if group == 1 {
-			section = "ITEMS"
-		}
-		rows = append(rows, helpContentRow{section: section, x: x, y: y, height: sectionH})
+		rows = append(rows, helpContentRow{section: group.section, x: x, y: y, height: sectionH})
 		y += sectionH
-		for _, entry := range entries {
-			lines := wrapText(locale.Text(l.Language, entry.desc), chars)
-			height := headingH + len(lines)*(size+4) + rowGap
-			rows = append(rows, helpContentRow{entry: entry, x: x, y: y, height: height, lines: lines})
+		count += len(group.entries)
+		iconW, groupChars := 52, chars
+		if !l.Touch {
+			iconW = helpIconWidth(groups, group.column, columns)
+			groupChars = max(1, (width-iconW)/size)
+		}
+		for _, entry := range group.entries {
+			lines := wrapText(locale.Text(l.Language, entry.desc), groupChars)
+			height := max(headingH+len(lines)*(size+4), helpGraphicHeight(entry)) + rowGap
+			rows = append(rows, helpContentRow{entry: entry, x: x, y: y, height: height, lines: lines, iconW: iconW})
 			y += height
 		}
 		total = max(total, y)
 	}
 	if l.Touch && total < view.Dy() {
 		extra, added, entryIndex := view.Dy()-total, 0, 0
-		count := len(helpEnemies) + len(helpItems)
-		sectionBonus := min(12, extra/2)
-		extra -= 2 * sectionBonus
+		sectionBonus := min(12, extra/len(groups))
+		extra -= len(groups) * sectionBonus
 		for i := range rows {
 			rows[i].y += added
 			if rows[i].section != "" {
@@ -121,28 +154,128 @@ func helpContent(l Layout) ([]helpContentRow, int) {
 	return rows, total
 }
 
-func HelpScrollLimit(l Layout) int {
-	_, height := helpContent(l)
+// Help keycaps match the HUD key badges.
+const (
+	helpKeyW, helpKeyH, helpKeyGap = 34, 30, 3
+	helpSlotSize                   = 56
+)
+
+func helpKeyWidth(key string) int { return max(helpKeyW, 16*len(key)+14) }
+
+// helpGraphicWidth is how wide the icon or keys of an entry are drawn.
+func helpGraphicWidth(entry helpEntry) int {
+	switch {
+	case entry.keys == "":
+		return 36
+	case entry.role != "":
+		return helpSlotSize
+	}
+	width := 0
+	for _, row := range helpKeyRows(entry.keys) {
+		rowW := -helpKeyGap
+		for _, key := range row {
+			rowW += helpKeyWidth(key) + helpKeyGap
+		}
+		width = max(width, rowW)
+	}
+	return width
+}
+
+// helpIconWidth is the icon column of one help column: wide enough for its
+// widest icon or key cluster, so a WASD cluster widens only its own column.
+func helpIconWidth(groups []helpGroup, column, columns int) int {
+	width := 36
+	for _, group := range groups {
+		if columns == 1 || group.column == column {
+			for _, entry := range group.entries {
+				width = max(width, helpGraphicWidth(entry))
+			}
+		}
+	}
+	return width + 16
+}
+
+func helpKeyRows(keys string) [][]string {
+	var rows [][]string
+	for _, row := range strings.Split(keys, "/") {
+		rows = append(rows, strings.Fields(row))
+	}
+	return rows
+}
+
+// helpGraphicHeight is how tall the keys column of an entry is drawn, so a
+// short description never lets the next row overlap it.
+func helpGraphicHeight(entry helpEntry) int {
+	switch {
+	case entry.keys == "":
+		return 0
+	case entry.role != "":
+		return 4 + helpSlotSize + helpKeyH/2
+	default:
+		rows := len(helpKeyRows(entry.keys))
+		return 4 + rows*helpKeyH + (rows-1)*helpKeyGap
+	}
+}
+
+// drawHelpKeys draws the keys of an entry centred on cx: an icon in a HUD slot
+// with its key badge underneath, or a cluster of keycaps.
+func (r *Renderer) drawHelpKeys(dst *ebiten.Image, entry helpEntry, cx, y int) {
+	top := y + 4
+	if entry.role != "" {
+		slot := image.Rect(cx-helpSlotSize/2, top, cx+helpSlotSize/2, top+helpSlotSize)
+		r.uiSlot(dst, slot, false)
+		r.drawFitted(dst, entry.role, float64(slot.Min.X+8), float64(slot.Min.Y+6), helpSlotSize-16)
+		top = slot.Max.Y - helpKeyH/2
+	}
+	for i, row := range helpKeyRows(entry.keys) {
+		widths, total := make([]int, len(row)), -helpKeyGap
+		for j, key := range row {
+			widths[j] = helpKeyWidth(key)
+			total += widths[j] + helpKeyGap
+		}
+		kx, ky := cx-total/2, top+i*(helpKeyH+helpKeyGap)
+		for j, key := range row {
+			keycap := image.Rect(kx, ky, kx+widths[j], ky+helpKeyH)
+			r.uiSlot(dst, keycap, false)
+			lx, ly := float64(keycap.Min.X+keycap.Dx()/2)-TextWidth(key, r.Fonts.Menu)/2, float64(keycap.Min.Y+keycap.Dy()/2-9)
+			r.Text(dst, key, r.Fonts.Menu, lx+1, ly+1, uiInk)
+			r.Text(dst, key, r.Fonts.Menu, lx, ly, uiText)
+			kx += widths[j] + helpKeyGap
+		}
+	}
+}
+
+func HelpScrollLimit(l Layout, page MenuPage) int {
+	_, height := helpContent(l, page)
 	return max(0, height-HelpViewBounds(l).Inset(16).Dy())
 }
 
-func (r *Renderer) DrawHelp(screen *ebiten.Image, scrollArg ...int) {
+// HelpTitle names a help page; it is also the label of the button leading to it.
+func HelpTitle(page MenuPage) string {
+	if page == MenuGlossary {
+		return "GLOSSARY"
+	}
+	return "CONTROLS"
+}
+
+func (r *Renderer) DrawHelp(screen *ebiten.Image, page MenuPage, scrollArg ...int) {
 	r.backdrop(screen)
-	r.titleWithShadow(screen, "HELP", 32)
+	r.titleWithShadow(screen, HelpTitle(page), 32)
 	box := HelpViewBounds(r.Layout)
 	r.stonePanel(screen, box)
 	view := box.Inset(16)
 	clip := screen.SubImage(view).(*ebiten.Image)
 	scroll := 0
 	if len(scrollArg) > 0 {
-		scroll = max(0, min(HelpScrollLimit(r.Layout), scrollArg[0]))
+		scroll = max(0, min(HelpScrollLimit(r.Layout, page), scrollArg[0]))
 	}
-	rows, height := helpContent(r.Layout)
+	rows, height := helpContent(r.Layout, page)
 	face := r.Fonts.UI
 	nameFace, headingH := r.Fonts.Menu, 28
 	if r.Layout.Touch {
-		face, nameFace, headingH = r.Fonts.Compact, r.Fonts.UI, mobileHelpSize(r.Layout)+8
-		if mobileHelpSize(r.Layout) == 14 {
+		size := mobileHelpSize(r.Layout, page)
+		face, nameFace, headingH = r.Fonts.Compact, r.Fonts.UI, size+8
+		if size == 14 {
 			face, nameFace = r.Fonts.UI, r.Fonts.Menu
 		}
 	}
@@ -160,11 +293,21 @@ func (r *Renderer) DrawHelp(screen *ebiten.Image, scrollArg ...int) {
 			r.Text(clip, r.tr(row.section), r.Fonts.Menu, float64(x), float64(y), uiAccent)
 			continue
 		}
-		nameX, descX := x+52, x+52
-		if r.Layout.Touch {
+		iconW := max(52, row.iconW)
+		nameX, descX := x+iconW, x+iconW
+		switch {
+		case row.entry.keys != "" && !r.Layout.Touch:
+			r.drawHelpKeys(clip, row.entry, x+(iconW-16)/2, y)
+		case row.entry.role == "":
+			// Key bindings have no icon: the key itself is the heading.
+			nameX = x
+			if r.Layout.Touch {
+				descX = x
+			}
+		case r.Layout.Touch:
 			r.drawFitted(clip, row.entry.role, float64(x), float64(y-4), float64(headingH+4))
 			nameX, descX = x+34, x
-		} else {
+		default:
 			r.drawFitted(clip, row.entry.role, float64(x), float64(y+4), 36)
 		}
 		r.Text(clip, strings.ToUpper(helpEntryName(r.Layout, row.entry)), nameFace, float64(nameX), float64(y), uiAccent)

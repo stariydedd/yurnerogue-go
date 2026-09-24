@@ -12,6 +12,9 @@ var messages = []struct {
 }{
 	{regexp.MustCompile(`^You holstered (.+)\.$`), `Оружие убрано: $1.`},
 	{regexp.MustCompile(`^You equipped (.+)\.$`), `Экипировано: $1.`},
+	{regexp.MustCompile(`^Sharpened (.+)\.$`), `Заточено: $1.`},
+	{regexp.MustCompile(`^Critical Strike charges with attacks: (\d+) left\.$`), `Критический удар заряжается ударами: осталось $1.`},
+	{regexp.MustCompile(`^Parry charges with hits taken: (\d+) left\.$`), `Парирование заряжается от полученных ударов: осталось $1.`},
 	{regexp.MustCompile(`^You used (.+)\.$`), `Использовано: $1.`},
 	{regexp.MustCompile(`^Picked up: (.+)\.$`), `Подобрано: $1.`},
 	{regexp.MustCompile(`^Backpack full! Cannot pick up (.+)\.$`), `Рюкзак полон! Нельзя подобрать $1.`},
@@ -20,6 +23,8 @@ var messages = []struct {
 	{regexp.MustCompile(`^You missed the (.+)\.$`), `Промах по $1.`},
 	{regexp.MustCompile(`^You killed the (.+) for (\d+) dmg! Gained (\d+) gold\.$`), `$1 убит: $2 урона! Получено $3 золота.`},
 	{regexp.MustCompile(`^You hit the (.+) for (\d+) dmg\.$`), `Удар по $1: $2 урона.`},
+	{regexp.MustCompile(`^You parried the (.+) and struck back for (\d+) dmg\.$`), `Парирование: ответный удар по $1, $2 урона.`},
+	{regexp.MustCompile(`^You parried and killed the (.+) for (\d+) dmg! Gained (\d+) gold\.$`), `Парирование: $1 убит ответным ударом, $2 урона! Получено $3 золота.`},
 	{regexp.MustCompile(`^The (.+) missed you\.$`), `$1 промахивается.`},
 	{regexp.MustCompile(`^The (.+) is preparing to strike\.\.\.$`), `$1 готовится к удару...`},
 	{regexp.MustCompile(`^The (.+) drained your max HP by (\d+)!$`), `$1 снижает максимальное здоровье на $2!`},

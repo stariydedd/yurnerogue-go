@@ -18,6 +18,8 @@ var (
 	uiMuted     = color.RGBA{166, 163, 158, 255}
 	uiSecondary = color.RGBA{224, 207, 185, 255}
 	uiAccent    = color.RGBA{255, 112, 24, 255}
+	uiDanger    = color.RGBA{220, 48, 48, 255}
+	uiDebuff    = color.RGBA{163, 92, 255, 255} // sleep: bright violet, apart from PARRY blue and Bloodseeker lilac
 	uiRecess    = color.RGBA{18, 17, 16, 255}
 	uiPressed   = color.RGBA{65, 33, 17, 255}
 )

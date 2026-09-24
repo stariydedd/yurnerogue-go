@@ -21,6 +21,10 @@ func main() {
 	}
 
 	ebiten.SetWindowSize(layout.ScreenW, layout.ScreenH)
+	if !layout.Touch {
+		ebiten.SetWindowSize(1280, 720)
+		ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+	}
 	ebiten.SetWindowTitle("YurneROGUE")
 	g := game.New(renderer)
 	g.EnableAudio()

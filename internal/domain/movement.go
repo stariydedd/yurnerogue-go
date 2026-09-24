@@ -47,10 +47,14 @@ func (s *Session) step(nx, ny int) bool {
 }
 
 // attack — удар игрока по врагу с записью статистики и сообщением.
+// Обычный удар (в том числе промах) заряжает критический удар.
 func (s *Session) attack(op *Opponent) {
+	if !s.Player.powerStrike {
+		s.Player.StrikeCooldown = max(0, s.Player.StrikeCooldown-1)
+	}
 	goldBefore := s.Player.Treasures
 	damage := PlayerAttacks(s.Player, op)
-	s.recordCombat(CombatEvent{Target: Point{X: op.X, Y: op.Y}, Damage: damage})
+	s.recordCombat(CombatEvent{Target: Point{X: op.X, Y: op.Y}, Damage: damage, Critical: s.Player.powerStrike && damage != Miss})
 	s.Stats.AttacksMade++
 	if !op.IsAlive() {
 		s.Stats.EnemiesKilled++
@@ -79,6 +83,22 @@ func (s *Session) CheckItemPickup() {
 		if it.X != s.Player.X || it.Y != s.Player.Y {
 			continue
 		}
+		if it.Type == ItemWeapon {
+			s.Level.Items = append(s.Level.Items[:i], s.Level.Items[i+1:]...)
+			s.pickUpWeapon(it)
+			return
+		}
+		if it.Type == ItemScroll {
+			p := s.Player
+			p.Heal(it.HealthEffect)
+			p.IncreaseMaxHealth(it.MaxHealthEffect)
+			p.Strength += it.StrengthEffect
+			p.Agility += it.AgilityEffect
+			s.Stats.ScrollsRead++
+			s.Level.Items = append(s.Level.Items[:i], s.Level.Items[i+1:]...)
+			s.SetMessage("You used " + it.Name + it.StatLabel() + ".")
+			return
+		}
 		if s.Player.PickUpItem(it) {
 			s.Level.Items = append(s.Level.Items[:i], s.Level.Items[i+1:]...)
 			s.SetMessage("Picked up: " + it.Name + it.StatLabel() + ".")
@@ -106,6 +126,7 @@ func (s *Session) ResolveTurn() {
 	s.CheckItemPickup()
 	s.CheckExit()
 	s.ProcessEnemyTurns()
+	s.Player.Guarding = false
 }
 
 // DropItemNearPlayer кладёт предмет на свободную соседнюю клетку уровня.
@@ -245,4 +266,30 @@ func (s *Session) Run(dx, dy int) {
 			return
 		}
 	}
+}
+
+// pickUpWeapon equips a weapon that hits harder (any weapon beats the starter
+// blade); any other weapon sharpens the equipped one by +1, so every weapon
+// found makes the hero stronger without runaway growth. The name follows the
+// bonus, so a sharpened blade can become a pricier item.
+//
+// The log follows what the player sees in hand: a new name reads as a new
+// weapon picked up, the same name reads as the same blade sharpened.
+func (s *Session) pickUpWeapon(it *Item) {
+	p := s.Player
+	before := BaseWeaponName
+	if p.Weapon != nil {
+		before = p.Weapon.Name
+	}
+	if p.Weapon == nil || WeaponDamage(p, it) > WeaponDamage(p, p.Weapon) {
+		p.Weapon = it
+	} else {
+		p.Weapon.StrengthEffect++
+		p.Weapon.Name = WeaponName(p.Weapon.StrengthEffect)
+	}
+	if p.Weapon.Name != before {
+		s.SetMessage("Picked up: " + p.Weapon.Name + ".")
+		return
+	}
+	s.SetMessage("Sharpened " + p.Weapon.Name + ".")
 }

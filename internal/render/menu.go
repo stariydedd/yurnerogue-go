@@ -20,7 +20,19 @@ const (
 	MenuQuit
 	MenuHelp
 	MenuLeaderboard
+	MenuGlossary
 )
+
+// IsHelpPage reports whether a menu page is one of the paged help screens.
+func IsHelpPage(page MenuPage) bool { return page == MenuHelp || page == MenuGlossary }
+
+// OtherHelpPage is the help page the switch button leads to.
+func OtherHelpPage(page MenuPage) MenuPage {
+	if page == MenuGlossary {
+		return MenuHelp
+	}
+	return MenuGlossary
+}
 
 type MenuButton struct {
 	Label, Action string
@@ -61,9 +73,19 @@ func MenuButtons(l Layout, page MenuPage) []MenuButton {
 		}
 	}
 	back := MenuButton{"BACK", "back", image.Rect(left, l.ScreenH-88, right, l.ScreenH-24)}
-	if page == MenuHelp && !l.Touch {
-		top := HelpViewBounds(l).Max.Y + 20
-		back.Bounds = image.Rect(left, top, right, top+64)
+	if IsHelpPage(page) {
+		// Page switch and BACK share one row, so the panel keeps its height.
+		width := min(560, l.ScreenW-48)
+		left, top := (l.ScreenW-width)/2, l.ScreenH-88
+		if !l.Touch {
+			top = HelpViewBounds(l).Max.Y + 20
+		}
+		half := (width - 16) / 2
+		other := OtherHelpPage(page)
+		return []MenuButton{
+			{HelpTitle(other), "help-page", image.Rect(left, top, left+half, top+64)},
+			{"BACK", "back", image.Rect(left+width-half, top, left+width, top+64)},
+		}
 	}
 	if page == MenuLeaderboard && leaderboardDetailed(l) {
 		top := LeaderboardViewBounds(l).Max.Y + 24
@@ -154,10 +176,10 @@ func PauseVolumeAt(bounds image.Rectangle, x int) int {
 }
 
 func menuButtonActive(page MenuPage, button MenuButton, index, selected int) bool {
-	if (page == MenuHelp || page == MenuLeaderboard) && button.Action == "back" {
-		return true
+	if IsHelpPage(page) || page == MenuLeaderboard {
+		return button.Action == "back"
 	}
-	return button.Action == "start" || (page == MenuHome || page == MenuPause || page == MenuWelcome || page == MenuResults || page == MenuQuit || page == MenuHelp) && index == selected
+	return button.Action == "start" || (page == MenuHome || page == MenuPause || page == MenuWelcome || page == MenuResults || page == MenuQuit) && index == selected
 }
 
 func homeMenuTop(l Layout) int {

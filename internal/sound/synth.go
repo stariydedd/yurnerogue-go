@@ -6,7 +6,12 @@ import (
 	"math"
 )
 
-const SampleRate = 22050
+const SampleRate = 44100
+
+// Recorded reports whether a cue plays an embedded recording, not synthesis.
+func Recorded(c Cue) bool {
+	return c == Hit || c == Swing || c == Parry || c == Critical
+}
 
 type Cue int
 
@@ -27,13 +32,25 @@ const (
 	Victory
 	StepGrass
 	StepTrail
+	Sharpen
+	Parry
+	Critical
 	cueCount
 )
 
+// musicRate synthesizes the music at half the playback rate: drones and harp
+// notes have almost nothing above 5 kHz, so this halves startup work and the
+// result is upsampled to SampleRate. Effects keep the full rate for clarity.
+const musicRate = SampleRate / 2
+
 // All synthesis uses local deterministic state, never the game's random stream.
 func tone(dst []float64, at, duration, hz, gain, attack float64, bell bool) {
-	for i := 0; i < int(duration*SampleRate); i++ {
-		t := float64(i) / SampleRate
+	toneAt(dst, SampleRate, at, duration, hz, gain, attack, bell)
+}
+
+func toneAt(dst []float64, rate int, at, duration, hz, gain, attack float64, bell bool) {
+	for i := 0; i < int(duration*float64(rate)); i++ {
+		t := float64(i) / float64(rate)
 		env := math.Min(1, t/attack) * math.Exp(-3*t/duration)
 		env *= math.Min(1, (duration-t)/0.08)
 		x := math.Sin(2 * math.Pi * hz * t)
@@ -43,19 +60,19 @@ func tone(dst []float64, at, duration, hz, gain, attack float64, bell bool) {
 		} else {
 			x += 0.22*math.Sin(2*math.Pi*hz*2*t) + 0.08*math.Sin(2*math.Pi*hz*3*t)
 		}
-		dst[(int(at*SampleRate)+i)%len(dst)] += x * env * gain
+		dst[(int(at*float64(rate))+i)%len(dst)] += x * env * gain
 	}
 }
 
 // Music is a 32-second seamless bed of warm drones, harp-like notes and echoes.
 // The two related arrangements crossfade without an abrupt change of key.
 func music(exploring bool) []byte {
-	dst := make([]float64, 32*SampleRate)
+	dst := make([]float64, 32*musicRate)
 	roots := []float64{146.8324, 130.8128, 116.5409, 130.8128}
 	melody := []float64{293.6648, 349.2282, 440, 391.9954, 261.6256, 349.2282, 293.6648, 220}
 	for bar, root := range roots {
 		for _, ratio := range []float64{0.5, 1, 1.5} {
-			tone(dst, float64(bar*8), 12, root*ratio, 0.10, 2, false)
+			toneAt(dst, musicRate, float64(bar*8), 12, root*ratio, 0.10, 2, false)
 		}
 		for n := 0; n < 4; n++ {
 			hz := melody[(bar*2+n)%len(melody)]
@@ -64,27 +81,31 @@ func music(exploring bool) []byte {
 				hz *= 0.5
 				gain = 0.08
 			}
-			tone(dst, float64(bar*8+n*2)+0.5, 4, hz, gain, 0.025, true)
+			toneAt(dst, musicRate, float64(bar*8+n*2)+0.5, 4, hz, gain, 0.025, true)
 		}
 		if exploring {
-			tone(dst, float64(bar*8), 7, root*0.25, 0.10, 0.7, false)
+			toneAt(dst, musicRate, float64(bar*8), 7, root*0.25, 0.10, 0.7, false)
 		}
 	}
-	return pcm(dst, true)
+	return pcm(upsampleLoop(dst, SampleRate/musicRate), true)
 }
 
 func effect(c Cue) []byte {
 	if c == StepGrass || c == StepTrail {
 		return footstep(c, 0)
 	}
-	if c == Hit || c == Swing {
-		return nil // The engine selects an embedded attack or miss recording.
+	if Recorded(c) {
+		return nil // The engine plays an embedded recording instead.
 	}
 	duration := 0.7
 	if c == Portal || c == Death || c == Victory || c == Start {
 		duration = 2.4
 	}
 	dst := make([]float64, int(duration*SampleRate))
+	if c == Sharpen {
+		whetstone(dst)
+		return effectPCM(dst, c, 0.10)
+	}
 	if c == Hurt || c == Kill || c == Equip {
 		seed := uint32(913 + c)
 		last := 0.0
@@ -156,4 +177,38 @@ func pcmWithEcho(samples []float64, loop bool, echo float64) []byte {
 		}
 	}
 	return result
+}
+
+// whetstone: two quick scrapes of a blade on stone, then a rising metallic
+// ring, so sharpening never sounds like equipping or reading a scroll.
+func whetstone(dst []float64) {
+	seed := uint32(4217)
+	for _, at := range []float64{0, 0.13} {
+		start := int(at * SampleRate)
+		last := 0.0
+		for i := 0; i < SampleRate*9/100 && start+i < len(dst); i++ {
+			seed = seed*1664525 + 1013904223
+			n := float64(seed>>8)/8388608 - 1
+			last = n - 0.55*last // brighter, hissing noise for the scrape
+			t := float64(i) / SampleRate
+			env := smoothAttack(t, 0.012) * math.Exp(-26*t)
+			dst[start+i] += last * env * 0.32
+		}
+	}
+	tone(dst, 0.24, 0.42, 987.77, 0.16, 0.006, true)
+	tone(dst, 0.31, 0.38, 1318.51, 0.13, 0.006, true)
+}
+
+// upsampleLoop raises a looping buffer's rate by an integer factor with linear
+// interpolation; the last samples interpolate towards the first, keeping the
+// loop seamless.
+func upsampleLoop(src []float64, factor int) []float64 {
+	dst := make([]float64, len(src)*factor)
+	for i, v := range src {
+		next := src[(i+1)%len(src)]
+		for k := 0; k < factor; k++ {
+			dst[i*factor+k] = v + (next-v)*float64(k)/float64(factor)
+		}
+	}
+	return dst
 }

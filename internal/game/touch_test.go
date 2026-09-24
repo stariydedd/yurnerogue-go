@@ -14,15 +14,26 @@ func TestKeyForControlMapsDirectionsAndItems(t *testing.T) {
 		render.CtrlDown:   ebiten.KeyDown,
 		render.CtrlLeft:   ebiten.KeyLeft,
 		render.CtrlRight:  ebiten.KeyRight,
-		render.CtrlRun:    ebiten.KeyF,
-		render.CtrlWeapon: ebiten.KeyH,
-		render.CtrlFood:   ebiten.KeyJ,
-		render.CtrlElixir: ebiten.KeyK,
-		render.CtrlScroll: ebiten.KeyE,
+		render.CtrlRun:    ebiten.KeyR,
+		render.CtrlStrike: ebiten.KeyF,
+		render.CtrlFood:   ebiten.KeyC,
+		render.CtrlElixir: ebiten.KeyX,
+		render.CtrlWait:   ebiten.KeyZ,
+		render.CtrlGuard:  ebiten.KeyE,
 	}
 	for control, want := range cases {
 		if got := keyForControl(control, StatePlaying); got != want {
 			t.Fatalf("%q -> %v, ожидалось %v", control, got, want)
+		}
+	}
+}
+
+func TestAbilitiesCannotActivateOutsideGame(t *testing.T) {
+	for _, control := range []string{render.CtrlStrike, render.CtrlGuard} {
+		for _, state := range []State{StateItemMenu, StateMainMenu} {
+			if keyForControl(control, state) != ebiten.KeyMax {
+				t.Fatalf("placeholder %s triggers a key", control)
+			}
 		}
 	}
 }

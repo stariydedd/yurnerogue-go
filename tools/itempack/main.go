@@ -23,6 +23,8 @@ var specs = []spriteSpec{
 	{"scroll", 32, 32, 2},
 	{"sword", 32, 32, 1},
 	{"portal", 56, 64, 2},
+	{"special-strike", 64, 64, 2},
+	{"defense", 64, 64, 2},
 }
 
 func fitSprite(src image.Image, width, height, padding int) (*image.NRGBA, error) {
@@ -62,7 +64,11 @@ func fitSprite(src image.Image, width, height, padding int) (*image.NRGBA, error
 
 func convert(spec spriteSpec) error {
 	source := spec.role + ".png"
-	f, err := os.Open(filepath.Join("docs/art/radiant/items/sources", source))
+	directory := "docs/art/radiant/items/sources"
+	if spec.role == "special-strike" || spec.role == "defense" {
+		directory = "docs/art/radiant/abilities/sources"
+	}
+	f, err := os.Open(filepath.Join(directory, source))
 	if err != nil {
 		return err
 	}

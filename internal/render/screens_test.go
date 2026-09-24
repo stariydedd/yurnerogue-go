@@ -95,14 +95,28 @@ func TestLeaderboardLocalizedHeadersAndValuesAreAligned(t *testing.T) {
 
 func TestDesktopHelpPanelFitsContent(t *testing.T) {
 	l := DesktopLayout()
-	_, height := helpContent(l)
+	height := 0
+	for _, page := range HelpPages {
+		_, pageHeight := helpContent(l, page)
+		height = max(height, pageHeight)
+	}
 	box := HelpViewBounds(l)
 	if box.Dy() != height+32 {
-		t.Fatal("desktop help panel should fit its content with standard padding")
+		t.Fatal("desktop help panel should fit its taller page with standard padding")
 	}
-	back := MenuButtons(l, MenuHelp)[0].Bounds
-	if back.Min.Y != box.Max.Y+20 || back.Max.Y > l.ScreenH-24 {
-		t.Fatal("BACK should follow the compact help panel and stay on screen")
+	for _, page := range HelpPages {
+		buttons := MenuButtons(l, page)
+		if len(buttons) != 2 || buttons[0].Action != "help-page" || buttons[0].Label != HelpTitle(OtherHelpPage(page)) || buttons[1].Action != "back" {
+			t.Fatalf("%s must offer the other page and BACK", HelpTitle(page))
+		}
+		for _, button := range buttons {
+			if button.Bounds.Min.Y != box.Max.Y+20 || button.Bounds.Max.Y > l.ScreenH-24 {
+				t.Fatal("help buttons should follow the compact help panel and stay on screen")
+			}
+		}
+		if buttons[0].Bounds.Overlaps(buttons[1].Bounds) {
+			t.Fatal("help buttons overlap")
+		}
 	}
 	for _, mobile := range []Layout{TouchLayout(390, 600), TouchLayout(390, 844)} {
 		if HelpViewBounds(mobile) != helpAvailableBounds(mobile) {
@@ -113,20 +127,22 @@ func TestDesktopHelpPanelFitsContent(t *testing.T) {
 
 func TestMobileHelpSectionSpacingUsesBottomSlack(t *testing.T) {
 	l := TouchLayout(390, 844)
-	rows, height := helpContent(l)
-	for i, row := range rows {
-		if row.section != "" && rows[i+1].y-row.y != 34 {
-			t.Fatal("mobile section heading needs extra space before its first entry")
+	for _, page := range HelpPages {
+		rows, height := helpContent(l, page)
+		for i, row := range rows {
+			if row.section != "" && rows[i+1].y-row.y != 34 {
+				t.Fatal("mobile section heading needs extra space before its first entry")
+			}
 		}
-	}
-	last := rows[len(rows)-1]
-	size := mobileHelpSize(l)
-	wantHeight := size + 10 + len(last.lines)*(size+4)
-	if last.height != wantHeight {
-		t.Fatal("extra space should not be added below the last entry")
-	}
-	if height != HelpViewBounds(l).Inset(16).Dy() || HelpScrollLimit(l) != 0 {
-		t.Fatal("spacing must preserve a single-screen help layout")
+		last := rows[len(rows)-1]
+		size := mobileHelpSize(l, page)
+		wantHeight := size + 10 + len(last.lines)*(size+4)
+		if last.height != wantHeight {
+			t.Fatal("extra space should not be added below the last entry")
+		}
+		if height != HelpViewBounds(l).Inset(16).Dy() || HelpScrollLimit(l, page) != 0 {
+			t.Fatal("spacing must preserve a single-screen help layout")
+		}
 	}
 }
 
@@ -136,63 +152,70 @@ func TestReferenceScreensFitWithoutDroppingContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, l := range []Layout{DesktopLayout(), TouchLayout(390, 600), TouchLayout(390, 844), TouchLayout(844, 390)} {
-		rows, height := helpContent(l)
-		view := HelpViewBounds(l).Inset(16)
-		columns, face := 1, fonts.UI
-		nameFace := fonts.Menu
-		if l.Touch {
-			face, nameFace = fonts.Compact, fonts.UI
-			if mobileHelpSize(l) == 14 {
-				face, nameFace = fonts.UI, fonts.Menu
-			}
-		}
-		if l.ScreenW >= 900 {
-			columns, face = 2, fonts.Menu
-		}
-		width := (view.Dx() - (columns-1)*24) / columns
-		descWidth, nameWidth := width-52, width-52
-		if l.Touch {
-			descWidth, nameWidth = width, width-34
-		}
-		entries, sections := 0, 0
-		var expectedEntries []helpEntry
-		expectedEntries = append(expectedEntries, helpEnemies...)
-		expectedEntries = append(expectedEntries, helpItems...)
-		for _, row := range rows {
-			if row.section != "" {
-				sections++
-				continue
-			}
-			if row.entry != expectedEntries[entries] {
-				t.Fatal("help must preserve full desktop descriptions")
-			}
-			entries++
-			if TextWidth(strings.ToUpper(row.entry.name), nameFace) > float64(nameWidth) {
-				t.Fatal("help name clipped")
-			}
-			if row.y+row.height > height {
-				t.Fatal("help row outside scrollable content")
-			}
-			if strings.Join(strings.Fields(strings.Join(row.lines, " ")), " ") != strings.Join(strings.Fields(row.entry.desc), " ") {
-				t.Fatal("help description lost words")
-			}
-			for _, line := range row.lines {
-				if TextWidth(line, face) > float64(descWidth) {
-					t.Fatal("help line too wide")
+		for _, page := range HelpPages {
+			rows, height := helpContent(l, page)
+			view := HelpViewBounds(l).Inset(16)
+			columns, face := 1, fonts.UI
+			nameFace := fonts.Menu
+			if l.Touch {
+				face, nameFace = fonts.Compact, fonts.UI
+				if mobileHelpSize(l, page) == 14 {
+					face, nameFace = fonts.UI, fonts.Menu
 				}
 			}
-		}
-		if entries != len(helpEnemies)+len(helpItems) || sections != 2 {
-			t.Fatal("help does not include both sections")
-		}
-		if HelpScrollLimit(l) != max(0, height-view.Dy()) {
-			t.Fatal("help scroll range wrong")
-		}
-		if HelpScrollLimit(l) != 0 {
-			t.Fatal("help should fit without scrolling on desktop and mobile")
-		}
-		if l.Touch && height != view.Dy() {
-			t.Fatal("mobile help should use the available panel height")
+			if l.ScreenW >= 900 {
+				columns, face = 2, fonts.Menu
+			}
+			width := (view.Dx() - (columns-1)*24) / columns
+			descWidth, nameWidth := width-52, width-52
+			if l.Touch {
+				descWidth, nameWidth = width, width-34
+			}
+			entries, sections := 0, 0
+			var expectedEntries []helpEntry
+			for _, group := range helpGroups(l, page) {
+				expectedEntries = append(expectedEntries, group.entries...)
+			}
+			for _, row := range rows {
+				if row.section != "" {
+					sections++
+					continue
+				}
+				if row.entry != expectedEntries[entries] {
+					t.Fatal("help must preserve full desktop descriptions")
+				}
+				entries++
+				rowNameWidth := nameWidth
+				if row.entry.role == "" {
+					rowNameWidth = width // key bindings have no icon column
+				}
+				if TextWidth(strings.ToUpper(row.entry.name), nameFace) > float64(rowNameWidth) {
+					t.Fatal("help name clipped")
+				}
+				if row.y+row.height > height {
+					t.Fatal("help row outside scrollable content")
+				}
+				if strings.Join(strings.Fields(strings.Join(row.lines, " ")), " ") != strings.Join(strings.Fields(row.entry.desc), " ") {
+					t.Fatal("help description lost words")
+				}
+				for _, line := range row.lines {
+					if TextWidth(line, face) > float64(descWidth) {
+						t.Fatal("help line too wide")
+					}
+				}
+			}
+			if entries != len(expectedEntries) || sections != len(helpGroups(l, page)) {
+				t.Fatal("help does not include every section")
+			}
+			if HelpScrollLimit(l, page) != max(0, height-view.Dy()) {
+				t.Fatal("help scroll range wrong")
+			}
+			if HelpScrollLimit(l, page) != 0 {
+				t.Fatalf("%s should fit without scrolling at %+v", HelpTitle(page), l)
+			}
+			if l.Touch && height != view.Dy() {
+				t.Fatal("mobile help should use the available panel height")
+			}
 		}
 		box := LeaderboardViewBounds(l)
 		if box.Min.Y+54+leaderboardVisibleRows*leaderboardRowHeight(l) > box.Max.Y-10 {

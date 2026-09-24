@@ -27,7 +27,7 @@ func TestRadiantItemsOverrideBaseSprites(t *testing.T) {
 			t.Fatalf("%s: missing override or unwanted tile scaling", role)
 		}
 		// Verify that applying the theme really replaces each legacy frame.
-		// GPU pixel reads require a running game; terrainpreview checks those.
+		// GPU pixel reads require a running game, so pixels are not compared here.
 		previous := base.Frame(role, 0)
 		if err := base.loadDir("custom/radiant"); err != nil {
 			t.Fatal(err)

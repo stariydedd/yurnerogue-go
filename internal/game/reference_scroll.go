@@ -13,9 +13,8 @@ func (g *Game) referenceScrollState() (image.Rectangle, *int, int, bool) {
 	if g.renderer == nil {
 		return image.Rectangle{}, nil, 0, false
 	}
-	switch g.state {
-	case StateHelp:
-		return render.HelpViewBounds(g.renderer.Layout), &g.helpScroll, render.HelpScrollLimit(g.renderer.Layout), true
+	if page, ok := menuPage(g.state); ok && render.IsHelpPage(page) {
+		return render.HelpViewBounds(g.renderer.Layout), &g.helpScroll, render.HelpScrollLimit(g.renderer.Layout, page), true
 	}
 	return image.Rectangle{}, nil, 0, false
 }

@@ -2,7 +2,11 @@
 // Зависит от domain, но не наоборот.
 package render
 
-import "github.com/stariydedd/yurnerogue-go/internal/locale"
+import (
+	"math"
+
+	"github.com/stariydedd/yurnerogue-go/internal/locale"
+)
 
 // Размер тайла и видимой области. Исходные спрайты 16px, множитель 2.
 const (
@@ -27,7 +31,7 @@ type Layout struct {
 // DesktopLayout — раскладка с клавиатурой: поле 40x22 тайла и панель снизу.
 func DesktopLayout() Layout {
 	gridW, gridH := ViewCols*TileSize, ViewRows*TileSize
-	panelH := 144
+	panelH := 128
 	return Layout{
 		ScreenW: gridW,
 		ScreenH: gridH + panelH,
@@ -35,6 +39,20 @@ func DesktopLayout() Layout {
 		GridH:   gridH,
 		PanelH:  panelH,
 	}
+}
+
+// DesktopLayoutForSize expands the viewport instead of distorting a fixed
+// frame. Keep the reference HUD/menu size and fit it with one uniform scale.
+func DesktopLayoutForSize(width, height int) Layout {
+	l := DesktopLayout()
+	if width <= 0 || height <= 0 {
+		return l
+	}
+	scale := math.Min(float64(width)/float64(l.ScreenW), float64(height)/float64(l.ScreenH))
+	l.ScreenW = max(l.ScreenW, int(math.Floor(float64(width)/scale)))
+	l.ScreenH = max(l.ScreenH, int(math.Floor(float64(height)/scale)))
+	l.GridW, l.GridH = l.ScreenW, l.ScreenH-l.PanelH
+	return l
 }
 
 // TouchLayout — портретная раскладка в стиле ретро-консоли: карта сверху,
@@ -51,7 +69,7 @@ func TouchLayout(windowW, windowH int) Layout {
 	}
 	screenH := int(float64(screenW) * ratio)
 
-	panelH := 108
+	panelH := 156
 	controlsH := 228
 	return Layout{
 		ScreenW:   screenW,

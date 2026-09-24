@@ -22,6 +22,7 @@ type Session struct {
 	Level          *Level
 	Player         *Person
 	Message        string
+	EventLog       []string `json:"-"`
 	Stats          Stats
 	CombatEvents   []CombatEvent `json:"-"`
 
@@ -59,7 +60,18 @@ func newSessionAtLevel(num int, rng *rand.Rand) *Session {
 }
 
 // SetMessage кладёт текст в строку сообщений HUD.
-func (s *Session) SetMessage(msg string) { s.Message = msg }
+func (s *Session) SetMessage(msg string) {
+	s.Message = msg
+	if msg == "" {
+		return
+	}
+	const limit = 32
+	if len(s.EventLog) == limit {
+		copy(s.EventLog, s.EventLog[1:])
+		s.EventLog = s.EventLog[:limit-1]
+	}
+	s.EventLog = append(s.EventLog, msg)
+}
 
 // Exit — координаты выхода текущего уровня.
 func (s *Session) Exit() Point { return s.Level.Exit }

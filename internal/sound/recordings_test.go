@@ -24,9 +24,10 @@ func TestEmbeddedCombatSoundsKeepRecordingTimingAndTimbre(t *testing.T) {
 		family                   string
 		clips                    [][]byte
 		minDuration, maxDuration float64
+		gain                     float64
 	}{
-		{"attack", clips[:], 0.3, 0.6},
-		{"miss", misses[:], 0.1, 0.25},
+		{"attack", clips[:], 0.3, 0.6, attackGain},
+		{"miss", misses[:], 0.1, 0.25, missGain},
 	} {
 		for i, pcm := range group.clips {
 			checkPCM(t, pcm)
@@ -63,7 +64,7 @@ func TestEmbeddedCombatSoundsKeepRecordingTimingAndTimbre(t *testing.T) {
 			for offset := margin; offset < len(source)-margin; offset += 2 {
 				original := int16(binary.LittleEndian.Uint16(source[offset:]))
 				got := int16(binary.LittleEndian.Uint16(pcm[offset:]))
-				want := int16(float64(original) * recordedCombatGain)
+				want := int16(float64(original) * group.gain)
 				if got != want {
 					t.Fatal("recording was filtered or replaced")
 				}
@@ -76,7 +77,7 @@ func TestEmbeddedCombatSoundsKeepRecordingTimingAndTimbre(t *testing.T) {
 	if effect(Hit) != nil || effect(Swing) != nil {
 		t.Fatal("synthesized combat sound still exists")
 	}
-	if 0.8*musicGain+maxVoices*effectsGain*math.Max(0.8, recordedCombatGain) > 1 {
+	if 0.8*musicGain+maxVoices*effectsGain*math.Max(0.8, max(attackGain, missGain)) > 1 {
 		t.Fatal("recordings can overload mixer")
 	}
 }
@@ -108,6 +109,47 @@ func TestMutedOrThrottledAttacksDoNotConsumeRecording(t *testing.T) {
 		e.Play(Swing)
 		if e.attackBag != (variantBag{}) || e.missBag != (variantBag{}) {
 			t.Fatal("skipped attack consumed recording")
+		}
+	}
+}
+
+func TestAbilityRecordingsLoadWithTheirLength(t *testing.T) {
+	for c, want := range map[Cue]float64{Critical: 1.39, Parry: 0.56} {
+		clip := abilityRecordings[c]
+		pcm, err := loadRecording(clip.name, clip.gain)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := float64(len(pcm)/4) / SampleRate; math.Abs(got-want) > 0.05 {
+			t.Fatalf("cue %d lasts %.2fs, want about %.2fs", c, got, want)
+		}
+		if !Recorded(c) || effect(c) != nil {
+			t.Fatalf("cue %d must be played from its recording, not synthesized", c)
+		}
+	}
+}
+
+// Loudness is raised in playback, so the stored clip must never be clipped or
+// squashed, and the extra gain must stay inside the mixer headroom budget.
+func TestAbilityRecordingsAreCleanAndInsideHeadroom(t *testing.T) {
+	for c, clip := range abilityRecordings {
+		if clip.gain > 0.8 || clip.gain < recordedCombatGain {
+			t.Fatalf("cue %d gain %.2f outside the attack-to-headroom range", c, clip.gain)
+		}
+		raw, err := loadRecording(clip.name, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		peak, full := 0, 0
+		for i := 0; i < len(raw); i += 2 {
+			v := int(int16(binary.LittleEndian.Uint16(raw[i:])))
+			peak = max(peak, max(v, -v))
+			if v >= 32767 || v <= -32767 {
+				full++
+			}
+		}
+		if full > 0 || peak > 32200 {
+			t.Fatalf("cue %d file is clipped or has no headroom: peak %d, %d full-scale samples", c, peak, full)
 		}
 	}
 }

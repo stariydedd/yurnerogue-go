@@ -40,9 +40,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.controls.Draw(surface, r, g.pressedControls(), selectLabel(g.state), runControlVisible(g.state), player)
 	}
 
-	sx, sy := g.scaleToWindow()
+	sx, sy, x, y := g.surfaceTransform(g.outW, g.outH)
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(sx, sy)
+	op.GeoM.Translate(x, y)
 	op.Filter = ebiten.FilterNearest // пиксель-арт остаётся чётким
 	screen.DrawImage(surface, op)
 }
@@ -81,14 +82,16 @@ func (g *Game) drawScreen(screen *ebiten.Image) {
 	case StateItemMenu:
 		r.DrawWorld(screen, g.session)
 		r.DrawHUD(screen, g.session)
-		r.DrawItemMenu(screen, g.itemMenuItems, g.itemMenuBareHand, g.itemMenuSelected)
+		r.DrawItemMenu(screen, g.itemMenuItems, g.itemMenuSelected)
 	case StateQuitDialog:
 		r.DrawWorld(screen, g.session)
 		r.DrawHUD(screen, g.session)
 	case StateLeaderboard:
 		r.DrawLeaderboard(screen, g.leaderboard, g.leaderboardLoading, g.leaderboardSource)
 	case StateHelp:
-		r.DrawHelp(screen, g.helpScroll)
+		r.DrawHelp(screen, render.MenuHelp, g.helpScroll)
+	case StateGlossary:
+		r.DrawHelp(screen, render.MenuGlossary, g.helpScroll)
 	case StateDeath, StateWin:
 		r.DrawRunSummary(screen, g.session, g.playerName, g.state == StateWin, g.submitStatus)
 	}

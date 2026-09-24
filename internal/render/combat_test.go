@@ -97,6 +97,8 @@ func TestCombatLabelsSeparateMissZeroAndMaxHP(t *testing.T) {
 		want  string
 	}{
 		{domain.CombatEvent{Damage: domain.Miss}, "MISS"},
+		{domain.CombatEvent{Parried: true, TargetPlayer: true}, "PARRY"},
+		{domain.CombatEvent{Damage: 54, Critical: true}, "-54!"},
 		{domain.CombatEvent{Damage: 0}, "0"},
 		{domain.CombatEvent{Damage: 25}, "-25"},
 		{domain.CombatEvent{Damage: 30, MaxHP: true}, "-30 MAX HP"},
@@ -109,5 +111,13 @@ func TestCombatLabelsSeparateMissZeroAndMaxHP(t *testing.T) {
 	_, incoming := combatLabel(domain.CombatEvent{Damage: 10, TargetPlayer: true})
 	if outgoing == incoming {
 		t.Fatal("incoming damage should have a distinct color")
+	}
+}
+
+func TestCriticalMarkerIsRed(t *testing.T) {
+	_, crit := combatLabel(domain.CombatEvent{Damage: 54, Critical: true})
+	_, hit := combatLabel(domain.CombatEvent{Damage: 54})
+	if crit.R < 200 || crit.G > 80 || crit.B > 80 || crit == hit {
+		t.Fatalf("critical marker must be red and differ from an ordinary hit: %+v", crit)
 	}
 }

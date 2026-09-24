@@ -27,7 +27,7 @@ func checkPCM(t *testing.T, data []byte) {
 
 func TestEffectsAreDeterministicAndHaveSoftEndpoints(t *testing.T) {
 	for c := Cue(0); c < cueCount; c++ {
-		if c == Hit || c == Swing {
+		if Recorded(c) {
 			continue
 		} // Covered by embedded recording tests.
 		data := effect(c)

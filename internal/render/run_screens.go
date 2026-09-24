@@ -22,16 +22,18 @@ func runPanelBounds(l Layout, results bool) image.Rectangle {
 
 func welcomeEntries(touch bool) []helpEntry {
 	move := "Use WASD or arrows. Step into an enemy to strike with your sword."
-	items := "Pick up loot by walking over it. H/J/K/E: weapons, food, clarities, scrolls."
+	items := "Stronger weapons equip, weaker ones sharpen yours. Scrolls apply on pickup. C: food. X: potions."
+	combat := "F, then direction: critical strike x1.5, recharges after 3 attacks. E next to an enemy: parry the hit and strike back."
 	if touch {
 		move = "Use the D-pad. Step into an enemy to strike with your sword."
-		items = "Pick up loot by walking over it. Tap an item category, then SELECT to use it."
+		items = "Stronger weapons equip, weaker ones sharpen yours. Scrolls apply on pickup. Select food or potions to use."
+		combat = "Critical Strike, then direction: damage x1.5, recharges after 3 attacks. Parry next to an enemy: blocks the hit and strikes back."
 	}
 	return []helpEntry{
-		{"portal", "REACH THE PORTAL", fmt.Sprintf("Find the portal on each level. Escape level %d to win. Gold is your score.", domain.MaxLevels)},
-		{"player", "MOVE & ATTACK", move},
-		{"food", "COLLECT & USE", items},
-		{"elixir", "TAKE YOUR TIME", "Enemies act when you take a turn. Food heals, clarity buffs are temporary, scrolls are permanent. MENU pauses; HELP has details."},
+		{"portal", "REACH THE PORTAL", fmt.Sprintf("Find the portal on each level. Escape level %d to win. Gold is your score.", domain.MaxLevels), ""},
+		{"player", "MOVE & ATTACK", move, ""},
+		{"food", "COLLECT & USE", items, ""},
+		{"special-strike", "ABILITIES", combat, ""},
 	}
 }
 

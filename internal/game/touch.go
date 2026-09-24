@@ -150,15 +150,26 @@ func keyForControl(control string, state State) ebiten.Key {
 		if !runControlVisible(state) {
 			return ebiten.KeyMax
 		}
+		return ebiten.KeyR
+	case render.CtrlStrike:
+		if state != StatePlaying {
+			return ebiten.KeyMax
+		}
 		return ebiten.KeyF
-	case render.CtrlWeapon:
-		return ebiten.KeyH
 	case render.CtrlFood:
-		return ebiten.KeyJ
+		return ebiten.KeyC
 	case render.CtrlElixir:
-		return ebiten.KeyK
-	case render.CtrlScroll:
+		return ebiten.KeyX
+	case render.CtrlGuard:
+		if state != StatePlaying {
+			return ebiten.KeyMax
+		}
 		return ebiten.KeyE
+	case render.CtrlWait:
+		if state != StatePlaying {
+			return ebiten.KeyMax
+		}
+		return ebiten.KeyZ
 	case render.CtrlSelect:
 		// В игре Enter не нужен — кнопка открывает справку.
 		if state == StatePlaying {

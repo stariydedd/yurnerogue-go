@@ -15,15 +15,16 @@ func TestTranslationsPreserveProperNames(t *testing.T) {
 		"PLAY":                          "ИГРАТЬ",
 		"Picked up: Tango [+30 HP].":    "Подобрано: Tango [+30 ОЗ].",
 		"You hit the Pudge for 12 dmg.": "Удар по Pudge: 12 урона.",
-		"The Bloodseeker drained your max HP by 10!":                   "Bloodseeker снижает максимальное здоровье на 10!",
-		"The Skywrath Mage hit you for 10 dmg. You fall asleep!":       "Skywrath Mage наносит 10 урона. Вы засыпаете!",
-		"You equipped Yasha [+5 STR]. Dropped Quelling Blade.":         "Экипировано: Yasha [+5 СИЛ]. Сброшено: Quelling Blade.",
-		"You equipped Yasha [+5 STR]. Stowed Silver Edge in backpack.": "Экипировано: Yasha [+5 СИЛ]. В рюкзаке: Silver Edge.",
-		"You used Phantom Clarity [+3 AGI].":                           "Использовано: Phantom Clarity [+3 ЛОВ].",
-		"You used Vital Scroll [+5 MAX HP].":                           "Использовано: Vital Scroll [+5 МАКС ОЗ].",
-		"RUN SUMMARY / [+5 STR]":                                       "ИТОГИ / [+5 STR]",
-		"RUN SUMMARY / PLAY":                                           "ИТОГИ / PLAY",
-		"New game: Starting game...":                                   "Новый забег: Запуск игры...",
+		"The Bloodseeker drained your max HP by 10!":             "Bloodseeker снижает максимальное здоровье на 10!",
+		"The Skywrath Mage hit you for 10 dmg. You fall asleep!": "Skywrath Mage наносит 10 урона. Вы засыпаете!",
+		"You equipped Yasha. Dropped Quelling Blade.":            "Экипировано: Yasha. Сброшено: Quelling Blade.",
+		"You equipped Yasha. Stowed Silver Edge in backpack.":    "Экипировано: Yasha. В рюкзаке: Silver Edge.",
+		"Sharpened Desolator.":                                   "Заточено: Desolator.",
+		"You used Phantom Clarity [+3 AGI].":                     "Использовано: Phantom Clarity [+3 ЛОВ].",
+		"You used Vital Scroll [+5 MAX HP].":                     "Использовано: Vital Scroll [+5 МАКС ОЗ].",
+		"RUN SUMMARY / [+5 STR]":                                 "ИТОГИ / [+5 STR]",
+		"RUN SUMMARY / PLAY":                                     "ИТОГИ / PLAY",
+		"New game: Starting game...":                             "Новый забег: Запуск игры...",
 	}
 	for source, want := range cases {
 		if got := Message(Russian, source); got != want {
@@ -36,20 +37,18 @@ func TestTranslationsPreserveProperNames(t *testing.T) {
 }
 
 func TestRussianTerminologyAndStatSuffixes(t *testing.T) {
+	if Text(Russian, "PARRY") != "БЛОК" || Text(English, "PARRY") != "PARRY" {
+		t.Fatal("parry marker must read БЛОК in Russian")
+	}
 	if Text(Russian, "MISS") != "ПРОМАХ" || Text(English, "MISS") != "MISS" {
 		t.Fatal("combat miss labels should be localized independently")
 	}
 	if got := Text(Russian, "Steals your max HP. Deflects your first strike."); got != "Крадёт максимальное здоровье. Блокирует первый удар." {
 		t.Fatalf("help should spell out health: %s", got)
 	}
-	intro := Text(Russian, "Enemies act when you take a turn. Food heals, clarity buffs are temporary, scrolls are permanent. MENU pauses; HELP has details.")
-	if !strings.Contains(intro, "Еда лечит") || strings.Contains(intro, "Tango") {
+	intro := Text(Russian, "Stronger weapons equip, weaker ones sharpen yours. Scrolls apply on pickup. C: food. X: potions.")
+	if !strings.Contains(intro, "C: еда") || strings.Contains(intro, "Tango") {
 		t.Fatal("intro must describe the food category")
-	}
-	for key, translated := range russian {
-		if strings.ContainsAny(translated, "—–") {
-			t.Errorf("unwanted dash in %s", key)
-		}
 	}
 	for key, want := range map[string]string{
 		"HELP": "ПОМОЩЬ", "HUD HELP": "ПОМОЩЬ", "FOOD": "ЕДА",

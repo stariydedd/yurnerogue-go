@@ -145,10 +145,11 @@ func TestReplayOverflowDoesNotSubmit(t *testing.T) {
 
 func TestInventoryInputRecordsSharedDomainAction(t *testing.T) {
 	g := &Game{session: domain.NewSessionSeed(1), state: StatePlaying}
-	g.session.Player.Backpack = append(g.session.Player.Backpack, domain.NewWeapon())
-	g.HandleKey(ebiten.KeyH)
+	p := g.session.Player
+	p.Backpack = append(p.Backpack, domain.NewFood(p, 1))
+	g.openItemMenu(domain.ItemFood)
 	g.HandleKey(ebiten.Key1)
-	if g.session.Actions() != "h1" || g.session.Player.Weapon == nil {
+	if g.session.Actions() != "j0" || len(p.Backpack) != 0 || g.session.Stats.FoodUsed != 1 {
 		t.Fatal("inventory bypassed replay path")
 	}
 }
@@ -171,7 +172,7 @@ func TestEndScreenHasNoRetryControls(t *testing.T) {
 			t.Fatal("retry is still enabled")
 		}
 	}
-	if !runControlVisible(StatePlaying) || keyForControl("run", StatePlaying) != ebiten.KeyF {
+	if !runControlVisible(StatePlaying) || keyForControl("run", StatePlaying) != ebiten.KeyR {
 		t.Fatal("ordinary gameplay running was removed")
 	}
 }

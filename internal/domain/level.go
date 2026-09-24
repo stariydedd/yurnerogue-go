@@ -347,7 +347,7 @@ func (l *Level) GenerateItems(player *Person) {
 				if c == l.Exit || l.itemAt(c) != nil {
 					continue
 				}
-				item := RandomItem(player)
+				item := RandomItem(player, l.Num)
 				item.X, item.Y = c.X, c.Y
 				l.Items = append(l.Items, item)
 				break

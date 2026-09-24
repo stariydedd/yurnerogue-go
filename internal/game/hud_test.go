@@ -9,7 +9,7 @@ import (
 )
 
 func TestDesktopHUDPointerUsesKeyboardActions(t *testing.T) {
-	for _, control := range []string{render.CtrlFood, render.CtrlWeapon, render.CtrlElixir, render.CtrlScroll, render.CtrlMenu, render.CtrlSelect} {
+	for _, control := range []string{render.CtrlFood, render.CtrlStrike, render.CtrlElixir, render.CtrlGuard, render.CtrlMenu, render.CtrlSelect} {
 		newGame := func() *Game {
 			s := domain.NewSessionSeed(21)
 			for _, kind := range []domain.ItemType{domain.ItemFood, domain.ItemElixir, domain.ItemScroll, domain.ItemWeapon} {
@@ -43,7 +43,7 @@ func TestHUDPointerCannotActivateSlotsBehindDialogs(t *testing.T) {
 
 func TestRunHighlightPersistsUntilDirection(t *testing.T) {
 	g := &Game{session: domain.NewSessionSeed(21), state: StatePlaying}
-	g.HandleKey(ebiten.KeyF)
+	g.HandleKey(ebiten.KeyR)
 	if !g.pressedControls()[render.CtrlRun] {
 		t.Fatal("armed run is not highlighted")
 	}

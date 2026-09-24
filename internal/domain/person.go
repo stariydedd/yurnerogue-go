@@ -7,12 +7,17 @@ type Person struct {
 	rng  *rand.Rand
 	X, Y int
 
-	MaxHealth int
-	Health    int
-	Agility   int
-	Strength  int
-	Weapon    *Item // Equipped upgrade; nil uses the permanent Quelling Blade.
-	Treasures int
+	MaxHealth      int
+	Health         int
+	Agility        int
+	Strength       int
+	Weapon         *Item // Equipped upgrade; nil uses the permanent Quelling Blade.
+	Treasures      int
+	StrikeCooldown int
+	GuardCooldown  int
+	Guarding       bool
+	StrikeArmed    bool `json:"-"`
+	powerStrike    bool
 
 	Backpack []*Item
 
@@ -34,6 +39,16 @@ type statEffect struct {
 }
 
 // NewPerson создаёт игрока с базовыми характеристиками вне карты.
+// StrikeChargeMessage says how many ordinary attacks the Critical Strike still needs.
+func (p *Person) StrikeChargeMessage() string {
+	return "Critical Strike charges with attacks: " + itoa(p.StrikeCooldown) + " left."
+}
+
+// GuardChargeMessage says how many enemy hits the parry still needs.
+func (p *Person) GuardChargeMessage() string {
+	return "Parry charges with hits taken: " + itoa(p.GuardCooldown) + " left."
+}
+
 func NewPerson() *Person {
 	return &Person{
 		X: -1, Y: -1,

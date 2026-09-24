@@ -2,6 +2,7 @@
 package game
 
 import (
+	"runtime"
 	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -28,6 +29,8 @@ const (
 	StateStarting
 	StatePauseMenu
 	StateWelcome
+	// StateGlossary is the second help page: enemies and items.
+	StateGlossary
 )
 
 // MaxNameLength — предел длины имени для лидерборда.
@@ -63,14 +66,13 @@ type Game struct {
 
 	itemMenuType     domain.ItemType
 	itemMenuItems    []*domain.Item
-	itemMenuBareHand bool
 	itemMenuSelected int
 
 	touch    *touchInput
 	controls *render.Controls
 	keyboard keyboardInput
 
-	// surface — логическая поверхность игры; растягивается на всё окно.
+	// surface is resized with the desktop viewport, independently of game state.
 	surface    *ebiten.Image
 	outW, outH int
 
@@ -96,11 +98,25 @@ func New(r *render.Renderer) *Game {
 	return g
 }
 
-// Layout сообщает Ebitengine размер кадра. Возвращаем физический размер окна
-// и растягиваем в него логическую поверхность сами (см. surface.go), иначе
-// Ebitengine оставит чёрные поля по краям.
+// Layout uses window coordinates for input; desktop content follows its aspect
+// ratio while touch keeps its existing logical surface and scaling.
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	if outsideWidth <= 0 || outsideHeight <= 0 {
+		return max(1, g.outW), max(1, g.outH)
+	}
 	g.outW, g.outH = outsideWidth, outsideHeight
+	if !g.renderer.Layout.Touch {
+		layout := render.DesktopLayoutForSize(outsideWidth, outsideHeight)
+		layout.Language = g.renderer.Layout.Language
+		if layout != g.renderer.Layout {
+			g.renderer.Layout = layout
+			g.audioDrag = ""
+			g.referenceDragging = false
+			if page, ok := menuPage(g.state); ok && render.IsHelpPage(page) {
+				g.helpScroll = min(g.helpScroll, render.HelpScrollLimit(layout, page))
+			}
+		}
+	}
 	return outsideWidth, outsideHeight
 }
 
@@ -167,6 +183,11 @@ func (g *Game) handleHUDPointer(x, y int) {
 // HandleKey — единая точка входа для клавиш: сюда же приходят нажатия
 // экранных кнопок, транслированные в клавиши.
 func (g *Game) HandleKey(key ebiten.Key) {
+	// Browsers already own F11; do not race their native fullscreen shortcut.
+	if runtime.GOOS != "js" && key == ebiten.KeyF11 && g.renderer != nil && !g.renderer.Layout.Touch {
+		ebiten.SetFullscreen(!ebiten.IsFullscreen())
+		return
+	}
 	switch g.state {
 	case StateStarting:
 		if key == ebiten.KeyEscape || key == ebiten.KeyQ {
@@ -193,13 +214,15 @@ func (g *Game) HandleKey(key ebiten.Key) {
 			g.topResults = nil
 			g.state = StateMainMenu
 		}
-	case StateHelp:
+	case StateHelp, StateGlossary:
 		if g.handleReferenceKey(key) {
 			return
 		}
 		switch key {
 		case ebiten.KeyEscape, ebiten.KeyQ, ebiten.KeyEnter, ebiten.KeyNumpadEnter:
 			g.state = g.helpReturn
+		case ebiten.KeyLeft, ebiten.KeyA, ebiten.KeyRight, ebiten.KeyD:
+			g.switchHelpPage()
 		}
 	case StateWelcome, StateDeath, StateWin:
 		g.handleRunMenu(key)
@@ -281,10 +304,21 @@ func (g *Game) handlePlaying(key ebiten.Key) {
 	s := g.session
 	s.Message = ""
 	if key == ebiten.KeyQ {
+		s.Player.StrikeArmed = false
 		g.pauseSelected = 0
 		g.pendingRun = false
 		g.state = StatePauseMenu
 		return
+	}
+	if s.Player.StrikeArmed {
+		s.Player.StrikeArmed = false
+		if d, ok := directionKeys[key]; ok {
+			g.performAction("t" + directionAction(d, false))
+			return
+		}
+		if key == ebiten.KeyF || key == ebiten.KeyEscape {
+			return
+		}
 	}
 	if g.pendingRun {
 		g.pendingRun = false
@@ -294,26 +328,40 @@ func (g *Game) handlePlaying(key ebiten.Key) {
 		return
 	}
 	switch key {
+	case ebiten.KeyF:
+		if s.Player.Sleeping {
+			g.performAction("z")
+			return
+		}
+		if s.Player.StrikeCooldown > 0 {
+			s.SetMessage(s.Player.StrikeChargeMessage())
+			return
+		}
+		s.Player.StrikeArmed = true
+		s.SetMessage("Critical Strike: choose a direction.")
+		return
+	case ebiten.KeyE:
+		g.performAction("b")
+		return
+	case ebiten.KeyZ:
+		g.performAction("z")
+		return
 	case ebiten.KeyF1:
 		g.helpScroll = 0
 		g.helpReturn = StatePlaying
 		g.state = StateHelp
 		return
-	case ebiten.KeyF:
+	case ebiten.KeyR:
 		g.pendingRun = true
 		s.SetMessage("Run: press a direction key.")
 		return
 	}
 	itemType := domain.ItemNone
 	switch key {
-	case ebiten.KeyH:
-		itemType = domain.ItemWeapon
-	case ebiten.KeyJ:
+	case ebiten.KeyC:
 		itemType = domain.ItemFood
-	case ebiten.KeyK:
+	case ebiten.KeyX:
 		itemType = domain.ItemElixir
-	case ebiten.KeyE:
-		itemType = domain.ItemScroll
 	}
 	if itemType != domain.ItemNone {
 		if s.Player.Sleeping {
@@ -364,18 +412,9 @@ func (g *Game) performAction(action string) {
 // Ход тратится не здесь, а после выбора.
 func (g *Game) openItemMenu(t domain.ItemType) bool {
 	items := g.session.Player.ItemsOfType(t)
-	if t == domain.ItemWeapon {
-		if len(items) == 0 && g.session.Player.Weapon == nil {
-			g.session.SetMessage("No other weapons in backpack.")
-			return false
-		}
-		g.itemMenuBareHand = true
-	} else {
-		if len(items) == 0 {
-			g.session.SetMessage("No " + itemTypeName(t) + " in backpack.")
-			return false
-		}
-		g.itemMenuBareHand = false
+	if len(items) == 0 {
+		g.session.SetMessage("No " + itemTypeName(t) + " in backpack.")
+		return false
 	}
 	g.itemMenuType = t
 	g.itemMenuItems = items
@@ -390,17 +429,12 @@ func itemTypeName(t domain.ItemType) string {
 		return "food"
 	case domain.ItemElixir:
 		return "elixirs"
-	case domain.ItemScroll:
-		return "scrolls"
 	}
 	return "items"
 }
 
 func (g *Game) handleItemMenu(key ebiten.Key) {
 	rows := len(g.itemMenuItems)
-	if g.itemMenuBareHand {
-		rows++
-	}
 
 	switch key {
 	case ebiten.KeyEscape, ebiten.KeyBackspace:
@@ -419,26 +453,15 @@ func (g *Game) handleItemMenu(key ebiten.Key) {
 	case key == ebiten.KeyEnter || key == ebiten.KeyNumpadEnter:
 		choice = g.itemMenuSelected
 	case key >= ebiten.Key0 && key <= ebiten.Key9:
-		digit := int(key - ebiten.Key0)
-		if g.itemMenuBareHand {
-			choice = digit
-		} else {
-			choice = digit - 1
-		}
+		choice = int(key-ebiten.Key0) - 1
 	}
 	if choice < 0 || choice >= rows {
 		return
 	}
 
-	code := map[domain.ItemType]byte{domain.ItemWeapon: 'h', domain.ItemFood: 'j', domain.ItemElixir: 'k', domain.ItemScroll: 'e'}[g.itemMenuType]
+	code := map[domain.ItemType]byte{domain.ItemFood: 'j', domain.ItemElixir: 'k'}[g.itemMenuType]
 	g.state = StatePlaying
 	g.performAction(string([]byte{code, byte('0' + choice)}))
-}
-
-// applyItemChoice применяет выбранный предмет: экипирует оружие или использует
-// расходник, обновляя статистику.
-func (g *Game) applyItemChoice(choice int) {
-	g.session.UseChoice(g.itemMenuType, choice)
 }
 
 func (g *Game) handleQuitDialog(key ebiten.Key) {

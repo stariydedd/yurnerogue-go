@@ -46,8 +46,29 @@ Small blade whoosh recordings from Dota 2 (© Valve and/or its licensors).
 miss-1.wav corresponds to Shared_small_blade_whoosh2.mp3.mpeg;
 miss-2.wav corresponds to Shared_small_blade_whoosh3.mp3.mpeg.
 
-The supplied MP3 recordings were converted to 22050 Hz stereo PCM WAV.
-Playback lowers their level and applies a 3 ms fade at file boundaries.
+internal/sound/clips/blade-dance.wav
+Juggernaut Blade Dance recording from Dota 2 (© Valve and/or its licensors),
+played on a Critical Strike hit at 80% on top of one of the attack recordings.
+Supplied source file: Blade_Dance.mp3.mpeg. It starts at the recording's own
+impact (0.205 s, 3 ms fade-in) so that impact coincides with the attack
+recording's hit instead of sounding as a second hit; it ends at 1.6 s of the
+source with a 0.25 s fade-out.
+
+internal/sound/clips/blade-ring.wav
+Large blade ring recording from Dota 2 (© Valve and/or its licensors), played
+on a parried hit. Supplied source file: Shared_large_blade_ring1.mp3.mpeg,
+copied from mono to both channels, with a 4 dB high shelf above 7 kHz and a
+soft 90 ms impact mixed under it (the start of Juggernaut_attack1.mp3.mpeg,
+low-passed at 1.2 kHz and lowered by 4 dB).
+
+Both ability files are normalized to a -1.5 dB peak without compression or
+limiting and raised in playback (+4.1 dB and +5.7 dB over the attack
+recordings' level) to match the attack recordings' loudness.
+
+The game plays audio at 44100 Hz. All supplied MP3s were converted directly to
+44100 Hz stereo PCM WAV without compression or limiting. The attack files are
+lowered by 1.5 dB and the miss files by 0.5 dB for headroom (the attack MP3s
+peak above full scale); playback restores the same amount.
 These recordings are not licensed under MIT by this project. This notice
 does not grant permission to redistribute them.
 Valve terms: https://store.steampowered.com/subscriber_agreement/

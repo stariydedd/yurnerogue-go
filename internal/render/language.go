@@ -15,9 +15,13 @@ func (r *Renderer) translateMessage(message string) string {
 }
 
 func helpEntryName(l Layout, entry helpEntry) string {
+	if entry.role == "" {
+		return locale.Text(l.Language, entry.name) // key binding
+	}
 	if l.Language == locale.Russian {
 		if category, ok := map[string]string{
 			"food": "FOOD", "elixir": "CLARITY", "scroll": "SCROLL", "sword": "WEAPON", "portal": "PORTAL",
+			"special-strike": "CRITICAL STRIKE", "defense": "PARRY ABILITY",
 		}[entry.role]; ok {
 			return locale.Text(l.Language, category)
 		}

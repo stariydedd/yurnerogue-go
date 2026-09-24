@@ -9,7 +9,7 @@ from tests.replay_fixture import ACTIONS
 
 
 def start(client, name="tester"):
-    response = client.post("/api/runs/start", json={"player_name": name, "version": "1"})
+    response = client.post("/api/runs/start", json={"player_name": name, "version": "2"})
     assert response.status_code == 201
     assert response.json()["seed"] == "1"
     return response.json()["ticket"]
@@ -28,11 +28,11 @@ def test_server_recomputes_score(client):
     assert response.status_code == 201
     body = response.json()
     assert body["player_name"] == "tester"
-    assert body["treasures"] == 278
-    assert body["enemies_killed"] == 6
-    assert body["attacks_made"] == 45
-    assert body["hits_taken"] == 20
-    assert body["tiles_moved"] == 217
+    assert body["treasures"] == 502
+    assert body["enemies_killed"] == 8
+    assert body["attacks_made"] == 44
+    assert body["hits_taken"] == 21
+    assert body["tiles_moved"] == 484
     assert body["verified"] is True
     assert "ticket" not in body and "actions" not in body
 
@@ -56,7 +56,7 @@ def test_client_cannot_override_verified_fields(client, extra):
 def test_ticket_is_required_and_server_issued(client):
     assert submit(client, str(uuid4())).status_code == 404
     assert submit(client, "bad").status_code == 422
-    assert client.post("/api/runs/start", json={"version": "1", "seed": "1"}).status_code == 422
+    assert client.post("/api/runs/start", json={"version": "2", "seed": "1"}).status_code == 422
 
 
 @pytest.mark.parametrize("actions", ["w", "z", "h9", "h", "d100", "", "w" * 60001, ACTIONS + "w"],
@@ -116,8 +116,8 @@ def test_expired_or_incompatible_tickets_rejected(client, field, value, status):
 
 def test_start_validates_version_and_name(client):
     assert client.post("/api/runs/start", json={"version": "old"}).status_code == 409
-    assert client.post("/api/runs/start", json={"version": "1", "player_name": "x" * 33}).status_code == 422
-    ticket = client.post("/api/runs/start", json={"version": "1"}).json()["ticket"]
+    assert client.post("/api/runs/start", json={"version": "2", "player_name": "x" * 33}).status_code == 422
+    ticket = client.post("/api/runs/start", json={"version": "2"}).json()["ticket"]
     assert submit(client, ticket).json()["player_name"] == "anonymous"
 
 

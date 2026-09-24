@@ -1,6 +1,10 @@
 package game
 
-import "github.com/hajimehoshi/ebiten/v2"
+import (
+	"math"
+
+	"github.com/hajimehoshi/ebiten/v2"
+)
 
 var _ ebiten.FinalScreenDrawer = (*Game)(nil)
 
@@ -15,46 +19,48 @@ func (g *Game) DrawFinalScreen(screen ebiten.FinalScreen, offscreen *ebiten.Imag
 	}
 
 	bounds := screen.Bounds()
-	source := g.surface.Bounds()
 	op := &ebiten.DrawImageOptions{Filter: ebiten.FilterNearest}
-	op.GeoM.Scale(float64(bounds.Dx())/float64(source.Dx()), float64(bounds.Dy())/float64(source.Dy()))
-	op.GeoM.Translate(float64(bounds.Min.X), float64(bounds.Min.Y))
+	sx, sy, x, y := g.surfaceTransform(bounds.Dx(), bounds.Dy())
+	op.GeoM.Scale(sx, sy)
+	op.GeoM.Translate(float64(bounds.Min.X)+x, float64(bounds.Min.Y)+y)
 	screen.DrawImage(g.surface, op)
 }
-
-// Игра рисуется в поверхность фиксированного логического размера, а та
-// растягивается на всё окно.
-//
-// Если вернуть логический размер прямо из Layout, Ebitengine впишет картинку
-// в канвас с сохранением пропорций и оставит чёрные поля по краям на любом
-// экране, чьи пропорции отличаются от игровых. Растяжение убирает поля ценой
-// лёгкого искажения — тот же компромисс, что был в Python-версии.
 
 // ensureSurface создаёт логическую поверхность под текущую раскладку.
 func (g *Game) ensureSurface() *ebiten.Image {
 	l := g.renderer.Layout
 	if g.surface == nil ||
 		g.surface.Bounds().Dx() != l.ScreenW || g.surface.Bounds().Dy() != l.ScreenH {
+		if g.surface != nil {
+			g.surface.Deallocate()
+		}
 		g.surface = ebiten.NewImage(l.ScreenW, l.ScreenH)
 	}
 	return g.surface
 }
 
-// scaleToWindow — во сколько раз логическая поверхность растянута до окна.
-func (g *Game) scaleToWindow() (float64, float64) {
+// Drawing and pointer input share this exact transform. The desktop can leave
+// a subpixel rounding margin, but never stretches sprites along a single axis.
+func (g *Game) surfaceTransform(width, height int) (sx, sy, x, y float64) {
 	l := g.renderer.Layout
-	if g.outW <= 0 || g.outH <= 0 {
-		return 1, 1
+	if width <= 0 || height <= 0 {
+		return 1, 1, 0, 0
 	}
-	return float64(g.outW) / float64(l.ScreenW), float64(g.outH) / float64(l.ScreenH)
+	sx, sy = float64(width)/float64(l.ScreenW), float64(height)/float64(l.ScreenH)
+	if !l.Touch {
+		sx = math.Min(sx, sy)
+		sy = sx
+		x, y = (float64(width)-float64(l.ScreenW)*sx)/2, (float64(height)-float64(l.ScreenH)*sy)/2
+	}
+	return
 }
 
 // toLogical переводит координаты окна (касания, курсор) в координаты
 // логической поверхности, в которых заданы кнопки.
 func (g *Game) toLogical(x, y int) (int, int) {
-	sx, sy := g.scaleToWindow()
+	sx, sy, dx, dy := g.surfaceTransform(g.outW, g.outH)
 	if sx == 0 || sy == 0 {
 		return x, y
 	}
-	return int(float64(x) / sx), int(float64(y) / sy)
+	return int(math.Floor((float64(x) - dx) / sx)), int(math.Floor((float64(y) - dy) / sy))
 }

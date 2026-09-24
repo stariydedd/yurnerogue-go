@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
+	"github.com/stariydedd/yurnerogue-go/internal/locale"
 )
 
 func TestGeneratedItemNamesFitHUDAndMobileMenus(t *testing.T) {
@@ -18,7 +19,7 @@ func TestGeneratedItemNamesFitHUDAndMobileMenus(t *testing.T) {
 	p.MaxHealth, p.Strength, p.Agility = 1000000, 1000000, 1000000
 	rng := rand.New(rand.NewSource(21))
 	for i := 0; i < 2000; i++ {
-		for _, item := range []*domain.Item{domain.NewFood(p), domain.NewElixir(p), domain.NewScroll(p), domain.NewWeapon(rng)} {
+		for _, item := range []*domain.Item{domain.NewFood(p, domain.MaxLevels), domain.NewElixir(p, domain.MaxLevels), domain.NewScroll(p, domain.MaxLevels), domain.NewWeapon(domain.MaxLevels, rng)} {
 			label := "> " + item.Name + item.StatLabel()
 			if TextWidth(label, fonts.Compact) > 460 {
 				t.Fatalf("mobile menu clips %q", label)
@@ -35,7 +36,7 @@ func TestGeneratedItemNamesFitHUDAndMobileMenus(t *testing.T) {
 
 func TestHUDItemValuesFollowInventoryAndEquipment(t *testing.T) {
 	p := domain.NewPerson()
-	for _, control := range []string{CtrlFood, CtrlElixir, CtrlScroll} {
+	for _, control := range []string{CtrlFood, CtrlElixir} {
 		if value, active := itemSlotValue(p, control); value != "0" || active {
 			t.Fatalf("empty %s: %q %v", control, value, active)
 		}
@@ -50,18 +51,41 @@ func TestHUDItemValuesFollowInventoryAndEquipment(t *testing.T) {
 	if value, _ := itemSlotValue(p, CtrlFood); value != "1" {
 		t.Fatal("used item still counted")
 	}
-	if value, active := itemSlotValue(p, CtrlWeapon); value != "+0" || !active {
-		t.Fatal("starter weapon missing from HUD")
-	}
 	if weaponLabel(p) != domain.BaseWeaponName {
 		t.Fatal("wrong starting weapon label")
 	}
-	p.Weapon = &domain.Item{Type: domain.ItemWeapon, StrengthEffect: 12}
-	if value, active := itemSlotValue(p, CtrlWeapon); value != "+12" || !active {
-		t.Fatal("wrong weapon bonus")
+	p.Weapon = &domain.Item{Type: domain.ItemWeapon, Name: "Yasha", StrengthEffect: 40}
+	if weaponLabel(p) != "Yasha" {
+		t.Fatal("the weapon name alone shows its strength")
 	}
 	if value, active := itemSlotValue(nil, CtrlFood); value != "" || active {
 		t.Fatal("menu without session has inventory")
+	}
+}
+
+func TestHealthBarTurnsRedStrictlyBelowQuarterHealth(t *testing.T) {
+	for _, test := range []struct {
+		health, maximum int
+		red             bool
+	}{
+		{500, 500, false}, {126, 500, false}, {125, 500, false}, {124, 500, true},
+		{0, 500, true}, {25, 101, true}, {26, 101, false}, {1, 4, false},
+		{0, 0, false}, {600, 500, false},
+	} {
+		p := &domain.Person{Health: test.health, MaxHealth: test.maximum}
+		fill, highlight, edge := healthBarColors(p)
+		if (fill == uiDanger) != test.red || test.red && (edge != uiDanger || highlight == uiHighlight) {
+			t.Fatalf("incorrect health bar palette at %d/%d", test.health, test.maximum)
+		}
+	}
+	p := &domain.Person{Health: 100, MaxHealth: 500}
+	p.Heal(25)
+	if fill, _, _ := healthBarColors(p); fill != uiAccent {
+		t.Fatal("healing back to 25 percent must restore orange")
+	}
+	p.MaxHealth = 600
+	if fill, _, _ := healthBarColors(p); fill != uiDanger {
+		t.Fatal("health warning must use the current maximum health")
 	}
 }
 
@@ -118,6 +142,46 @@ func TestHUDStackedBonusesUpdateAtEachExpiry(t *testing.T) {
 	}
 }
 
+func TestSleepSharesStatusAreaWithAllBonuses(t *testing.T) {
+	p := domain.NewPerson()
+	for _, item := range []*domain.Item{
+		{Type: domain.ItemElixir, StrengthEffect: 3},
+		{Type: domain.ItemElixir, AgilityEffect: 5},
+		{Type: domain.ItemElixir, MaxHealthEffect: 20},
+	} {
+		p.PickUpItem(item)
+		p.UseItem(item)
+	}
+	p.FallAsleep(2)
+	for _, layout := range []Layout{DesktopLayout(), TouchLayout(390, 844)} {
+		for _, language := range []locale.Language{locale.English, locale.Russian} {
+			layout.Language = language
+			r := &Renderer{Layout: layout}
+			effects := r.hudEffects(p)
+			if len(effects) != 4 || effects[0].tint != uiDebuff {
+				t.Fatalf("sleep must use the blue debuff color: %+v", effects)
+			}
+			for _, effect := range effects[1:] {
+				if effect.tint != uiAccent {
+					t.Fatal("potion buffs must keep their orange color")
+				}
+			}
+			wantHead, wantTurns := "SLEEP", "2T"
+			if language == locale.Russian {
+				wantHead, wantTurns = "СОН", "2Х"
+			}
+			if len(effects) != 4 || effects[0].head != wantHead || effects[0].turns != wantTurns {
+				t.Fatalf("missing sleep or potion statuses: %+v", effects)
+			}
+		}
+	}
+	p.TickSleep()
+	p.TickSleep()
+	if effects := (&Renderer{Layout: DesktopLayout()}).hudEffects(p); len(effects) != 3 {
+		t.Fatalf("sleep must disappear on waking: %+v", effects)
+	}
+}
+
 func TestHUDAllBonusLabelsFitMobileColumn(t *testing.T) {
 	fonts, err := loadFonts()
 	if err != nil {
@@ -127,6 +191,36 @@ func TestHUDAllBonusLabelsFitMobileColumn(t *testing.T) {
 		label := bonusLabel(domain.EffectStatus{Stat: stat, Amount: 999, TurnsLeft: 20}, true)
 		if TextWidth(label, fonts.Small) > 130 {
 			t.Fatalf("mobile bonus clipped: %s", label)
+		}
+	}
+}
+
+func TestBonusStyleIsSharedAndFitsDesktopRow(t *testing.T) {
+	fonts, err := loadFonts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &Renderer{Fonts: fonts, Layout: DesktopLayout()}
+	bonuses := []domain.EffectStatus{
+		{Stat: domain.SubStrength, Amount: 3, TurnsLeft: 20},
+		{Stat: domain.SubAgility, Amount: 5, TurnsLeft: 20},
+		{Stat: domain.SubHealth, Amount: 20, TurnsLeft: 20},
+	}
+	for language, want := range map[locale.Language][2]string{
+		locale.English: {"STR +3", "20T"},
+		locale.Russian: {"СИЛ +3", "20Х"},
+	} {
+		r.Layout.Language = language
+		if head, turns := r.bonusParts(bonuses[0]); head != want[0] || turns != want[1] {
+			t.Fatalf("%s bonus parts: %q %q", language, head, turns)
+		}
+		width := -10.0
+		for _, bonus := range bonuses {
+			head, turns := r.bonusParts(bonus)
+			width += TextWidth(head+" "+turns, fonts.Small) + 10
+		}
+		if room := desktopHUDGeometry(r.Layout).effects.Dx(); width > float64(room) {
+			t.Fatalf("%s: typical bonuses need %.0fpx, row has %dpx", language, width, room)
 		}
 	}
 }
@@ -146,52 +240,6 @@ func TestHUDLabelsStayWithinTheirColumns(t *testing.T) {
 	}
 	if got := fitLabel("Tango", fonts.Small, 130); got != "Tango" {
 		t.Fatalf("short label changed: %q", got)
-	}
-}
-
-func TestMessageLinesKeepsShortMessageWhole(t *testing.T) {
-	got := messageLines("You missed the Pudge.", 40)
-	if len(got) != 1 || got[0] != "You missed the Pudge." {
-		t.Fatalf("короткое сообщение не должно разбиваться, получено %q", got)
-	}
-}
-
-func TestMessageLinesSplitsAtColon(t *testing.T) {
-	// «Picked up: имя предмета» ломается по двоеточию: заголовок отдельно,
-	// длинное имя отдельно — так оно помещается на узком экране.
-	msg := "Picked up: Elixir of the Phantom's Breath [+3 STR]."
-	got := messageLines(msg, 44)
-
-	if len(got) != 2 {
-		t.Fatalf("ожидалось две строки, получено %d: %q", len(got), got)
-	}
-	if got[0] != "Picked up:" {
-		t.Fatalf("первая строка %q, ожидалось «Picked up:»", got[0])
-	}
-	if !strings.HasPrefix(got[1], "Elixir") {
-		t.Fatalf("вторая строка должна начинаться с названия, получено %q", got[1])
-	}
-	for i, line := range got {
-		if len(line) > 44 {
-			t.Fatalf("строка %d длиннее лимита: %q", i, line)
-		}
-	}
-}
-
-func TestMessageLinesWrapsWithoutColon(t *testing.T) {
-	msg := "The Skywrath Mage hit you for 42 dmg. You fall asleep!"
-	got := messageLines(msg, 30)
-
-	if len(got) < 2 {
-		t.Fatalf("длинное сообщение должно переноситься, получено %q", got)
-	}
-	for i, line := range got {
-		if len(line) > 30 {
-			t.Fatalf("строка %d длиннее лимита: %q", i, line)
-		}
-	}
-	if strings.Join(got, " ") != msg {
-		t.Fatalf("перенос потерял или переставил слова: %q", got)
 	}
 }
 

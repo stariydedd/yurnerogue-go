@@ -90,12 +90,12 @@ func TestReplayRejectsInvalidAndUnfinishedRuns(t *testing.T) {
 }
 
 func TestGoldenReplayMatchesServerOnEveryPlatform(t *testing.T) {
-	const actions = "sssddsssdddddddddddddddsssssssssssssswwwwaaaaaaaaaaaaaaawwwwwwwwwddddddddddddddddsssdddddddddddddddddsssssdddddddssssddddddddddsssssddddddddddddddddddddssddddddddddddddsdddwsdsssaaaaassswwwwwwwwwwwaaaaaaaawwwdddddwwwwwwwwwawwwaawwwwwwwwwwwwaaasaaaassssdddsssssaa"
+	const actions = "sssddsssdddddddddddddddsssssssssddddwwwwwwaaaaaaaaaaaaaaawwwwwwwwwddddddddddddddddsssdddddddddddddddddsssssdddddddssssddddddddddsssssdddddddddddddddddssddddddddddddddsdddwwwwwwwwdwwaaaaaaaaaawwwwwwwwwwwwwaaaaassssssaassssaaaaaaaaaaaaaasssssssssssssdwwwwwwaaaaaaaaaaaaaaaaaaaaaaassaawssawaswsaaawwasswawswsaaaaaawaaaaaaaaaaaaaaaaaaaaaassaaaaassssssaaaaaaaaaasssssssaaaaaaaaaawwwwwwwddddddddwwwwwwwwddddddddddddddddddddddsdddddddddddddddddwwdddddddddddddddddddsssssssssssddssssssssssssaasssssssssssssssddddddssssaaaawddddwwwwwaaaa"
 	s, err := Replay(1, actions)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Player.Treasures != 278 || s.Stats != (Stats{EnemiesKilled: 6, AttacksMade: 45, HitsTaken: 20, TilesMoved: 217}) {
+	if s.Player.Treasures != 502 || s.Stats != (Stats{EnemiesKilled: 8, AttacksMade: 44, HitsTaken: 21, TilesMoved: 484}) {
 		t.Fatalf("rules version %s changed: gold=%d stats=%+v", RulesVersion, s.Player.Treasures, s.Stats)
 	}
 }
@@ -105,7 +105,7 @@ func TestSeededFloorsAndInventoryAreDeterministic(t *testing.T) {
 	for floor := 1; floor <= MaxLevels; floor++ {
 		// Include item rolls derived from stats and weapon replacement/drop.
 		for _, s := range []*Session{a, b} {
-			s.Player.Backpack = append(s.Player.Backpack, NewFood(s.Player), NewElixir(s.Player), NewScroll(s.Player), NewWeapon(s.Player.rng), NewWeapon(s.Player.rng))
+			s.Player.Backpack = append(s.Player.Backpack, NewFood(s.Player, 1), NewElixir(s.Player, 1), NewScroll(s.Player, 1), NewWeapon(1, s.Player.rng), NewWeapon(1, s.Player.rng))
 			for _, action := range []string{"j0", "k0", "e0", "h1", "h1", "h0", "W", "D", "S", "A"} {
 				if s.Player.IsAlive() {
 					s.ApplyAction(action)

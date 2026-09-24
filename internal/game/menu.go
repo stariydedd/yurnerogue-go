@@ -23,6 +23,8 @@ func menuPage(state State) (render.MenuPage, bool) {
 		return render.MenuResults, true
 	case StateHelp:
 		return render.MenuHelp, true
+	case StateGlossary:
+		return render.MenuGlossary, true
 	case StateLeaderboard:
 		return render.MenuLeaderboard, true
 	case StateStarting:
@@ -77,11 +79,24 @@ func (g *Game) handleMenuPointer(x, y int) {
 			}
 		}
 	}
-	if action == "start" {
+	if action == "help-page" {
+		g.switchHelpPage()
+	} else if action == "start" {
 		g.HandleKey(ebiten.KeyEnter)
 	} else if action == "back" {
 		g.HandleKey(ebiten.KeyEscape)
 	}
+}
+
+// switchHelpPage flips between CONTROLS and GLOSSARY; each page starts at its top.
+func (g *Game) switchHelpPage() {
+	g.helpScroll = 0
+	if g.state == StateGlossary {
+		g.state = StateHelp
+	} else {
+		g.state = StateGlossary
+	}
+	g.audio.Play(sound.Click)
 }
 
 func (g *Game) openWelcome() {

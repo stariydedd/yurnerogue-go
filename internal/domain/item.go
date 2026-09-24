@@ -75,17 +75,19 @@ var (
 		"Mystic Scroll",
 		"Ancient Scroll",
 	}
+	// weaponNames go from cheapest to most expensive Dota 2 item (approximate
+	// gold cost); each name covers an equal slice of the +1..+50 bonus range.
 	weaponNames = []string{
-		"Yasha",
-		"Diffusal Blade",
-		"Butterfly",
-		"Radiance",
-		"Crystalys",
-		"Battle Fury",
-		"Desolator",
-		"Shadow Blade",
-		"Silver Edge",
-		"Abyssal Blade",
+		"Crystalys",      // ~2000
+		"Yasha",          // ~2050
+		"Diffusal Blade", // ~2500
+		"Shadow Blade",   // ~3000
+		"Desolator",      // ~3500
+		"Battle Fury",    // ~4100
+		"Radiance",       // ~4700
+		"Butterfly",      // ~5000
+		"Silver Edge",    // ~5500
+		"Abyssal Blade",  // ~6250
 	}
 )
 
@@ -94,85 +96,122 @@ func pick[T any](xs []T, rng ...*rand.Rand) T {
 	return xs[random(source(rng)).Intn(len(xs))]
 }
 
-// rollUpTo возвращает случайное число от 1 до max (max не меньше 1).
-func rollUpTo(max int, rng ...*rand.Rand) int {
-	if max < 1 {
-		max = 1
-	}
-	return random(source(rng)).Intn(max) + 1
+// rollBetween возвращает случайное число от low до high включительно.
+func rollBetween(low, high int, rng ...*rand.Rand) int {
+	low = max(1, low)
+	high = max(low, high)
+	return low + random(source(rng)).Intn(high-low+1)
 }
 
-// RandomItem создаёт случайный предмет: еду, эликсир, свиток или оружие.
-// Величина эффектов считается от характеристик игрока, поэтому он нужен.
-func RandomItem(player *Person) *Item {
+// RandomItem создаёт случайный предмет уровня level: еду, эликсир, свиток или
+// оружие. Сила находок зависит от глубины, еда от здоровья игрока.
+func RandomItem(player *Person, level int) *Item {
 	switch random(player.rng).Intn(4) {
 	case 0:
-		return NewFood(player)
+		return NewFood(player, level)
 	case 1:
-		return NewElixir(player)
+		return NewElixir(player, level)
 	case 2:
-		return NewScroll(player)
+		return NewScroll(player, level)
 	default:
-		return NewWeapon(player.rng)
+		return NewWeapon(level, player.rng)
 	}
 }
 
-// NewFood — еда, восстанавливающая до 20% максимального здоровья.
-func NewFood(player *Person) *Item {
+// NewFood: еда уровня level. Лечение зависит от глубины, а не от максимума
+// здоровья: Bloodseeker уменьшает максимум, а еда должна оставаться полезной.
+func NewFood(player *Person, level int) *Item {
+	low, high := FoodHealRange(level)
 	return &Item{
 		Type:         ItemFood,
 		Name:         pick(foodNames, player.rng),
-		HealthEffect: rollUpTo(player.MaxHealth*20/100, player.rng),
+		HealthEffect: rollBetween(low, high, player.rng),
 	}
 }
 
-// NewElixir — временный бафф к одной из характеристик на ElixirDuration ходов.
-func NewElixir(player *Person) *Item {
+// FoodHealRange: сколько лечит еда на уровне: от 25..50 на первом до
+// 75..150 на последнем. Лечение не поднимает здоровье выше максимума.
+func FoodHealRange(level int) (low, high int) {
+	high = 45 + 5*max(1, level)
+	return high / 2, high
+}
+
+// NewElixir: временный бафф на ElixirDuration ходов, вдвое сильнее свитка
+// той же глубины.
+func NewElixir(player *Person, level int) *Item {
 	it := &Item{Type: ItemElixir, Name: pick(elixirNames, player.rng)}
-	applyStatRoll(it, player)
+	applyStatRoll(it, player, level, 2)
 	return it
 }
 
 // NewScroll — постоянный бафф к одной из характеристик.
-func NewScroll(player *Person) *Item {
+func NewScroll(player *Person, level int) *Item {
 	it := &Item{Type: ItemScroll, Name: pick(scrollNames, player.rng)}
-	applyStatRoll(it, player)
+	applyStatRoll(it, player, level, 1)
 	return it
 }
 
-// applyStatRoll выбирает характеристику и величину бонуса: здоровье до 20%
-// от максимума, ловкость и сила — до 10% от текущего значения.
-func applyStatRoll(it *Item, player *Person) {
+// StatBonus: диапазон бонуса свитка на уровне: сила или ловкость от
+// +2..+3 на первом до +6..+9 на последнем, максимум здоровья от половины
+// предела до предела (+13..+25 на первом, +63..+125 на последнем).
+// Зелья умножают обе границы на два, поэтому +1 не выпадает никогда.
+type StatBonus struct {
+	StatLow, StatHigh, HealthLow, HealthHigh int
+}
+
+func StatBonusRange(level int) StatBonus {
+	level = max(1, level)
+	healthHigh := 20 + 5*level
+	return StatBonus{
+		StatLow: 2 + (level-1)/5, StatHigh: 2 + (level+2)/3,
+		HealthLow: (healthHigh + 1) / 2, HealthHigh: healthHigh,
+	}
+}
+
+// applyStatRoll выбирает характеристику и величину бонуса из диапазона
+// глубины, умноженного на multiplier.
+func applyStatRoll(it *Item, player *Person, level, multiplier int) {
+	b := StatBonusRange(level)
 	switch random(player.rng).Intn(3) {
 	case 0:
 		it.SubType = SubHealth
-		it.MaxHealthEffect = rollUpTo(player.MaxHealth*20/100, player.rng)
+		it.MaxHealthEffect = rollBetween(b.HealthLow*multiplier, b.HealthHigh*multiplier, player.rng)
 	case 1:
 		it.SubType = SubAgility
-		it.AgilityEffect = rollUpTo(player.Agility*10/100, player.rng)
+		it.AgilityEffect = rollBetween(b.StatLow*multiplier, b.StatHigh*multiplier, player.rng)
 	default:
 		it.SubType = SubStrength
-		it.StrengthEffect = rollUpTo(player.Strength*10/100, player.rng)
+		it.StrengthEffect = rollBetween(b.StatLow*multiplier, b.StatHigh*multiplier, player.rng)
 	}
 }
 
-// NewWeapon — оружие с бонусом к силе 30..50.
-func NewWeapon(rng ...*rand.Rand) *Item {
-	// Rules version 1 consumes Intn(9), then Intn(21). Keep those exact draws:
-	// Intn(len(weaponNames)) would change damage and subsequent map/combat rolls.
-	// Both existing rolls select the cosmetic name, allowing all ten variants.
-	const nameRollBound = 9
-	nameRoll := random(source(rng)).Intn(nameRollBound)
-	damageRoll := random(source(rng)).Intn(21)
-	return &Item{
-		Type:           ItemWeapon,
-		Name:           weaponNames[(nameRoll+damageRoll*nameRollBound)%len(weaponNames)],
-		StrengthEffect: damageRoll + 30,
-	}
+// WeaponBonusRange: бонус оружия на уровне: от +1..+17 на первом до
+// +36..+50 на последнем. Заточка может поднять бонус выше.
+func WeaponBonusRange(level int) (low, high int) {
+	level = max(1, level)
+	return 1 + 7*(level-1)/4, min(MaxWeaponBonus, 17+2*(level-1))
+}
+
+// NewWeapon: оружие уровня level со случайным бонусом из WeaponBonusRange;
+// название определяется бонусом.
+func NewWeapon(level int, rng ...*rand.Rand) *Item {
+	low, high := WeaponBonusRange(level)
+	bonus := low + random(source(rng)).Intn(high-low+1)
+	return &Item{Type: ItemWeapon, Name: WeaponName(bonus), StrengthEffect: bonus}
+}
+
+// WeaponName: название оружия по бонусу: чем сильнее, тем дороже предмет.
+func WeaponName(bonus int) string {
+	step := MaxWeaponBonus / len(weaponNames)
+	return weaponNames[clamp((bonus-1)/step, 0, len(weaponNames)-1)]
 }
 
 // StatLabel — приписка к сообщению об использовании предмета, например " [+3 STR]".
+// У оружия приписки нет: его сила видна по названию.
 func (it *Item) StatLabel() string {
+	if it.Type == ItemWeapon {
+		return ""
+	}
 	switch {
 	case it.HealthEffect > 0:
 		return " [+" + itoa(it.HealthEffect) + " HP]"

@@ -15,7 +15,9 @@ docker compose --env-file .env --env-file .release.env ps
 docker compose --env-file .env --env-file .release.env logs --tail=100 backend
 ```
 
-Deployment pulls only the selected backend image, waits for container health,
+Deployment pulls the selected backend image and the current `nginx:alpine` and
+`postgres:16-alpine` builds (security fixes; PostgreSQL stays on major 16),
+waits for container health,
 validates and reloads nginx, then checks HTTPS health, a database-backed
 leaderboard read and the WASM file. A failed check fails the workflow; there is
 no automatic rollback. Static upload and backend restart are not atomic, so a
@@ -24,6 +26,50 @@ compatible and retain database backups independently of deployments.
 
 To roll back, redeploy a known-good revision with its matching backend image
 and web artifact. Do not delete the PostgreSQL volume or replace server secrets.
+
+## Database safety
+
+The backend creates missing tables on startup, so a lost volume would
+otherwise come up as a working site with an empty leaderboard. Three guards
+prevent silent data loss:
+
+- **Database identity.** The one-shot `db-guard` service
+  (`infra/scripts/db-guard.sh`) runs before the backend. It compares the id in
+  the `infra_meta` table with `/opt/rogue/state/db-id`. The first start of an
+  existing database records the id in both places. An empty or different
+  database stops the backend from starting, and `docker compose up --wait`
+  fails. Check `docker compose ... logs db-guard`. Delete `state/db-id` only
+  when an empty database is intended.
+- **Pre-deploy dumps.** Every deploy runs `scripts/backup.sh pre-deploy` before
+  touching containers. Dumps are kept in `/opt/rogue/backups` for 14 days.
+- **Off-server copies.** `.github/workflows/backup.yml` runs daily (and on
+  demand), checks the dump with `pg_restore --list`, encrypts it with the
+  `BACKUP_PASSPHRASE` secret and stores it as a workflow artifact for 90 days.
+  The repository is public, so only encrypted dumps leave the server. Keep the
+  passphrase outside GitHub as well: without it the artifacts cannot be read.
+  GitHub pauses scheduled workflows after 60 days without repository activity.
+
+To restore a dump (decrypt an artifact first with
+`openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in X.dump.enc -out X.dump`):
+
+```sh
+cd /opt/rogue
+C="docker compose --env-file .env --env-file .release.env"
+$C stop backend
+$C exec -T db dropdb -U rogue rogue && $C exec -T db createdb -U rogue rogue
+$C exec -T db pg_restore -U rogue -d rogue --no-owner --exit-on-error < X.dump
+$C up -d --wait
+```
+
+A dump restored on a server with a different `state/db-id` is rejected by
+`db-guard`; if that dump is the intended data, replace `state/db-id` with the
+`db_id` value from its `infra_meta` table.
+
+To move to another server, use `infra/migrate.sh OLD_IP NEW_IP` from a machine
+with root SSH access to both. It never modifies the old server, copies secrets,
+`state/db-id`, backups, static files and certificates, transfers the database,
+compares row counts of every table and starts the stack only if they match.
+It then prints the remaining DNS, `DEPLOY_HOST` and nginx steps.
 
 ## Ranked replay verification
 

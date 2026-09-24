@@ -28,6 +28,7 @@ type bank struct {
 	attacks     [attackVariants][]byte
 	misses      [missVariants][]byte
 }
+
 type Engine struct {
 	context      *audio.Context
 	ready        chan bank
@@ -50,12 +51,17 @@ func New() *Engine {
 	go func() {
 		b := bank{menu: music(false), world: music(true)}
 		for c := Cue(0); c < cueCount; c++ {
-			if c == Hit || c == Swing {
+			if Recorded(c) {
 				continue
 			}
 			b.cues[c] = effect(c)
 		}
 		var err error
+		for c, clip := range abilityRecordings {
+			if b.cues[c], err = loadRecording(clip.name, clip.gain); err != nil {
+				log.Printf("Ability recording unavailable: %v", err)
+			}
+		}
 		b.attacks, err = loadAttackSamples()
 		if err != nil {
 			log.Printf("Attack recordings unavailable: %v", err)
@@ -170,6 +176,14 @@ func (e *Engine) Play(c Cue) {
 		return
 	}
 	data := e.bank.cues[c]
+	if c == Critical {
+		// A Critical Strike is a regular attack recording (same no-repeat bag
+		// as ordinary hits) with Blade Dance layered on top.
+		e.last[c] = e.tick
+		e.startVoice(e.bank.attacks[e.attackBag.next(attackVariants)])
+		e.startVoice(data)
+		return
+	}
 	if c == Hit {
 		data = e.bank.attacks[e.attackBag.next(attackVariants)]
 	}
@@ -189,6 +203,13 @@ func (e *Engine) Play(c Cue) {
 		return
 	}
 	e.last[c] = e.tick
+	e.startVoice(data)
+}
+
+func (e *Engine) startVoice(data []byte) {
+	if len(data) == 0 {
+		return
+	}
 	if len(e.voices) >= maxVoices {
 		e.voices[0].Close()
 		e.voices = e.voices[1:]

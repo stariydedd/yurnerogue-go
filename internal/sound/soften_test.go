@@ -26,7 +26,7 @@ func TestEffectFilterReducesTrebleWithoutMutingBody(t *testing.T) {
 		return math.Sqrt(energy/float64(to-from)) / (12000 / math.Sqrt2)
 	}
 	for c := Cue(0); c < cueCount; c++ {
-		if c == Hit || c == Swing {
+		if Recorded(c) {
 			continue
 		} // Recordings deliberately bypass this filter.
 		_, gain := effectProfile(c)
@@ -71,7 +71,7 @@ func TestEffectProfilesPreserveQuietStepsAndControls(t *testing.T) {
 		t.Fatal("soft mix lost relative level balance")
 	}
 	for c := Cue(0); c < cueCount; c++ {
-		if c == Hit || c == Swing {
+		if Recorded(c) {
 			continue
 		}
 		data := effect(c)

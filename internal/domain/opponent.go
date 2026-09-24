@@ -100,6 +100,7 @@ type Opponent struct {
 	Facing    int
 
 	hostility hostility
+	level     int // floor the enemy was generated for; 0 for fixtures
 
 	// Особенности поведения отдельных типов.
 	lastDirection      *Point // Snake: не повторяет прошлый диагональный шаг
@@ -134,15 +135,24 @@ func NewOpponent(t OpponentType) *Opponent {
 }
 
 // RandomOpponent создаёт случайного врага, усиленного под номер уровня:
-// характеристики растут на PercentsUpdateDifficultyMonsters процентов за уровень.
+// каждая характеристика растёт на свой процент за уровень (см. consts.go).
 func RandomOpponent(levelNum int, rng ...*rand.Rand) *Opponent {
 	op := NewOpponent(pick(AllOpponentTypes, rng...))
 	op.rng = source(rng)
-	scale := 1 + float64(PercentsUpdateDifficultyMonsters*levelNum)/100.0
-	op.Health = int(float64(op.Health) * scale)
-	op.Agility = int(float64(op.Agility) * scale)
-	op.Strength = int(float64(op.Strength) * scale)
+	op.level = levelNum
+	grow := func(value int, percent float64) int {
+		return int(float64(value) * (1 + percent*float64(max(0, levelNum-1))/100))
+	}
+	op.Health = grow(op.Health, EnemyHealthGrowthPercent)
+	op.Agility = grow(op.Agility, EnemyAgilityGrowthPercent)
+	op.Strength = grow(op.Strength, EnemyStrengthGrowthPercent)
 	return op
+}
+
+// MaxHealthDrain: сколько максимума здоровья крадёт удар Bloodseeker:
+// растёт с глубиной, а не зависит от запаса здоровья игрока.
+func (o *Opponent) MaxHealthDrain() int {
+	return BloodseekerDrainBase + BloodseekerDrainPerLevel*max(1, o.level)
 }
 
 // IsAlive — жив ли враг.
@@ -192,8 +202,9 @@ func shuffled(src []Point, rng ...*rand.Rand) []Point {
 
 // canStep — можно ли врагу встать на клетку: пол комнаты или коридор,
 // не занятые другим живым врагом.
-func (o *Opponent) canStep(x, y int, rooms []*Room, passages []Rect, opponents []*Opponent) bool {
-	if !InBounds(x, y) {
+func (o *Opponent) canStep(x, y int, player Point, rooms []*Room, passages []Rect, opponents []*Opponent) bool {
+	// The hero's cell is never free: enemies attack it from next to it instead.
+	if !InBounds(x, y) || (Point{x, y}) == player {
 		return false
 	}
 	if !IsAnyRoomFloorCell(x, y, rooms) && !InPassageCenter(x, y, passages) {
@@ -209,6 +220,7 @@ func (o *Opponent) canStep(x, y int, rooms []*Room, passages []Rect, opponents [
 
 // pathStep — первый шаг кратчайшего пути к цели (обход в ширину) или nil.
 func (o *Opponent) pathStep(tx, ty int, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+	player := Point{tx, ty}
 	if o.X == tx && o.Y == ty {
 		return nil
 	}
@@ -232,7 +244,7 @@ func (o *Opponent) pathStep(tx, ty int, rooms []*Room, passages []Rect, opponent
 				return step
 			}
 			p := Point{nx, ny}
-			if !visited[p] && o.canStep(nx, ny, rooms, passages, opponents) {
+			if !visited[p] && o.canStep(nx, ny, player, rooms, passages, opponents) {
 				visited[p] = true
 				queue = append(queue, node{nx, ny, step})
 			}
@@ -242,26 +254,26 @@ func (o *Opponent) pathStep(tx, ty int, rooms []*Room, passages []Rect, opponent
 }
 
 // patternStep — ход по собственному паттерну типа, когда игрок не преследуется.
-func (o *Opponent) patternStep(rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+func (o *Opponent) patternStep(player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
 	switch o.Type {
 	case Zombie:
-		return o.firstWalkable(shuffled(dirs4, o.rng), rooms, passages, opponents)
+		return o.firstWalkable(shuffled(dirs4, o.rng), player, rooms, passages, opponents)
 	case Vampire:
-		return o.firstWalkable(shuffled(dirs8, o.rng), rooms, passages, opponents)
+		return o.firstWalkable(shuffled(dirs8, o.rng), player, rooms, passages, opponents)
 	case Ghost:
-		return o.blinkInRoom(rooms, passages, opponents)
+		return o.blinkInRoom(player, rooms, passages, opponents)
 	case Ogre:
-		return o.doubleStep(rooms, passages, opponents)
+		return o.doubleStep(player, rooms, passages, opponents)
 	case Snake:
-		return o.diagonalStep(rooms, passages, opponents)
+		return o.diagonalStep(player, rooms, passages, opponents)
 	}
 	return nil
 }
 
 // firstWalkable возвращает первое проходимое направление из списка.
-func (o *Opponent) firstWalkable(candidates []Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+func (o *Opponent) firstWalkable(candidates []Point, player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
 	for _, d := range candidates {
-		if o.canStep(o.X+d.X, o.Y+d.Y, rooms, passages, opponents) {
+		if o.canStep(o.X+d.X, o.Y+d.Y, player, rooms, passages, opponents) {
 			dd := d
 			return &dd
 		}
@@ -270,7 +282,7 @@ func (o *Opponent) firstWalkable(candidates []Point, rooms []*Room, passages []R
 }
 
 // blinkInRoom — Riki телепортируется в случайную клетку своей комнаты.
-func (o *Opponent) blinkInRoom(rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+func (o *Opponent) blinkInRoom(player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
 	var room *Room
 	for _, r := range rooms {
 		if r != nil && r.IsFloorCell(o.X, o.Y) {
@@ -284,7 +296,7 @@ func (o *Opponent) blinkInRoom(rooms []*Room, passages []Rect, opponents []*Oppo
 	for i := 0; i < 16; i++ {
 		nx := room.X + random(o.rng).Intn(room.W)
 		ny := room.Y + random(o.rng).Intn(room.H)
-		if o.canStep(nx, ny, rooms, passages, opponents) {
+		if o.canStep(nx, ny, player, rooms, passages, opponents) {
 			return &Point{nx - o.X, ny - o.Y}
 		}
 	}
@@ -292,10 +304,10 @@ func (o *Opponent) blinkInRoom(rooms []*Room, passages []Rect, opponents []*Oppo
 }
 
 // doubleStep — Axe шагает на две клетки, если свободны обе.
-func (o *Opponent) doubleStep(rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+func (o *Opponent) doubleStep(player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
 	for _, d := range shuffled(dirs4, o.rng) {
-		if o.canStep(o.X+d.X, o.Y+d.Y, rooms, passages, opponents) &&
-			o.canStep(o.X+d.X*OgreStep, o.Y+d.Y*OgreStep, rooms, passages, opponents) {
+		if o.canStep(o.X+d.X, o.Y+d.Y, player, rooms, passages, opponents) &&
+			o.canStep(o.X+d.X*OgreStep, o.Y+d.Y*OgreStep, player, rooms, passages, opponents) {
 			return &Point{d.X * OgreStep, d.Y * OgreStep}
 		}
 	}
@@ -303,12 +315,12 @@ func (o *Opponent) doubleStep(rooms []*Room, passages []Rect, opponents []*Oppon
 }
 
 // diagonalStep — Skywrath ходит по диагонали, стараясь не повторять прошлый шаг.
-func (o *Opponent) diagonalStep(rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+func (o *Opponent) diagonalStep(player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
 	for _, d := range shuffled(diag4, o.rng) {
 		if o.lastDirection != nil && *o.lastDirection == d {
 			continue
 		}
-		if o.canStep(o.X+d.X, o.Y+d.Y, rooms, passages, opponents) {
+		if o.canStep(o.X+d.X, o.Y+d.Y, player, rooms, passages, opponents) {
 			dd := d
 			o.lastDirection = &dd
 			return &dd
@@ -316,7 +328,7 @@ func (o *Opponent) diagonalStep(rooms []*Room, passages []Rect, opponents []*Opp
 	}
 	if o.lastDirection != nil {
 		d := *o.lastDirection
-		if o.canStep(o.X+d.X, o.Y+d.Y, rooms, passages, opponents) {
+		if o.canStep(o.X+d.X, o.Y+d.Y, player, rooms, passages, opponents) {
 			return &d
 		}
 	}
@@ -336,7 +348,7 @@ func (o *Opponent) Move(px, py int, rooms []*Room, passages []Rect, opponents []
 		if o.IsChasing && dist > HighHostilityRadius*2 {
 			o.IsChasing = false
 		}
-		step = o.patternStep(rooms, passages, opponents)
+		step = o.patternStep(Point{px, py}, rooms, passages, opponents)
 	}
 	if step == nil {
 		return

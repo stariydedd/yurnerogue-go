@@ -37,7 +37,7 @@ class RunTicket(BaseModel):
 
 class RunSubmit(BaseModel):
     ticket: UUID
-    actions: str = Field(min_length=1, max_length=60000, pattern=r"^[wasdWASDzhjke0-9]+$")
+    actions: str = Field(min_length=1, max_length=60000, pattern=r"^[wasdWASDzhjkebt0-9]+$")
     model_config = {"extra": "forbid"}
 
 

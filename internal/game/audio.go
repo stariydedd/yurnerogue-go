@@ -37,7 +37,8 @@ func (g *Game) updateAudio(before State) {
 type actionAudioSnapshot struct {
 	stats                     domain.Stats
 	level, items, enemyHealth int
-	weapon                    *domain.Item
+	weaponName                string
+	weaponBonus               int
 	position                  domain.Point
 	stepCue                   sound.Cue
 	combat                    []domain.CombatEvent
@@ -54,9 +55,13 @@ func captureActionAudio(s *domain.Session) actionAudioSnapshot {
 	if domain.IsCorridorCell(s.Player.X, s.Player.Y, s.Level.Rooms, s.Level.Passages) {
 		step = sound.StepTrail
 	}
+	bonus, name := 0, domain.BaseWeaponName
+	if s.Player.Weapon != nil {
+		bonus, name = s.Player.Weapon.StrengthEffect, s.Player.Weapon.Name
+	}
 	return actionAudioSnapshot{
 		stats: s.Stats, level: s.LevelNum, items: len(s.Player.Backpack), enemyHealth: health,
-		weapon: s.Player.Weapon, position: domain.Point{X: s.Player.X, Y: s.Player.Y}, stepCue: step,
+		weaponName: name, weaponBonus: bonus, position: domain.Point{X: s.Player.X, Y: s.Player.Y}, stepCue: step,
 		combat: append([]domain.CombatEvent(nil), s.CombatEvents...),
 	}
 }
@@ -79,9 +84,12 @@ func actionCues(before, after actionAudioSnapshot, action string) []sound.Cue {
 				break
 			}
 		}
-		if hit {
+		switch {
+		case hit && len(action) == 2 && action[0] == 't':
+			cues = append(cues, sound.Critical) // Blade Dance instead of an ordinary hit
+		case hit:
 			cues = append(cues, sound.Hit)
-		} else {
+		default:
 			cues = append(cues, sound.Swing)
 		}
 	}
@@ -100,8 +108,19 @@ func actionCues(before, after actionAudioSnapshot, action string) []sound.Cue {
 	if after.stats.ScrollsRead > before.stats.ScrollsRead {
 		cues = append(cues, sound.Scroll)
 	}
-	if after.weapon != before.weapon {
+	// A parried hit clangs once per action, however many enemies were blocked.
+	for _, event := range after.combat {
+		if event.Parried {
+			cues = append(cues, sound.Parry)
+			break
+		}
+	}
+	// Sound follows the log: a new name is a new weapon, the same name with a
+	// higher bonus is the same blade sharpened (even if a stronger copy replaced it).
+	if after.weaponName != before.weaponName {
 		cues = append(cues, sound.Equip)
+	} else if after.weaponBonus > before.weaponBonus {
+		cues = append(cues, sound.Sharpen)
 	}
 	if len(action) == 1 && after.items > before.items {
 		cues = append(cues, sound.Pickup)

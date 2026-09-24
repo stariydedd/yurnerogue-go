@@ -3,6 +3,7 @@ package render
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -21,28 +22,35 @@ func (r *Renderer) DrawHUD(dst *ebiten.Image, s *domain.Session) {
 	} else {
 		r.drawHUDDesktop(dst, s)
 	}
-	r.drawSleepStatus(dst, s.Player)
-	r.drawNotification(dst, s.Message)
 }
 
 func (r *Renderer) drawHUDDesktop(dst *ebiten.Image, s *domain.Session) {
 	y, p := r.Layout.GridTop(), s.Player
-	portrait := image.Rect(12, y+22, 100, y+122)
-	r.uiSlot(dst, portrait, false)
-	r.drawHUDPortrait(dst, portrait)
-	r.Text(dst, strings.ToUpper(domain.PlayerName), r.Fonts.UI, 112, float64(y+26), uiText)
-	r.drawHPBar(dst, p, image.Rect(112, y+56, 418, y+82))
-	r.Text(dst, r.hudStatsLabel(p, r.Fonts.Compact, 308, "STRENGTH %d   AGILITY %d"), r.Fonts.Compact, 112, float64(y+100), uiText)
-	for _, x := range []int{444, 830, 1170} {
-		vector.StrokeLine(dst, float32(x), float32(y+26), float32(x), float32(y+122), 1, uiEdge, false)
+	h := desktopHUDGeometry(r.Layout)
+	r.uiSlot(dst, h.portrait, false)
+	r.drawHUDPortrait(dst, h.portrait)
+	r.drawInventoryHUD(dst, p)
+	r.drawHPBar(dst, p, h.health)
+	r.Text(dst, r.hudStatsLabel(p, r.Fonts.Compact, float64(h.health.Dx()), "STRENGTH %d   AGILITY %d"), r.Fonts.Compact, float64(h.health.Min.X), float64(y+56), uiText)
+	for _, divider := range []int{h.health.Max.X + 16, h.status.Min.X - 12} {
+		vector.StrokeLine(dst, float32(divider), float32(h.health.Min.Y), float32(divider), float32(h.portrait.Max.Y), 1, uiEdge, false)
 	}
-	r.Text(dst, fitLabel(weaponLabel(p), r.Fonts.Compact, 244), r.Fonts.Compact, 568, float64(y+43), uiText)
-	r.drawEffects(dst, p, image.Rect(568, y+70, 816, y+124))
-	for name, rect := range HUDTargets(r.Layout) {
+	for name, rect := range h.targets {
+		if role := abilityButtonRole[name]; role != "" {
+			r.abilitySlot(dst, rect, name, p, false)
+			key := "F"
+			if name == CtrlGuard {
+				key = "E"
+			}
+			badge := h.keyBadge(rect)
+			r.uiSlot(dst, badge, false)
+			r.slotLabel(dst, key, badge, uiText)
+			continue
+		}
 		if itemButtonRole[name] != "" {
 			r.itemSlot(dst, rect, name, p, false)
-			key := map[string]string{CtrlWeapon: "H", CtrlFood: "J", CtrlElixir: "K", CtrlScroll: "E"}[name]
-			badge := image.Rect(rect.Min.X+26, y+113, rect.Max.X-26, y+136)
+			key := map[string]string{CtrlFood: "C", CtrlElixir: "X"}[name]
+			badge := h.keyBadge(rect)
 			r.uiSlot(dst, badge, false)
 			r.slotLabel(dst, key, badge, uiText)
 		} else {
@@ -57,11 +65,20 @@ func (r *Renderer) drawHUDDesktop(dst *ebiten.Image, s *domain.Session) {
 			r.slotLabel(dst, r.tr(caption), rect, uiText)
 		}
 	}
-	status := fmt.Sprintf(r.tr("LEVEL %d/%d  GOLD %d"), s.LevelNum, domain.MaxLevels, p.Treasures)
-	width := min(414, int(TextWidth(status, r.Fonts.Small))+28)
-	box := image.Rect(r.Layout.ScreenW-12-width, y-32, r.Layout.ScreenW-12, y+1)
-	r.stonePanel(dst, box)
-	r.slotLabel(dst, status, box, uiText)
+	level := fmt.Sprintf(r.tr("LEVEL %d/%d"), s.LevelNum, domain.MaxLevels)
+	gold := r.tr("GOLD") + " " + strconv.Itoa(p.Treasures)
+	label := fitLabel(level+"   "+gold, r.Fonts.Small, float64(h.status.Dx()))
+	r.Text(dst, label, r.Fonts.Small, float64(h.status.Min.X), float64(h.status.Min.Y), uiText)
+	x, effectY := float64(h.status.Min.X)+TextWidth(label, r.Fonts.Small)+20, float64(h.status.Min.Y)
+	for _, effect := range r.hudEffects(p) {
+		head, turns := effect.head, effect.turns
+		width := TextWidth(head+" "+turns, r.Fonts.Small)
+		if x+width > float64(h.effects.Max.X) && effectY < float64(h.effects.Min.Y) {
+			x, effectY = float64(h.effects.Min.X), float64(h.effects.Min.Y)
+		}
+		x += r.drawEffect(dst, head, turns, x, effectY, max(0, float64(h.effects.Max.X)-x), effect.tint) + 10
+	}
+	r.drawEventLog(dst, s, h.log)
 }
 
 func (r *Renderer) drawHUDTouch(dst *ebiten.Image, s *domain.Session) {
@@ -71,11 +88,40 @@ func (r *Renderer) drawHUDTouch(dst *ebiten.Image, s *domain.Session) {
 	r.drawHUDPortrait(dst, portrait)
 	r.drawHPBar(dst, p, image.Rect(76, y+16, 314, y+42))
 	r.Text(dst, r.hudStatsLabel(p, r.Fonts.Small, 238, "STRENGTH %d  AGILITY %d"), r.Fonts.Small, 76, float64(y+53), uiText)
-	r.Text(dst, fitLabel(weaponLabel(p), r.Fonts.Small, 238), r.Fonts.Small, 76, float64(y+80), uiText)
+	r.drawInventoryHUD(dst, p)
 	vector.StrokeLine(dst, 326, float32(y+16), 326, float32(y+92), 1, uiEdge, false)
 	r.Text(dst, fmt.Sprintf(r.tr("LEVEL %d/%d"), s.LevelNum, domain.MaxLevels), r.Fonts.Small, 338, float64(y+17), uiText)
 	r.Text(dst, fitLabel(r.tr("GOLD")+" "+strconv.Itoa(p.Treasures), r.Fonts.Small, 130), r.Fonts.Small, 338, float64(y+40), uiText)
-	r.drawEffects(dst, p, image.Rect(338, y+58, 468, y+100))
+	r.drawEffects(dst, p, image.Rect(338, y+54, 468, y+102))
+	r.drawEventLog(dst, s, image.Rect(10, y+104, r.Layout.ScreenW-10, r.Layout.ControlsTop()-8))
+}
+
+func (r *Renderer) abilitySlot(dst *ebiten.Image, box image.Rectangle, control string, p *domain.Person, pressed bool) {
+	cooldown, armed := 0, false
+	if p != nil {
+		cooldown = p.GuardCooldown
+		if control == CtrlStrike {
+			cooldown, armed = p.StrikeCooldown, p.StrikeArmed
+		}
+	}
+	r.uiSlot(dst, box, pressed || armed)
+	r.drawIcon(dst, abilityButtonRole[control], boxCenter(box).Sub(image.Pt(0, 3)), float64(min(box.Dx(), box.Dy())-14), p == nil || cooldown > 0 || p.Sleeping)
+	if cooldown > 0 {
+		badge := image.Rect(box.Max.X-28, box.Max.Y-24, box.Max.X-4, box.Max.Y-4)
+		fillBox(dst, badge, uiInk)
+		r.slotLabel(dst, strconv.Itoa(cooldown), badge, uiText)
+	}
+}
+
+func (r *Renderer) drawInventoryHUD(dst *ebiten.Image, p *domain.Person) {
+	y := r.Layout.GridTop()
+	weapon := image.Rect(116, y+74, 418, y+110)
+	face := r.Fonts.Compact
+	if r.Layout.Touch {
+		face = r.Fonts.Small
+		weapon = image.Rect(76, y+66, 314, y+108)
+	}
+	r.Text(dst, fitLabel(weaponLabel(p), face, float64(weapon.Dx())), face, float64(weapon.Min.X), float64(weapon.Min.Y+14), uiText)
 }
 
 func (r *Renderer) hudStatsLabel(p *domain.Person, face text.Face, width float64, format string) string {
@@ -94,6 +140,13 @@ func (r *Renderer) hudHealthLabel(p *domain.Person, width float64) string {
 	return label
 }
 
+func healthBarColors(p *domain.Person) (fill, highlight, edge color.RGBA) {
+	if p != nil && p.MaxHealth > 0 && float64(p.Health)/float64(p.MaxHealth) < 0.25 {
+		return uiDanger, color.RGBA{255, 117, 104, 255}, uiDanger
+	}
+	return uiAccent, uiHighlight, uiEdge
+}
+
 func (r *Renderer) drawHPBar(dst *ebiten.Image, p *domain.Person, box image.Rectangle) {
 	ratio := 0.0
 	if p.MaxHealth > 0 {
@@ -104,11 +157,12 @@ func (r *Renderer) drawHPBar(dst *ebiten.Image, p *domain.Person, box image.Rect
 	fillBox(dst, inner, uiRecess)
 	fill := inner
 	fill.Max.X = fill.Min.X + int(float64(fill.Dx())*ratio)
-	fillBox(dst, fill, uiAccent)
+	fillColor, highlight, edge := healthBarColors(p)
+	fillBox(dst, fill, fillColor)
 	if !fill.Empty() {
-		fillBox(dst, image.Rect(fill.Min.X, fill.Min.Y, fill.Max.X, fill.Min.Y+3), uiHighlight)
+		fillBox(dst, image.Rect(fill.Min.X, fill.Min.Y, fill.Max.X, fill.Min.Y+3), highlight)
 	}
-	strokeBox(dst, box, 1, uiEdge)
+	strokeBox(dst, box, 1, edge)
 	r.slotLabel(dst, r.hudHealthLabel(p, float64(box.Dx()-8)), box, uiText)
 }
 
@@ -116,13 +170,7 @@ func itemSlotValue(p *domain.Person, control string) (string, bool) {
 	if p == nil {
 		return "", false
 	}
-	if control == CtrlWeapon {
-		if p.Weapon == nil {
-			return "+0", true
-		}
-		return fmt.Sprintf("%+d", p.Weapon.StrengthEffect), true
-	}
-	typeOf := map[string]domain.ItemType{CtrlFood: domain.ItemFood, CtrlElixir: domain.ItemElixir, CtrlScroll: domain.ItemScroll}
+	typeOf := map[string]domain.ItemType{CtrlFood: domain.ItemFood, CtrlElixir: domain.ItemElixir}
 	kind, ok := typeOf[control]
 	if !ok {
 		return "", false
@@ -187,71 +235,62 @@ func bonusLabel(bonus domain.EffectStatus, compact bool) string {
 }
 
 func (r *Renderer) drawEffects(dst *ebiten.Image, p *domain.Person, box image.Rectangle) {
-	rowH := box.Dy() / 3
-	for i, bonus := range statusBonuses(p) {
-		stat := r.tr(bonusStatLabel(bonus.Stat, r.Layout.Touch))
-		label := fitLabel(fmt.Sprintf(r.tr("%s %+d %dT"), stat, bonus.Amount, bonus.TurnsLeft), r.Fonts.Small, float64(box.Dx()))
-		x, y := float64(box.Min.X), float64(box.Min.Y+i*rowH)
-		r.Text(dst, label, r.Fonts.Small, x, y, uiText)
-		r.Text(dst, stat, r.Fonts.Small, x, y, uiAccent)
+	effects := r.hudEffects(p)
+	rowH := box.Dy() / max(3, len(effects))
+	for i, effect := range effects {
+		r.drawEffect(dst, effect.head, effect.turns, float64(box.Min.X), float64(box.Min.Y+i*rowH), float64(box.Dx()), effect.tint)
 	}
 }
 
-func (r *Renderer) drawSleepStatus(dst *ebiten.Image, p *domain.Person) {
-	if !p.Sleeping || p.SleepTurns <= 0 {
-		return
-	}
-	x, y := 286, r.Layout.GridTop()+28
-	label := fmt.Sprintf(r.tr("SLEEP %dT"), p.SleepTurns)
-	if r.Layout.Touch {
-		x, y, label = 12, r.Layout.GridTop()+90, fmt.Sprintf(r.tr("ZZ %dT"), p.SleepTurns)
-	}
-	r.Text(dst, label, r.Fonts.Small, float64(x), float64(y), uiAccent)
+type hudEffect struct {
+	head, turns string
+	tint        color.RGBA
 }
 
-func (r *Renderer) drawNotification(dst *ebiten.Image, message string) {
-	message = r.translateMessage(message)
-	if strings.TrimSpace(message) == "" {
-		return
+func (r *Renderer) hudEffects(p *domain.Person) []hudEffect {
+	var effects []hudEffect
+	// Sleep comes first so it remains visible even when the status row is crowded.
+	if p.Sleeping && p.SleepTurns > 0 {
+		effects = append(effects, hudEffect{r.tr("SLEEP"), fmt.Sprintf(r.tr("%dT"), p.SleepTurns), uiDebuff})
 	}
-	maxWidth := 794
-	if r.Layout.Touch {
-		maxWidth = r.Layout.ScreenW - 24
+	for _, bonus := range statusBonuses(p) {
+		head, turns := r.bonusParts(bonus)
+		effects = append(effects, hudEffect{head, turns, uiAccent})
 	}
-	lines := messageLines(message, (maxWidth-28)/10)
-	if len(lines) > 2 {
-		lines = []string{lines[0], strings.Join(lines[1:], " ")}
+	return effects
+}
+
+// bonusParts splits a bonus into the stat and amount ("STR +3") and the
+// remaining turns ("20T"), translated for the current language.
+func (r *Renderer) bonusParts(bonus domain.EffectStatus) (string, string) {
+	return fmt.Sprintf("%s %+d", r.tr(bonusStatLabel(bonus.Stat, true)), bonus.Amount),
+		fmt.Sprintf(r.tr("%dT"), bonus.TurnsLeft)
+}
+
+// drawBonus is the single bonus style of both HUDs: stat and amount in the
+// accent colour, turns in the text colour. Returns the drawn width.
+func (r *Renderer) drawBonus(dst *ebiten.Image, bonus domain.EffectStatus, x, y, width float64) float64 {
+	head, turns := r.bonusParts(bonus)
+	return r.drawEffect(dst, head, turns, x, y, width, uiAccent)
+}
+
+func (r *Renderer) drawEffect(dst *ebiten.Image, head, turns string, x, y, width float64, tint color.RGBA) float64 {
+	face := r.Fonts.Small
+	if full := head + " " + turns; TextWidth(full, face) > width {
+		label := fitLabel(full, face, width)
+		r.Text(dst, label, face, x, y, tint)
+		return TextWidth(label, face)
 	}
-	width := 0
-	for i, line := range lines {
-		lines[i] = fitLabel(line, r.Fonts.Small, float64(maxWidth-28))
-		width = max(width, int(TextWidth(lines[i], r.Fonts.Small)))
-	}
-	height := 24 + len(lines)*18
-	box := image.Rect(12, r.Layout.GridH-height-8, 12+width+28, r.Layout.GridH-8)
-	r.stonePanel(dst, box)
-	for i, line := range lines {
-		r.Text(dst, line, r.Fonts.Small, float64(box.Min.X+14), float64(box.Min.Y+12+i*18), uiText)
-	}
+	r.Text(dst, head, face, x, y, tint)
+	r.Text(dst, turns, face, x+TextWidth(head+" ", face), y, uiText)
+	return TextWidth(head+" "+turns, face)
 }
 
 func weaponLabel(p *domain.Person) string {
 	if p.Weapon == nil {
 		return domain.BaseWeaponName
 	}
-	return p.Weapon.Name + " +" + strconv.Itoa(p.Weapon.StrengthEffect)
-}
-
-func messageLines(msg string, maxChars int) []string {
-	if len(msg) <= maxChars {
-		return []string{msg}
-	}
-	if head, tail, ok := strings.Cut(msg, ": "); ok {
-		if len(head)+1 <= maxChars && len(tail) <= maxChars {
-			return []string{head + ":", tail}
-		}
-	}
-	return wrapText(msg, maxChars)
+	return p.Weapon.Name // the name already shows how strong it is
 }
 
 func wrapText(s string, maxChars int) []string {
