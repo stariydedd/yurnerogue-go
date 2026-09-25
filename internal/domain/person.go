@@ -190,6 +190,29 @@ func (p *Person) applyElixir(item *Item) {
 	add(SubStrength, item.StrengthEffect)
 }
 
+// DrainMaxHealth отнимает максимум здоровья, как Bloodseeker. Сначала тратится
+// временный бонус зелий (раньше выпитые первыми), иначе по окончании зелья
+// тот же бонус отняли бы второй раз и украденное удвоилось бы.
+func (p *Person) DrainMaxHealth(amount int) {
+	p.MaxHealth -= amount
+	remaining := p.effects[:0]
+	for _, e := range p.effects {
+		if e.sub == SubHealth {
+			spent := min(e.amount, amount)
+			e.amount -= spent
+			amount -= spent
+			if e.amount == 0 {
+				continue
+			}
+		}
+		remaining = append(remaining, e)
+	}
+	p.effects = remaining
+	if p.Health > p.MaxHealth {
+		p.Health = p.MaxHealth
+	}
+}
+
 // TickEffects уменьшает таймеры эликсиров и откатывает истёкшие.
 func (p *Person) TickEffects() {
 	remaining := p.effects[:0]

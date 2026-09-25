@@ -180,3 +180,58 @@ func TestEnemyTurnsAttackAdjacentPlayer(t *testing.T) {
 		t.Fatal("враг должен повернуться к игроку (тот слева)")
 	}
 }
+
+func TestBloodseekerDrainSpendsElixirBonusFirst(t *testing.T) {
+	hp := func(p *Person) [2]int { return [2]int{p.Health, p.MaxHealth} }
+	drink := func(p *Person, amount int) {
+		e := &Item{Type: ItemElixir, MaxHealthEffect: amount}
+		p.PickUpItem(e)
+		p.UseItem(e)
+	}
+	expire := func(p *Person) {
+		for i := 0; i < ElixirDuration; i++ {
+			p.TickEffects()
+		}
+	}
+
+	p := NewPerson()
+	drink(p, 100)
+	p.DrainMaxHealth(30)
+	p.DrainMaxHealth(30)
+	if hp(p) != [2]int{540, 540} {
+		t.Fatalf("after two drains got %v", hp(p))
+	}
+	expire(p)
+	if hp(p) != [2]int{500, 500} {
+		t.Fatalf("the drained bonus was taken again on expiry: %v", hp(p))
+	}
+
+	// A drain larger than the bonus takes the rest from the base.
+	p = NewPerson()
+	drink(p, 100)
+	p.DrainMaxHealth(130)
+	if hp(p) != [2]int{470, 470} || p.ActiveEffects() != 0 {
+		t.Fatalf("spent bonus must end, the rest comes from the base: %v, %d effects", hp(p), p.ActiveEffects())
+	}
+	expire(p)
+	if hp(p) != [2]int{470, 470} {
+		t.Fatalf("nothing is left to expire: %v", hp(p))
+	}
+
+	// Two elixirs: the older bonus is spent first; stat buffs stay.
+	p = NewPerson()
+	drink(p, 50)
+	drink(p, 50)
+	strength := &Item{Type: ItemElixir, StrengthEffect: 5}
+	p.PickUpItem(strength)
+	p.UseItem(strength)
+	p.DrainMaxHealth(70)
+	statuses := p.EffectStatuses()
+	if len(statuses) != 2 || statuses[0] != (EffectStatus{SubHealth, 30, ElixirDuration}) || statuses[1].Stat != SubStrength {
+		t.Fatalf("got %v", statuses)
+	}
+	expire(p)
+	if hp(p) != [2]int{500, 500} {
+		t.Fatalf("got %v", hp(p))
+	}
+}

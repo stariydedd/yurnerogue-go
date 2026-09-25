@@ -63,10 +63,7 @@ func OpponentAttacks(o *Opponent, p *Person) int {
 			return 0 // parried: nothing is drained
 		}
 		damage := o.MaxHealthDrain()
-		p.MaxHealth -= damage
-		if p.Health > p.MaxHealth {
-			p.Health = p.MaxHealth
-		}
+		p.DrainMaxHealth(damage)
 		return damage
 	}
 
