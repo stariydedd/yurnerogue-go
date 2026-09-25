@@ -143,6 +143,9 @@ func (r *Renderer) DrawRunSummary(screen *ebiten.Image, s *domain.Session, name 
 	r.secondaryCaption(screen, "RUN SUMMARY / "+playerLabel(name), 98)
 	box := runPanelBounds(r.Layout, true)
 	r.stonePanel(screen, box)
+	if won {
+		r.drawVictoryHero(screen, box)
+	}
 	colW := (box.Dx() - 48) / 2
 	rowH := (box.Dy() - 116) / 4
 	for i, stat := range runSummaryStats(s) {
@@ -163,4 +166,28 @@ func (r *Renderer) DrawRunSummary(screen *ebiten.Image, s *domain.Session, name 
 	for i, line := range wrapText(r.translateMessage(status), chars) {
 		r.TextCentered(screen, line, face, float64(box.Max.Y+16)+float64(i)*(TextWidth("M", face)+6), uiAccent)
 	}
+}
+
+// drawVictoryHero stands Juggernaut beside the results of a won run, idling,
+// at a whole-number scale so the pixel art stays sharp. On desktop he stands
+// left of the panel; the phone panel is full width, so there he stands
+// smaller beside the title.
+func (r *Renderer) drawVictoryHero(screen *ebiten.Image, panel image.Rectangle) {
+	img := r.sprites.Frame("player", r.AnimTick())
+	if img == nil {
+		return
+	}
+	size := img.Bounds().Size()
+	room := panel.Min.X - 24 // free width left of the panel
+	scale := min(6, room/max(1, size.X), panel.Dy()/max(1, size.Y))
+	x, y := (panel.Min.X-size.X*scale)/2, panel.Min.Y+(panel.Dy()-size.Y*scale)/2
+	if scale < 3 {
+		scale = 2
+		x, y = 16, 20
+	}
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(float64(scale), float64(scale))
+	op.GeoM.Translate(float64(x), float64(y))
+	op.Filter = ebiten.FilterNearest
+	screen.DrawImage(img, op)
 }

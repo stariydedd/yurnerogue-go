@@ -98,7 +98,10 @@ func effect(c Cue) []byte {
 		return nil // The engine plays an embedded recording instead.
 	}
 	duration := 0.7
-	if c == Portal || c == Death || c == Victory || c == Start {
+	if c == Victory {
+		return effectPCM(victoryFanfare(), c, 0.12)
+	}
+	if c == Portal || c == Death || c == Start {
 		duration = 2.4
 	}
 	dst := make([]float64, int(duration*SampleRate))
@@ -128,7 +131,7 @@ func effect(c Cue) []byte {
 		case Click:
 			notes = []float64{440}
 			duration = 0.10
-		case Start, Victory:
+		case Start:
 			notes = []float64{293.66, 349.23, 440, 587.33}
 		case Heal:
 			notes = []float64{349.23, 440, 523.25}
@@ -209,6 +212,38 @@ func upsampleLoop(src []float64, factor int) []float64 {
 		for k := 0; k < factor; k++ {
 			dst[i*factor+k] = v + (next-v)*float64(k)/float64(factor)
 		}
+	}
+	return dst
+}
+
+// victoryFanfare is the finale of a won run, about four seconds in D major,
+// the key of the forest music: a three-note call, a leap to the fifth, a
+// rising answer and a long high tonic over a brass chord, bass and a few
+// bell sparkles.
+func victoryFanfare() []float64 {
+	const (
+		d3, d4, fs4, a4 = 146.83, 293.66, 369.99, 440.0
+		d5, fs5, a5, d6 = 587.33, 739.99, 880.0, 1174.66
+		fs6, a6         = 1479.98, 1760.0
+		final           = 1.45
+	)
+	dst := make([]float64, int(4.4*SampleRate))
+	// Call and answer, with a brass tone rather than a bell.
+	for _, n := range []struct{ at, dur, hz float64 }{
+		{0, .12, d5}, {.14, .12, d5}, {.28, .12, d5}, {.42, .6, a5},
+		{1.05, .18, fs5}, {1.25, .18, a5}, {final, 2.8, d6},
+	} {
+		tone(dst, n.at, n.dur, n.hz, .15, .012, false)
+	}
+	// The chord and bass hold the final note.
+	tone(dst, 0, .9, d3, .10, .02, false)
+	for _, hz := range []float64{d4, fs4, a4} {
+		tone(dst, final, 2.8, hz, .06, .03, false)
+	}
+	tone(dst, final, 2.8, d3, .10, .03, false)
+	// Sparkles over the last chord.
+	for i, hz := range []float64{d6, fs6, a6} {
+		tone(dst, final+.08+float64(i)*.09, 1.2, hz, .04, .004, true)
 	}
 	return dst
 }

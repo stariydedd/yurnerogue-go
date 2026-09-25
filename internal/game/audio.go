@@ -14,6 +14,7 @@ func (g *Game) EnableAudio() {
 }
 
 func (g *Game) updateAudio(before State) {
+	g.audio.SilenceMusic(g.state == StateWin)
 	g.audio.Update(g.session != nil, ebiten.IsFocused())
 	if before == g.state {
 		return

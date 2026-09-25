@@ -83,6 +83,15 @@ type Engine struct {
 	missBag      variantBag
 	lastStepTick int
 	stepPlayed   bool
+	silent       bool
+}
+
+// SilenceMusic fades the music out quickly and keeps it out, for the victory
+// fanfare; false lets it fade back in at the usual pace.
+func (e *Engine) SilenceMusic(on bool) {
+	if e != nil {
+		e.silent = on
+	}
 }
 
 func New() *Engine {
@@ -189,11 +198,14 @@ func (e *Engine) Update(exploring, focused bool) {
 		if !p.IsPlaying() {
 			p.Play()
 		}
-		target := 0.0
+		target, step := 0.0, 0.005
 		if (i == 1) == exploring {
 			target = float64(e.settings.Music) / 100
 		}
-		e.mix[i] += math.Max(-0.005, math.Min(0.005, target-e.mix[i]))
+		if e.silent {
+			target, step = 0, 0.05 // out in about a third of a second
+		}
+		e.mix[i] += math.Max(-step, math.Min(step, target-e.mix[i]))
 		if e.settings.Music == 0 {
 			e.mix[i] = 0
 		}
