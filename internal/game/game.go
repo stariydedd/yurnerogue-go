@@ -43,11 +43,15 @@ type Game struct {
 	session  *domain.Session
 	// heldStep — текущая клавиша пришла из автоповтора зажатого направления.
 	heldStep bool
-	// ticks считает кадры Update; attackReady — тик, с которого разрешён
-	// следующий удар, queuedAttack — удар, нажатый раньше этого тика.
+	// ticks считает кадры Update; turnReady — тик, с которого разрешён
+	// следующий ход, queuedAction — последний ход, нажатый раньше, и был ли
+	// он ударом.
 	ticks        int
-	attackReady  int
-	queuedAttack string
+	turnReady    int
+	queuedAction string
+	queuedAttack bool
+	// paced включает темп ходов под анимацию; тесты правил ходят без него.
+	paced bool
 
 	state State
 	// helpReturn — экран, на который возвращает справка.
@@ -97,7 +101,7 @@ type Game struct {
 // New создаёт игру с заданным рендерером. На тач-раскладке добавляется
 // панель экранных кнопок.
 func New(r *render.Renderer) *Game {
-	g := &Game{renderer: r, state: StateMainMenu}
+	g := &Game{renderer: r, state: StateMainMenu, paced: true}
 	if r.Layout.Touch {
 		g.controls = render.NewControls(r.Layout)
 		g.touch = newTouchInput(g.controls)
@@ -137,7 +141,7 @@ func (g *Game) Update() error {
 	defer func() {
 		if g.state != before {
 			g.keyboard.reset()
-			g.queuedAttack = ""
+			g.queuedAction, g.queuedAttack = "", false
 			if g.touch != nil {
 				g.touch.reset()
 			}
@@ -179,7 +183,7 @@ func (g *Game) Update() error {
 	if g.state == StateNameEntry && !browserNameEntry {
 		g.appendTypedRunes()
 	}
-	g.releaseQueuedAttack()
+	g.releaseQueuedAction()
 	return nil
 }
 
@@ -406,9 +410,13 @@ func directionAction(d domain.Point, run bool) string {
 	return string(code)
 }
 
-// attackInterval — не чаще одного удара за шаг ходьбы при удержании: частые
-// нажатия дают ровный ритм, а не наложенные друг на друга удары и метки.
-const attackInterval = render.HeldMoveTicks
+// Ходы идут не чаще, чем проигрывается их анимация: частые нажатия дают ровный
+// ритм, а не ход за ходом в одном кадре с прыжками героя и камеры. Шаг
+// ждёт конца анимации шага, удар длится как шаг ходьбы при удержании.
+const (
+	turnInterval   = render.StepTicks
+	attackInterval = render.HeldMoveTicks
+)
 
 // isAttack — действие бьёт врага: шаг в его клетку или критический удар.
 func (g *Game) isAttack(action string) bool {
@@ -420,28 +428,31 @@ func (g *Game) isAttack(action string) bool {
 	return ok && !p.Sleeping && g.session.OpponentAt(p.X+d.X, p.Y+d.Y) != nil
 }
 
-// releaseQueuedAttack выполняет удар, нажатый до конца интервала, если он
-// всё ещё удар: враг мог уйти, и тогда случайный шаг хуже пропуска.
-func (g *Game) releaseQueuedAttack() {
-	if g.queuedAttack == "" || g.ticks < g.attackReady {
+// releaseQueuedAction выполняет ход, нажатый до конца интервала. Удар
+// выполняется, только если он всё ещё удар: враг мог уйти, и тогда
+// случайный шаг хуже пропуска.
+func (g *Game) releaseQueuedAction() {
+	if g.queuedAction == "" || g.ticks < g.turnReady {
 		return
 	}
-	action := g.queuedAttack
-	g.queuedAttack = ""
-	if g.state == StatePlaying && g.isAttack(action) {
+	action, attack := g.queuedAction, g.queuedAttack
+	g.queuedAction, g.queuedAttack = "", false
+	if g.state == StatePlaying && (!attack || g.isAttack(action)) {
 		g.performAction(action)
 	}
 }
 
 func (g *Game) performAction(action string) {
-	if g.isAttack(action) {
-		if g.ticks < g.attackReady {
-			g.queuedAttack = action
-			return
-		}
-		g.attackReady = g.ticks + attackInterval
+	attack := g.isAttack(action)
+	if g.paced && g.ticks < g.turnReady {
+		g.queuedAction, g.queuedAttack = action, attack // only the latest press waits
+		return
 	}
-	g.queuedAttack = ""
+	g.queuedAction, g.queuedAttack = "", false
+	g.turnReady = g.ticks + turnInterval
+	if attack {
+		g.turnReady = g.ticks + attackInterval
+	}
 	g.renderer.SyncMotion(g.session, false)
 	before := captureActionAudio(g.session)
 	if g.session.ApplyAction(action) == nil {

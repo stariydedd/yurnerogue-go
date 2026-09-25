@@ -1,7 +1,6 @@
 package sound
 
 import (
-	"bytes"
 	"encoding/binary"
 	"log"
 	"math"
@@ -73,7 +72,7 @@ type Engine struct {
 	context      *audio.Context
 	ready        chan bank
 	bank         *bank
-	tracks       [2]*audio.Player
+	tracks       [2]musicTrack
 	voices       []*audio.Player
 	settings     Settings
 	mix          [2]float64
@@ -167,12 +166,14 @@ func (e *Engine) Update(exploring, focused bool) {
 		case b := <-e.ready:
 			e.bank = &b
 			for i, data := range [][]byte{b.menu, b.world} {
-				p, err := e.context.NewPlayer(audio.NewInfiniteLoop(bytes.NewReader(data), int64(len(data))))
-				if err == nil {
+				if p := newMusicTrack(e.context, data); p != nil {
 					e.tracks[i] = p
 					p.SetVolume(0)
 				}
 			}
+			// The tracks own their samples now; the bank copy would only weigh
+			// on the garbage collector.
+			e.bank.menu, e.bank.world = nil, nil
 		default:
 			return
 		}

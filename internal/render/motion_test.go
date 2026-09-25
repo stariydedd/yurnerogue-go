@@ -156,7 +156,7 @@ func TestForestCacheCoversEveryPixelOfShortCameraSlide(t *testing.T) {
 	for _, l := range []Layout{DesktopLayout(), TouchLayout(390, 700)} {
 		key := forestCacheKey{level: s.Level, visible: 1, viewport: image.Rect(100, 100, 100+l.GridW, 100+l.GridH)}
 		cached := key
-		cached.viewport = cached.viewport.Inset(-2 * TileSize)
+		cached.viewport = cached.viewport.Inset(-forestMargin)
 		for offset := -32; offset <= 32; offset++ {
 			request := key
 			request.viewport = request.viewport.Add(image.Pt(offset, -offset))
@@ -219,13 +219,13 @@ func TestForestRebuildSpreadsOverFramesWhileOldTerrainStays(t *testing.T) {
 		t.Fatal("first terrain was not built in one frame")
 	}
 	near := key
-	near.viewport = near.viewport.Add(image.Pt(TileSize/2, 0))
+	near.viewport = near.viewport.Add(image.Pt(forestPrefetch, 0))
 	frame(near)
 	if r.forestBuild != nil {
 		t.Fatal("a short camera slide started a rebuild")
 	}
 	for name, next := range map[string]forestCacheKey{
-		"camera": {level: key.level, visible: key.visible, viewport: key.viewport.Add(image.Pt(TileSize*3/2, 0))},
+		"camera": {level: key.level, visible: key.visible, viewport: key.viewport.Add(image.Pt(forestPrefetch+TileSize/2, 0))},
 		"light":  {level: key.level, visible: key.visible + 1, viewport: key.viewport},
 	} {
 		frame(key)
@@ -233,6 +233,10 @@ func TestForestRebuildSpreadsOverFramesWhileOldTerrainStays(t *testing.T) {
 			frame(key)
 		}
 		old := r.forest
+		frame(next)
+		if r.forest != old || r.forestBuild == nil || r.forestBuild.scene == nil || r.forestBuild.strip != 0 {
+			t.Fatalf("%s: the first frame must only prepare the scene", name)
+		}
 		for i := 1; i < forestStrips; i++ {
 			frame(next)
 			if r.forest != old || r.forestBuild == nil || r.forestBuild.strip != i {
@@ -241,7 +245,7 @@ func TestForestRebuildSpreadsOverFramesWhileOldTerrainStays(t *testing.T) {
 		}
 		frame(next)
 		if r.forestBuild != nil || !forestCacheContains(r.forest.key, next) {
-			t.Fatalf("%s: rebuild did not finish after %d frames", name, forestStrips)
+			t.Fatalf("%s: rebuild did not finish after %d frames", name, forestStrips+1)
 		}
 	}
 }
@@ -257,11 +261,11 @@ func TestHeldStepsWalkAtSteadySpeedWithoutEasing(t *testing.T) {
 		}
 	}
 	for i := 1; i < len(xs); i++ {
-		if d := xs[i] - xs[i-1]; d < 2 || d > 3 {
+		if d := xs[i] - xs[i-1]; d < TileSize/HeldMoveTicks || d > (TileSize+HeldMoveTicks-1)/HeldMoveTicks {
 			t.Fatalf("tick %d moved %d px; held walking must keep one speed across tiles", i, d)
 		}
 	}
-	if HeldMoveTicks <= moveTicks {
-		t.Fatal("held movement must be slower than a tapped step")
+	if HeldMoveTicks != moveTicks {
+		t.Fatal("held movement must keep the tapped step pace")
 	}
 }

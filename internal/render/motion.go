@@ -10,10 +10,13 @@ import (
 
 const moveTicks = 8 // 133 ms at 60 TPS, independent of simulation turns.
 
-// HeldMoveTicks is one step of held movement: slower than a tap, and linear,
+// HeldMoveTicks is one step of held movement: as long as a tap, but linear,
 // so consecutive steps join into one steady walk instead of easing in and out
 // on every tile. The game repeats a held direction at the same interval.
-const HeldMoveTicks = 12 // 200 ms
+const HeldMoveTicks = moveTicks
+
+// StepTicks is one tapped step; the game paces turns to it.
+const StepTicks = moveTicks
 
 type actorMotion struct {
 	path    []image.Point

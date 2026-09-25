@@ -80,6 +80,7 @@ func TestHeldMovementUsesNormalTurnsAndReplay(t *testing.T) {
 		held := func(k ebiten.Key) bool { return k == ebiten.KeyD }
 		g.handleKeyboard([]ebiten.Key{ebiten.KeyD}, held, true)
 		for i := 0; i < repeatDelay+2*repeatInterval; i++ {
+			g.ticks++ // as Update does every frame
 			g.handleKeyboard(nil, held, true)
 		}
 		if g.session.Player.X != 9 || g.session.Turns != 4 || g.session.Actions() != strings.Repeat("d", 4) {

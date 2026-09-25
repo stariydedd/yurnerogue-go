@@ -84,7 +84,15 @@ func (m *forestMemory) reveal(level *domain.Level, grid domain.Grid, vis domain.
 // forestStrips is how many frames a terrain rebuild is spread over. A whole
 // rebuild in one frame took long enough on a slow machine to starve the
 // browser audio buffer; one strip per frame keeps every frame short.
-const forestStrips = 6
+const forestStrips = 8
+
+// The cache reaches forestMargin past the screen, and the next one is started
+// once the camera has used half of it. Pacing back and forth inside a room
+// then keeps the cache; a two-tile margin rebuilt it on nearly every step.
+const (
+	forestMargin   = 4 * TileSize
+	forestPrefetch = forestMargin / 2
+)
 
 // forestBuild is the next terrain cache, rendered a strip per frame while the
 // previous cache stays on screen.
@@ -92,6 +100,10 @@ type forestBuild struct {
 	forestCache
 	scene *forestScene
 	strip int
+	// Inputs of the scene, computed in its own frame, apart from the turn.
+	grid  domain.Grid
+	vis   domain.Visibility
+	paths map[domain.Point]bool
 }
 
 func sameForestContent(a, b forestCacheKey) bool {
@@ -105,10 +117,10 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, grid domain.Grid, vis dom
 	// The next cache is started early: when the terrain changed, or when the
 	// camera has used half of the margin, so it is ready before it is needed.
 	settled := r.forest != nil && forestCacheContains(r.forest.key, key) &&
-		viewport.In(r.forest.key.viewport.Inset(TileSize))
+		viewport.In(r.forest.key.viewport.Inset(forestPrefetch))
 	if !settled {
 		b := r.forestBuild
-		if b == nil || !sameForestContent(b.key, key) || !viewport.In(b.key.viewport.Inset(TileSize)) {
+		if b == nil || !sameForestContent(b.key, key) || !viewport.In(b.key.viewport.Inset(forestPrefetch)) {
 			r.startForestBuild(grid, vis, paths, key)
 		}
 	}
@@ -116,11 +128,11 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, grid domain.Grid, vis dom
 		// A stale cache of the same level may stay on screen for a few frames
 		// (lighting catches up); a cache that does not cover the view may not.
 		shown := r.forest != nil && r.forest.key.level == key.level && viewport.In(r.forest.key.viewport)
-		strips := 1
+		steps := 1
 		if !shown {
-			strips = forestStrips
+			steps = forestStrips + 1 // the scene and every strip
 		}
-		r.stepForestBuild(strips)
+		r.stepForestBuild(steps)
 	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(r.forest.key.viewport.Min.X-viewport.Min.X), float64(r.forest.key.viewport.Min.Y-viewport.Min.Y))
@@ -129,7 +141,7 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, grid domain.Grid, vis dom
 
 func (r *Renderer) startForestBuild(grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, key forestCacheKey) {
 	// Include the entire short camera slide in one terrain render.
-	key.viewport = key.viewport.Inset(-2 * TileSize)
+	key.viewport = key.viewport.Inset(-forestMargin)
 	frame := r.forestSpare
 	r.forestSpare = nil
 	if r.forestBuild != nil {
@@ -142,16 +154,22 @@ func (r *Renderer) startForestBuild(grid domain.Grid, vis domain.Visibility, pat
 	if frame == nil {
 		frame = ebiten.NewImage(key.viewport.Dx(), key.viewport.Dy())
 	}
-	terrainVis := r.forestMemory.reveal(key.level, grid, vis)
 	r.forestBuild = &forestBuild{
 		forestCache: forestCache{key: key, frame: frame},
-		scene:       newForestScene(grid, terrainVis, paths, key.viewport),
+		grid:        grid,
+		vis:         r.forestMemory.reveal(key.level, grid, vis),
+		paths:       paths,
 	}
 }
 
-// stepForestBuild renders up to n strips and swaps the finished cache in.
+// stepForestBuild takes up to n steps, the scene first and then one strip
+// each, and swaps the finished cache in.
 func (r *Renderer) stepForestBuild(n int) {
 	b := r.forestBuild
+	if b.scene == nil && n > 0 {
+		b.scene = newForestScene(b.grid, b.vis, b.paths, b.key.viewport)
+		n--
+	}
 	area := b.key.viewport
 	for ; n > 0 && b.strip < forestStrips; n-- {
 		region := image.Rect(area.Min.X, area.Min.Y+area.Dy()*b.strip/forestStrips,

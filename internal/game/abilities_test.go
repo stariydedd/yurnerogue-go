@@ -149,7 +149,7 @@ func TestCriticalStrikeHitPlaysBladeDance(t *testing.T) {
 	}
 }
 
-func TestRapidAttacksKeepOneSwingPerStepAndQueueTheLatest(t *testing.T) {
+func pacingFixture() (*Game, *domain.Session, *domain.Opponent) {
 	s := domain.NewSessionSeed(21)
 	p := s.Player
 	p.X, p.Y, p.Agility = 12, 10, 1000000
@@ -158,43 +158,56 @@ func TestRapidAttacksKeepOneSwingPerStepAndQueueTheLatest(t *testing.T) {
 	s.Level.Rooms = []*domain.Room{{X: 8, Y: 6, W: 16, H: 9, Enemies: []*domain.Opponent{enemy}}}
 	s.Level.Items = nil
 	s.Level.Exit = domain.Point{X: 20, Y: 12}
-	g := &Game{session: s, state: StatePlaying}
+	return &Game{session: s, state: StatePlaying, paced: true}, s, enemy
+}
+
+func TestRapidAttacksKeepOneSwingPerStepAndQueueTheLatest(t *testing.T) {
+	g, s, enemy := pacingFixture()
+	p := s.Player
 	for i := 0; i < 5; i++ { // five taps in one frame
 		g.HandleKey(ebiten.KeyRight)
 	}
-	if s.Actions() != "d" || g.queuedAttack != "d" {
+	if s.Actions() != "d" || g.queuedAction != "d" || !g.queuedAttack {
 		t.Fatalf("taps inside the interval must give one swing and one queued, got %q", s.Actions())
 	}
 	g.ticks = attackInterval - 1
-	g.releaseQueuedAttack()
+	g.releaseQueuedAction()
 	if s.Actions() != "d" {
 		t.Fatal("queued swing came before the interval")
 	}
 	g.ticks = attackInterval
-	g.releaseQueuedAttack()
-	if s.Actions() != "dd" || g.queuedAttack != "" {
+	g.releaseQueuedAction()
+	if s.Actions() != "dd" || g.queuedAction != "" {
 		t.Fatal("queued swing did not come right after the interval")
 	}
 
-	// A step is never delayed, and it drops a swing queued before it.
-	g.HandleKey(ebiten.KeyRight)
-	g.HandleKey(ebiten.KeyUp)
-	if s.Actions() != "ddw" || g.queuedAttack != "" {
-		t.Fatalf("a step must go at once and cancel the queued swing, got %q", s.Actions())
-	}
-
 	// A queued swing whose enemy has gone does not turn into a step.
-	p.X, p.Y = 12, 10
 	enemy.X, enemy.Y = 13, 10
-	g.attackReady = g.ticks + attackInterval
 	g.HandleKey(ebiten.KeyRight)
-	if g.queuedAttack != "d" {
-		t.Fatal("the swing was not queued")
-	}
 	enemy.Health = 0
-	g.ticks = g.attackReady
-	g.releaseQueuedAttack()
-	if s.Actions() != "ddw" || p.X != 12 {
+	g.ticks = g.turnReady
+	g.releaseQueuedAction()
+	if s.Actions() != "dd" || p.X != 12 {
 		t.Fatal("a stale swing moved the hero")
+	}
+}
+
+func TestRapidStepsFollowTheStepAnimation(t *testing.T) {
+	g, s, enemy := pacingFixture()
+	enemy.Health = 0
+	for i := 0; i < 4; i++ { // mashing: one step, the last press waits
+		g.HandleKey(ebiten.KeyUp)
+		g.HandleKey(ebiten.KeyLeft)
+	}
+	if s.Actions() != "w" || g.queuedAction != "a" {
+		t.Fatalf("mashed steps must not outrun the animation, got %q queued %q", s.Actions(), g.queuedAction)
+	}
+	g.ticks = turnInterval
+	g.releaseQueuedAction()
+	if s.Actions() != "wa" {
+		t.Fatal("the latest press did not step once the animation ended")
+	}
+	if turnInterval > attackInterval {
+		t.Fatal("a swing must not be quicker than a step")
 	}
 }
