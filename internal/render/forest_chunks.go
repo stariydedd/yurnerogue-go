@@ -41,6 +41,7 @@ type forestChunks struct {
 	paths     map[domain.Point]bool
 	clearings []sceneClearing
 	chunks    map[image.Point]*forestChunk
+	moss      map[uint64][]float32 // moss grids by clearing shape
 	pool      []*ebiten.Image
 	// drawn counts chunk redraws, for tests.
 	drawn int
@@ -50,7 +51,7 @@ func (f *forestChunks) reset(level *domain.Level) {
 	for _, c := range f.chunks {
 		f.recycle(c.frame)
 	}
-	*f = forestChunks{level: level, chunks: map[image.Point]*forestChunk{}, pool: f.pool, drawn: f.drawn}
+	*f = forestChunks{level: level, chunks: map[image.Point]*forestChunk{}, moss: map[uint64][]float32{}, pool: f.pool, drawn: f.drawn}
 }
 
 func (f *forestChunks) recycle(frame *ebiten.Image) {
@@ -117,12 +118,12 @@ func (f *forestChunks) key(c image.Point) uint64 {
 }
 
 // update refreshes the terrain state when what is visible has changed.
-func (r *Renderer) updateForest(level *domain.Level, grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, visited int) {
+func (r *Renderer) updateForest(level *domain.Level, grid domain.Grid, vis domain.Visibility, visible uint64, paths map[domain.Point]bool, visited int) {
 	f := &r.forest
 	if f.level != level || f.chunks == nil {
 		f.reset(level)
 	}
-	content := [2]uint64{visibleSignature(vis.Visible), uint64(visited)}
+	content := [2]uint64{visible, uint64(visited)}
 	if f.version > 0 && content == f.content {
 		return
 	}
@@ -133,7 +134,13 @@ func (r *Renderer) updateForest(level *domain.Level, grid domain.Grid, vis domai
 	f.paths = paths
 	f.clearings = f.clearings[:0]
 	for _, c := range knownClearings(f.view, paths) {
-		f.clearings = append(f.clearings, sceneClearing{c, c.plants(f.view)})
+		key := c.shapeKey()
+		moss := f.moss[key]
+		if moss == nil {
+			moss = c.mossGrid()
+			f.moss[key] = moss
+		}
+		f.clearings = append(f.clearings, sceneClearing{c, c.plants(f.view), moss})
 	}
 }
 
@@ -154,8 +161,9 @@ func (r *Renderer) drawChunk(c image.Point, chunk *forestChunk) {
 }
 
 // drawCachedForest draws the terrain under viewport (world pixels) into dst.
-func (r *Renderer) drawCachedForest(dst *ebiten.Image, level *domain.Level, grid domain.Grid, vis domain.Visibility, paths map[domain.Point]bool, visited int, viewport image.Rectangle) {
-	r.updateForest(level, grid, vis, paths, visited)
+// visible is visibleSignature(vis.Visible), computed once per turn.
+func (r *Renderer) drawCachedForest(dst *ebiten.Image, level *domain.Level, grid domain.Grid, vis domain.Visibility, visible uint64, paths map[domain.Point]bool, visited int, viewport image.Rectangle) {
+	r.updateForest(level, grid, vis, visible, paths, visited)
 	f := &r.forest
 	lo, hi := chunkRange(viewport)
 	// One ring of chunks around the view is prepared ahead of the camera.

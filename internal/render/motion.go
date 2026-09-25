@@ -213,3 +213,39 @@ func (r *Renderer) motionCamera(s *domain.Session) (int, int) {
 	return clamp(pos.X+TileSize/2-l.GridW/2, 0, max(0, domain.Cols*TileSize-l.GridW)),
 		clamp(pos.Y+TileSize/2-l.GridH/2, 0, max(0, domain.Rows*TileSize-l.GridH))
 }
+
+// moving reports whether the actor is still sliding at tick.
+func (m *actorMotion) moving(tick int) bool {
+	if len(m.path) < 2 {
+		return false
+	}
+	duration := moveTicks
+	if m.held {
+		duration = HeldMoveTicks
+	}
+	return tick-m.started < duration
+}
+
+// Animating reports whether the gameplay picture changes on its own right
+// now: actors or the camera sliding, or combat markers floating.
+func (r *Renderer) Animating() bool {
+	if len(r.combat.active) > 0 || r.motion.player.moving(r.tick) {
+		return true
+	}
+	for _, m := range r.motion.enemies {
+		if m.moving(r.tick) {
+			return true
+		}
+	}
+	return false
+}
+
+// SceneKey changes whenever a still gameplay frame of s would look different
+// apart from animation frames: a turn, a step, the HUD or the layout.
+func (r *Renderer) SceneKey(s *domain.Session) uint64 {
+	h := hudHash(r.hudKey(s))
+	for _, v := range []int{s.Turns, s.LevelNum, s.Player.X, s.Player.Y, len(s.Level.Items), s.Player.Facing} {
+		h.int(v)
+	}
+	return uint64(h)
+}

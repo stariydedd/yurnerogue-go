@@ -432,9 +432,11 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 	// Verge is ground cover and intentionally overlaps roots and other fringes.
 	var props []forestProp
 	// Boundary props are generated in coordinate order, never map iteration
-	// order, so depth ties and variants remain stable between frames.
-	for y := 0; y < domain.Rows; y++ {
-		for x := 0; x < domain.Cols; x++ {
+	// order, so depth ties and variants remain stable between frames. A fringe
+	// piece reaches less than three tiles from its cell, so only cells that
+	// close to the area can add one; a chunk no longer walks the whole map.
+	for y := max(0, viewport.Min.Y/TileSize-3); y <= min(domain.Rows-1, viewport.Max.Y/TileSize+3); y++ {
+		for x := max(0, viewport.Min.X/TileSize-3); x <= min(domain.Cols-1, viewport.Max.X/TileSize+3); x++ {
 			if !v.isGround(x, y) {
 				continue
 			}
@@ -551,6 +553,7 @@ type forestScene struct {
 type sceneClearing struct {
 	clearing
 	plants []forestProp
+	moss   []float32 // mossGrid of the clearing
 }
 
 // propReach is how far a prop's pixels may extend past its rectangle

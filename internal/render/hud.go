@@ -19,31 +19,73 @@ import (
 // the long frames starved the browser audio buffer. Only the portrait is
 // animated, so it is drawn on top every frame.
 type hudCache struct {
-	key      string
+	key      uint64
+	drawn    bool
 	frame    *ebiten.Image
 	portrait image.Rectangle
 	caching  bool
 }
 
-// hudKey lists everything the HUD shows. A state that changes the HUD must
+// hudHash is an FNV-1a hash that takes the HUD's fields without formatting
+// them into a string every frame.
+type hudHash uint64
+
+func (h *hudHash) int(v int) {
+	for i := 0; i < 8; i++ {
+		*h = (*h ^ hudHash(byte(v>>(8*i)))) * 1099511628211
+	}
+}
+
+func (h *hudHash) bool(v bool) {
+	if v {
+		h.int(1)
+	} else {
+		h.int(0)
+	}
+}
+
+func (h *hudHash) str(s string) {
+	h.int(len(s))
+	for i := 0; i < len(s); i++ {
+		*h = (*h ^ hudHash(s[i])) * 1099511628211
+	}
+}
+
+// hudKey hashes everything the HUD shows. A state that changes the HUD must
 // change this key, or the HUD would stay stale.
-func (r *Renderer) hudKey(s *domain.Session) string {
-	p := s.Player
-	var b strings.Builder
-	fmt.Fprintf(&b, "%+v|%d|%d|%d/%d|%d|%d|%v|%d|%d|%d|%v|%v|%v|", r.Layout, s.LevelNum, p.Treasures,
-		p.Health, p.MaxHealth, p.Strength, p.Agility, p.Sleeping, p.SleepTurns,
-		p.StrikeCooldown, p.GuardCooldown, p.StrikeArmed, p.Guarding, p.EffectStatuses())
+func (r *Renderer) hudKey(s *domain.Session) uint64 {
+	p, l := s.Player, r.Layout
+	h := hudHash(14695981039346656037)
+	h.str(string(l.Language))
+	for _, v := range []int{l.ScreenW, l.ScreenH, l.GridW, l.GridH, l.PanelH, l.ControlsH,
+		s.LevelNum, p.Treasures, p.Health, p.MaxHealth, p.Strength, p.Agility, p.SleepTurns,
+		p.StrikeCooldown, p.GuardCooldown} {
+		h.int(v)
+	}
+	for _, v := range []bool{l.Touch, p.Sleeping, p.StrikeArmed, p.Guarding} {
+		h.bool(v)
+	}
+	for _, e := range p.EffectStatuses() {
+		h.int(int(e.Stat))
+		h.int(e.Amount)
+		h.int(e.TurnsLeft)
+	}
+	h.bool(p.Weapon != nil)
 	if p.Weapon != nil {
-		fmt.Fprintf(&b, "%s/%d", p.Weapon.Name, p.Weapon.StrengthEffect)
+		h.str(p.Weapon.Name)
+		h.int(p.Weapon.StrengthEffect)
 	}
+	h.int(len(p.Backpack))
 	for _, it := range p.Backpack {
-		fmt.Fprintf(&b, "|%d/%s", it.Type, it.Name)
+		h.int(int(it.Type))
+		h.str(it.Name)
 	}
-	b.WriteString("|" + s.Message)
+	h.str(s.Message)
+	h.int(len(s.EventLog))
 	for _, line := range s.EventLog {
-		b.WriteString("\n" + line)
+		h.str(line)
 	}
-	return b.String()
+	return uint64(h)
 }
 
 func (r *Renderer) DrawHUD(dst *ebiten.Image, s *domain.Session) {
@@ -54,12 +96,12 @@ func (r *Renderer) DrawHUD(dst *ebiten.Image, s *domain.Session) {
 		}
 		r.hud = &hudCache{frame: ebiten.NewImage(size.X, size.Y)}
 	}
-	if r.hud.key != key || r.hud.key == "" {
+	if r.hud.key != key || !r.hud.drawn {
 		r.hud.frame.Clear()
 		r.hud.caching = true
 		r.drawHUDLayers(r.hud.frame, s)
 		r.hud.caching = false
-		r.hud.key = key
+		r.hud.key, r.hud.drawn = key, true
 	}
 	dst.DrawImage(r.hud.frame, nil)
 	r.drawHUDPortrait(dst, r.hud.portrait)

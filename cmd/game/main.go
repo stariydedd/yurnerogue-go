@@ -26,6 +26,9 @@ func main() {
 		ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	}
 	ebiten.SetWindowTitle("YurneROGUE")
+	// The game shows an unchanged frame by leaving the screen as it is; see
+	// Game.Draw. Every drawn frame still covers the whole screen.
+	ebiten.SetScreenClearedEveryFrame(false)
 	g := game.New(renderer)
 	g.EnableAudio()
 	if err := ebiten.RunGame(g); err != nil {

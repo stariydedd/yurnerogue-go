@@ -234,3 +234,21 @@ func TestHedgeEndsInARaggedLineNotTheRoomRectangle(t *testing.T) {
 		t.Fatal("the hedge must still cover the floor edge everywhere")
 	}
 }
+
+func TestCachedMossMatchesTheDirectValue(t *testing.T) {
+	v, paths := clearingFixture()
+	c := knownClearings(v, paths)[0]
+	sc := sceneClearing{clearing: c, moss: c.mossGrid()}
+	for y := c.bounds.Min.Y; y < c.bounds.Max.Y; y += 4 {
+		for x := c.bounds.Min.X; x < c.bounds.Max.X; x += 4 {
+			if got, want := sc.mossAt(x, y), c.mossAlpha(x, y); got != want {
+				t.Fatalf("(%d,%d): cached %.3f, direct %.3f", x, y, got, want)
+			}
+		}
+	}
+	moved := c
+	moved.bounds = c.bounds.Add(image.Pt(32, 0))
+	if moved.shapeKey() == c.shapeKey() {
+		t.Fatal("a different clearing shape shares the cached moss")
+	}
+}

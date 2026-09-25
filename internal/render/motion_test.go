@@ -216,7 +216,7 @@ func chunkFixture(t *testing.T) (*Renderer, *domain.Session, func(image.Rectangl
 		grid := s.BuildGrid(false)
 		vis := s.ComputeVisibility(grid)
 		before := r.forest.drawn
-		r.drawCachedForest(dst, s.Level, grid, vis, r.levelPaths(s.Level), len(s.VisitedRooms), view)
+		r.drawCachedForest(dst, s.Level, grid, vis, visibleSignature(vis.Visible), r.levelPaths(s.Level), len(s.VisitedRooms), view)
 		return r.forest.drawn - before
 	}
 	return r, s, frame

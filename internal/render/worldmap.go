@@ -50,7 +50,7 @@ func (r *Renderer) DrawWorld(screen *ebiten.Image, s *domain.Session) {
 	field := screen.SubImage(image.Rect(0, 0, l.GridW, l.GridH)).(*ebiten.Image)
 	field.Fill(Black)
 
-	r.drawCachedForest(field, s.Level, grid, vis, paths, len(s.VisitedRooms), image.Rect(camX, camY, camX+l.GridW, camY+l.GridH))
+	r.drawCachedForest(field, s.Level, grid, vis, r.world.visible, paths, len(s.VisitedRooms), image.Rect(camX, camY, camX+l.GridW, camY+l.GridH))
 	r.drawGate(field, s, vis, camX, camY, tick)
 
 	for _, it := range s.Level.Items {
@@ -146,6 +146,7 @@ type worldCache struct {
 	items   int
 	grid    domain.Grid
 	vis     domain.Visibility
+	visible uint64 // visibleSignature(vis.Visible)
 }
 
 func (r *Renderer) worldState(s *domain.Session) (domain.Grid, domain.Visibility) {
@@ -155,6 +156,7 @@ func (r *Renderer) worldState(s *domain.Session) (domain.Grid, domain.Visibility
 		grid := s.BuildGrid(false)
 		*w = worldCache{session: s, level: s.Level, turns: s.Turns, player: player, items: len(s.Level.Items),
 			grid: grid, vis: s.ComputeVisibility(grid)}
+		w.visible = visibleSignature(w.vis.Visible)
 	}
 	return w.grid, w.vis
 }

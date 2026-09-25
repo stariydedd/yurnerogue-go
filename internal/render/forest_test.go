@@ -432,3 +432,30 @@ func TestFringeAlongAStraightWallIsRagged(t *testing.T) {
 		t.Fatalf("fringe outer edge varies by %d px: still one straight line", hi-lo)
 	}
 }
+
+func TestChunkPropsMatchTheWholeWorldLayout(t *testing.T) {
+	s := domain.NewSessionSeed(21)
+	grid := s.BuildGrid(false)
+	v := newForestView(grid, s.ComputeVisibility(grid))
+	world := forestProps(v, image.Rect(0, 0, domain.Cols*TileSize, domain.Rows*TileSize))
+	for _, area := range []image.Rectangle{
+		image.Rect(256, 256, 512, 512).Inset(-propReach),
+		image.Rect(1024, 512, 1280, 768).Inset(-propReach),
+	} {
+		var want []forestProp
+		for _, p := range world {
+			if p.rect.Overlaps(area) {
+				want = append(want, p)
+			}
+		}
+		var got []forestProp
+		for _, p := range forestProps(v, area) {
+			if p.rect.Overlaps(area) {
+				got = append(got, p)
+			}
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("area %v: %d props, the world layout has %d there", area, len(got), len(want))
+		}
+	}
+}

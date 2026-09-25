@@ -167,7 +167,7 @@ func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain
 		area := c.bounds.Intersect(viewport)
 		for y := area.Min.Y / 4 * 4; y < area.Max.Y; y += 4 {
 			for x := area.Min.X / 4 * 4; x < area.Max.X; x += 4 {
-				alpha := c.mossAlpha(x, y)
+				alpha := c.mossAt(x, y)
 				if alpha <= 0 {
 					continue
 				}
@@ -278,4 +278,45 @@ func (c clearing) floorEdgeDistance(x, y int) float64 {
 // reach bounds everything a clearing draws: its hedge grows past the floor.
 func (c clearing) reach() image.Rectangle {
 	return c.bounds.Inset(-40 - propReach)
+}
+
+// mossGrid holds mossAlpha for every 4 px sample of the clearing's bounds,
+// row by row. It depends only on the clearing's shape, so it is computed once
+// per shape instead of for every sample of every chunk redraw.
+func (c clearing) mossGrid() []float32 {
+	w, h := c.bounds.Dx()/4, c.bounds.Dy()/4
+	grid := make([]float32, w*h)
+	for j := 0; j < h; j++ {
+		for i := 0; i < w; i++ {
+			grid[j*w+i] = c.mossAlpha(c.bounds.Min.X+i*4, c.bounds.Min.Y+j*4)
+		}
+	}
+	return grid
+}
+
+// shapeKey identifies a clearing's shape: its cells, bounds and entrances.
+func (c clearing) shapeKey() uint64 {
+	h := uint64(14695981039346656037)
+	mix := func(v int) {
+		h ^= uint64(v)
+		h *= 1099511628211
+	}
+	for _, v := range []int{c.bounds.Min.X, c.bounds.Min.Y, c.bounds.Max.X, c.bounds.Max.Y, len(c.cells), len(c.entrances)} {
+		mix(v)
+	}
+	for _, e := range c.entrances {
+		for _, v := range []int{e.start.X, e.start.Y, e.dir.X, e.dir.Y, e.length} {
+			mix(v)
+		}
+	}
+	return h
+}
+
+// mossAt reads the cached moss darkness of the sample at (x, y).
+func (c sceneClearing) mossAt(x, y int) float32 {
+	b := c.bounds
+	if c.moss == nil || x < b.Min.X || y < b.Min.Y || x >= b.Max.X || y >= b.Max.Y {
+		return c.mossAlpha(x, y)
+	}
+	return c.moss[(y-b.Min.Y)/4*(b.Dx()/4)+(x-b.Min.X)/4]
 }

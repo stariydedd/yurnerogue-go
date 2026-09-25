@@ -2,6 +2,7 @@
 package game
 
 import (
+	"image"
 	"runtime"
 	"unicode/utf8"
 
@@ -50,6 +51,12 @@ type Game struct {
 	turnReady    int
 	queuedAction string
 	queuedAttack bool
+	// frame is what the last drawn frame showed; frames counts drawn frames.
+	frame  frameMemo
+	frames int
+	// shown and shownSize are how the surface was last copied to the screen.
+	shown     [4]float64
+	shownSize image.Point
 	// paced включает темп ходов под анимацию; тесты правил ходят без него.
 	paced bool
 
