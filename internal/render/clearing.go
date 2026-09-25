@@ -118,7 +118,7 @@ func (c clearing) plantFits(v forestView, rect image.Rectangle) bool {
 	for y := max(0, rect.Min.Y/32); y <= min(domain.Rows-1, (rect.Max.Y-1)/32); y++ {
 		for x := max(0, rect.Min.X/32); x <= min(domain.Cols-1, (rect.Max.X-1)/32); x++ {
 			p := domain.Point{X: x, Y: y}
-			if v.ground[p] && !c.cells[p] && rect.Overlaps(image.Rect(x*32+5, y*32+5, x*32+27, y*32+27)) {
+			if v.isGround(x, y) && !c.cells[p] && rect.Overlaps(image.Rect(x*32+5, y*32+5, x*32+27, y*32+27)) {
 				return false
 			}
 		}
@@ -128,12 +128,17 @@ func (c clearing) plantFits(v forestView, rect image.Rectangle) bool {
 
 func (c clearing) plants(v forestView) []forestProp {
 	var props []forestProp
-	for gy := (c.bounds.Min.Y - 16) / 12; gy <= (c.bounds.Max.Y+16)/12; gy++ {
-		for gx := (c.bounds.Min.X - 16) / 12; gx <= (c.bounds.Max.X+16)/12; gx++ {
+	// The candidates reach well past the floor, and each stops at its own depth
+	// outside the meadow: the hedge ends in a ragged line instead of filling the
+	// room rectangle and stopping at one straight edge.
+	for gy := (c.bounds.Min.Y - 40) / 12; gy <= (c.bounds.Max.Y+40)/12; gy++ {
+		for gx := (c.bounds.Min.X - 40) / 12; gx <= (c.bounds.Max.X+40)/12; gx++ {
 			h := cellHash(gx+173, gy+391)
 			x, y := gx*12+h%11-5, gy*12+(h/13)%11-5
 			d := c.distance(x, y)
-			if d > 10 || (d > 0 && h%3 != 0) {
+			b := c.bounds
+			out := max(b.Min.X-x, x-b.Max.X, b.Min.Y-y, y-b.Max.Y)
+			if d > 10 || (d > 0 && h%3 != 0) || out > 4+h%23 {
 				continue
 			}
 			w, height := 28+h%17, 18+(h/37)%11
@@ -154,7 +159,7 @@ func (c clearing) plants(v forestView) []forestProp {
 
 func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain.Visibility, clearings []sceneClearing, viewport image.Rectangle, camX, camY int) {
 	for _, c := range clearings {
-		if !c.bounds.Overlaps(viewport) {
+		if !c.reach().Overlaps(viewport) {
 			continue
 		}
 		// A textured, low moss bed defines the organic clearing silhouette.
@@ -162,15 +167,10 @@ func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain
 		area := c.bounds.Intersect(viewport)
 		for y := area.Min.Y / 4 * 4; y < area.Max.Y; y += 4 {
 			for x := area.Min.X / 4 * 4; x < area.Max.X; x += 4 {
-				rect := image.Rect(x, y, x+4, y+4)
-				if !c.contains(rect) {
+				alpha := c.mossAlpha(x, y)
+				if alpha <= 0 {
 					continue
 				}
-				d := c.distance(x+2, y+2)
-				if d > 16 {
-					continue
-				}
-				alpha := float32(math.Min(.46, math.Max(0, (16-d)/100)))
 				op := &ebiten.DrawImageOptions{}
 				op.GeoM.Scale(.125, .125)
 				op.GeoM.Translate(float64(x-camX), float64(y-camY))
@@ -236,4 +236,46 @@ func (r *Renderer) drawEntranceSample(dst *ebiten.Image, rect image.Rectangle, c
 			dst.SubImage(clip).(*ebiten.Image).DrawImage(img.SubImage(sample.Add(img.Bounds().Min)).(*ebiten.Image), op)
 		}
 	}
+}
+
+// mossAlpha is the darkness of the moss bed sample at (x, y), a 4x4 px
+// square. It deepens past the meadow edge and fades out again towards the
+// outer edge of the floor tiles. The bed used to be darkest right at that
+// edge and stop there, which drew a hard rectangle around every room.
+func (c clearing) mossAlpha(x, y int) float32 {
+	if !c.contains(image.Rect(x, y, x+4, y+4)) {
+		return 0
+	}
+	d := c.distance(x+2, y+2)
+	if d > 16 {
+		return 0
+	}
+	depth := math.Min(.46, math.Max(0, (16-d)/70))
+	edge := math.Min(1, c.floorEdgeDistance(x+2, y+2)/20)
+	return float32(depth * edge)
+}
+
+// floorEdgeDistance is how far (x, y) is from the outer edge of the
+// clearing's floor tiles, in pixels.
+func (c clearing) floorEdgeDistance(x, y int) float64 {
+	cx, cy := int(math.Floor(float64(x)/32)), int(math.Floor(float64(y)/32))
+	fx, fy := float64(x-cx*32), float64(y-cy*32)
+	best := 32.0
+	for dy := -1; dy <= 1; dy++ {
+		for dx := -1; dx <= 1; dx++ {
+			if (dx == 0 && dy == 0) || c.cells[domain.Point{X: cx + dx, Y: cy + dy}] {
+				continue
+			}
+			// Distance to that missing neighbour's tile.
+			nx := math.Max(0, math.Max(float64(dx*32)-fx, fx-float64(dx*32+32)))
+			ny := math.Max(0, math.Max(float64(dy*32)-fy, fy-float64(dy*32+32)))
+			best = math.Min(best, math.Hypot(nx, ny))
+		}
+	}
+	return best
+}
+
+// reach bounds everything a clearing draws: its hedge grows past the floor.
+func (c clearing) reach() image.Rectangle {
+	return c.bounds.Inset(-40 - propReach)
 }

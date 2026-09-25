@@ -41,8 +41,7 @@ func cameraOffset(l Layout, px, py int) (int, int) {
 // DrawWorld рисует уровень: тайлы, предметы, врагов и туман войны.
 func (r *Renderer) DrawWorld(screen *ebiten.Image, s *domain.Session) {
 	l := r.Layout
-	grid := s.BuildGrid(false)
-	vis := s.ComputeVisibility(grid)
+	grid, vis := r.worldState(s)
 	camX, camY := r.motionCamera(s)
 	tick := r.tick / AnimFrameTicks
 	paths := r.levelPaths(s.Level)
@@ -51,10 +50,7 @@ func (r *Renderer) DrawWorld(screen *ebiten.Image, s *domain.Session) {
 	field := screen.SubImage(image.Rect(0, 0, l.GridW, l.GridH)).(*ebiten.Image)
 	field.Fill(Black)
 
-	r.drawCachedForest(field, grid, vis, paths, forestCacheKey{
-		level: s.Level, visible: visibleSignature(vis.Visible), visited: len(s.VisitedRooms),
-		viewport: image.Rect(camX, camY, camX+l.GridW, camY+l.GridH),
-	})
+	r.drawCachedForest(field, s.Level, grid, vis, paths, len(s.VisitedRooms), image.Rect(camX, camY, camX+l.GridW, camY+l.GridH))
 	r.drawGate(field, s, vis, camX, camY, tick)
 
 	for _, it := range s.Level.Items {
@@ -137,4 +133,28 @@ func (r *Renderer) levelPaths(level *domain.Level) map[domain.Point]bool {
 		r.paths.level, r.paths.cells = level, domain.PathCells(level.Rooms, level.Passages)
 	}
 	return r.paths.cells
+}
+
+// worldCache holds the map grid and visibility of one turn. Both change only
+// when a turn is taken, and rebuilding them, with field-of-view rays, on every
+// frame was a steady cost on slow machines.
+type worldCache struct {
+	session *domain.Session
+	level   *domain.Level
+	turns   int
+	player  domain.Point
+	items   int
+	grid    domain.Grid
+	vis     domain.Visibility
+}
+
+func (r *Renderer) worldState(s *domain.Session) (domain.Grid, domain.Visibility) {
+	w := &r.world
+	player := domain.Point{X: s.Player.X, Y: s.Player.Y}
+	if w.grid == nil || w.session != s || w.level != s.Level || w.turns != s.Turns || w.player != player || w.items != len(s.Level.Items) {
+		grid := s.BuildGrid(false)
+		*w = worldCache{session: s, level: s.Level, turns: s.Turns, player: player, items: len(s.Level.Items),
+			grid: grid, vis: s.ComputeVisibility(grid)}
+	}
+	return w.grid, w.vis
 }

@@ -151,6 +151,30 @@
     };
 })();
 </script>
+<script id="fullscreen-key">
+// Ebitengine cancels every key on the canvas, the browser's own F11 included,
+// so the page toggles fullscreen itself. The whole page goes fullscreen, not
+// just the canvas, so the HTML name field over the game stays visible.
+(function () {
+    function toggleFullscreen(doc) {
+        const root = doc.documentElement;
+        const request = root.requestFullscreen || root.webkitRequestFullscreen;
+        const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+        if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+            if (exit) exit.call(doc);
+        } else if (request) {
+            const pending = request.call(root);
+            if (pending && pending.catch) pending.catch(() => {});
+        }
+    }
+    window.yurneToggleFullscreen = toggleFullscreen;
+    window.addEventListener("keydown", (e) => {
+        if (e.key !== "F11" && e.code !== "F11") return;
+        e.preventDefault();
+        if (!e.repeat) toggleFullscreen(document);
+    }, true);
+})();
+</script>
 <script id="audio-headroom">
 // The Go audio library (oto) feeds an AudioWorklet that holds only about 46 ms
 // of sound at 44.1 kHz. On a slow machine one long frame empties it and every

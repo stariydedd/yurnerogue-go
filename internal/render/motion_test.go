@@ -151,26 +151,6 @@ func TestMotionCameraUsesSamePixelPositionAndClampsEdges(t *testing.T) {
 	}
 }
 
-func TestForestCacheCoversEveryPixelOfShortCameraSlide(t *testing.T) {
-	s := domain.NewSessionSeed(21)
-	for _, l := range []Layout{DesktopLayout(), TouchLayout(390, 700)} {
-		key := forestCacheKey{level: s.Level, visible: 1, viewport: image.Rect(100, 100, 100+l.GridW, 100+l.GridH)}
-		cached := key
-		cached.viewport = cached.viewport.Inset(-forestMargin)
-		for offset := -32; offset <= 32; offset++ {
-			request := key
-			request.viewport = request.viewport.Add(image.Pt(offset, -offset))
-			if !forestCacheContains(cached, request) {
-				t.Fatal("camera interpolation invalidates terrain cache")
-			}
-		}
-		key.visible++
-		if forestCacheContains(cached, key) {
-			t.Fatal("new visibility reused stale terrain")
-		}
-	}
-}
-
 func TestForestCacheSurvivesStepsInsideARoom(t *testing.T) {
 	s := domain.NewSessionSeed(21)
 	room := s.Level.Rooms[0]
@@ -201,55 +181,6 @@ func TestCombatMarkerTracksMovingTargetUntilImpactTileChanges(t *testing.T) {
 	}
 }
 
-func TestForestRebuildSpreadsOverFramesWhileOldTerrainStays(t *testing.T) {
-	r, err := New(DesktopLayout())
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := domain.NewSessionSeed(21)
-	grid := s.BuildGrid(false)
-	vis := s.ComputeVisibility(grid)
-	paths := r.levelPaths(s.Level)
-	dst := ebiten.NewImage(r.Layout.GridW, r.Layout.GridH)
-	key := forestCacheKey{level: s.Level, visible: 1, viewport: image.Rect(640, 320, 640+r.Layout.GridW, 320+r.Layout.GridH)}
-	frame := func(k forestCacheKey) { r.drawCachedForest(dst, grid, vis, paths, k) }
-
-	frame(key) // nothing to show yet: built at once
-	if r.forest == nil || r.forestBuild != nil {
-		t.Fatal("first terrain was not built in one frame")
-	}
-	near := key
-	near.viewport = near.viewport.Add(image.Pt(forestPrefetch, 0))
-	frame(near)
-	if r.forestBuild != nil {
-		t.Fatal("a short camera slide started a rebuild")
-	}
-	for name, next := range map[string]forestCacheKey{
-		"camera": {level: key.level, visible: key.visible, viewport: key.viewport.Add(image.Pt(forestPrefetch+TileSize/2, 0))},
-		"light":  {level: key.level, visible: key.visible + 1, viewport: key.viewport},
-	} {
-		frame(key)
-		for r.forestBuild != nil {
-			frame(key)
-		}
-		old := r.forest
-		frame(next)
-		if r.forest != old || r.forestBuild == nil || r.forestBuild.scene == nil || r.forestBuild.strip != 0 {
-			t.Fatalf("%s: the first frame must only prepare the scene", name)
-		}
-		for i := 1; i < forestStrips; i++ {
-			frame(next)
-			if r.forest != old || r.forestBuild == nil || r.forestBuild.strip != i {
-				t.Fatalf("%s: frame %d did not draw exactly one strip over the old terrain", name, i)
-			}
-		}
-		frame(next)
-		if r.forestBuild != nil || !forestCacheContains(r.forest.key, next) {
-			t.Fatalf("%s: rebuild did not finish after %d frames", name, forestStrips+1)
-		}
-	}
-}
-
 func TestHeldStepsWalkAtSteadySpeedWithoutEasing(t *testing.T) {
 	m := stillMotion(image.Pt(320, 320))
 	var xs []int
@@ -267,5 +198,80 @@ func TestHeldStepsWalkAtSteadySpeedWithoutEasing(t *testing.T) {
 	}
 	if HeldMoveTicks != moveTicks {
 		t.Fatal("held movement must keep the tapped step pace")
+	}
+}
+
+// chunkFixture is a renderer and a session standing in its first room.
+func chunkFixture(t *testing.T) (*Renderer, *domain.Session, func(image.Rectangle) int) {
+	r, err := New(DesktopLayout())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := domain.NewSessionSeed(21)
+	room := s.Level.Rooms[0]
+	s.Player.X, s.Player.Y = room.X, room.Y
+	dst := ebiten.NewImage(r.Layout.GridW, r.Layout.GridH)
+	// frame draws one frame and returns how many chunks it redrew.
+	frame := func(view image.Rectangle) int {
+		grid := s.BuildGrid(false)
+		vis := s.ComputeVisibility(grid)
+		before := r.forest.drawn
+		r.drawCachedForest(dst, s.Level, grid, vis, r.levelPaths(s.Level), len(s.VisitedRooms), view)
+		return r.forest.drawn - before
+	}
+	return r, s, frame
+}
+
+func TestForestChunksRedrawOnlyWhatChanged(t *testing.T) {
+	r, s, frame := chunkFixture(t)
+	view := image.Rect(600, 300, 600+r.Layout.GridW, 300+r.Layout.GridH)
+	lo, hi := chunkRange(view)
+	onScreen := (hi.X - lo.X + 1) * (hi.Y - lo.Y + 1)
+	if n := frame(view); n < onScreen || n > onScreen+chunksPerFrame {
+		t.Fatalf("first frame drew %d chunks, want the %d on screen plus up to %d ahead", n, onScreen, chunksPerFrame)
+	}
+	for i := 0; i < 40 && frame(view) > 0; i++ {
+	}
+	if frame(view) != 0 {
+		t.Fatal("a settled forest keeps redrawing")
+	}
+	// A step inside the room and a short slide within the same chunks.
+	room := s.Level.Rooms[0]
+	s.Player.X = room.X + 1
+	if n := frame(view.Add(image.Pt(TileSize, 0))); n != 0 {
+		t.Fatalf("a step inside a room redrew %d chunks", n)
+	}
+	// New light: a few chunks per frame, and not all of them.
+	s.Player.X, s.Player.Y = s.Level.Rooms[1].X, s.Level.Rooms[1].Y
+	total := 0
+	for i := 0; i < 40; i++ {
+		n := frame(view)
+		if n > chunksPerFrame {
+			t.Fatalf("frame redrew %d chunks already on screen", n)
+		}
+		total += n
+	}
+	if total == 0 {
+		t.Fatal("changed light never reached the chunks")
+	}
+}
+
+func TestForestChunkKeyIgnoresChangesFarAway(t *testing.T) {
+	var f forestChunks
+	f.view = forestView{lights: make([]float32, domain.Cols*domain.Rows), cells: make([]bool, domain.Cols*domain.Rows), seen: make([]bool, domain.Cols*domain.Rows)}
+	c := image.Pt(2, 2)
+	before := f.key(c)
+	f.view.lights[40*domain.Cols+90] = 1 // far corner of the map
+	if f.key(c) != before {
+		t.Fatal("a far change touched the chunk")
+	}
+	f.view.lights[(2*chunkTiles+3)*domain.Cols+2*chunkTiles+3] = 1 // inside the chunk
+	if f.key(c) == before {
+		t.Fatal("a change inside the chunk was missed")
+	}
+	before = f.key(c)
+	f.view.seen[(2*chunkTiles-chunkMargin)*domain.Cols+2*chunkTiles] = true // in the margin
+	if f.key(c) == before {
+		t.Fatal("a change in the margin was missed")
 	}
 }

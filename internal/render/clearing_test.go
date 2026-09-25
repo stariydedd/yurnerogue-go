@@ -176,3 +176,61 @@ func TestClearingBankLightDoesNotFollowRoomRectangle(t *testing.T) {
 		t.Fatal("bank next to lit entrance is darkened as an entire remembered room")
 	}
 }
+
+func TestMossBedFadesInsteadOfCuttingAtTheFloorEdge(t *testing.T) {
+	v, paths := clearingFixture()
+	c := knownClearings(v, paths)[0]
+	// Floor rows 6..14 and columns 8..23: cross the bottom and left edges.
+	// The bed ramps up over about 45 px by design; the old cut at the tile
+	// edge dropped by about .4 in one sample.
+	for _, line := range []struct{ x0, y0, dx, dy int }{
+		{16 * 32, 11 * 32, 0, 4},  // down through the bottom edge
+		{12 * 32, 10 * 32, -4, 0}, // left through the left edge
+	} {
+		var prev float32
+		for i := 0; i < 48; i++ {
+			x, y := line.x0+line.dx*i, line.y0+line.dy*i
+			got := c.mossAlpha(x, y)
+			if d := got - prev; i > 0 && (d > .1 || d < -.1) {
+				t.Fatalf("moss darkness jumps by %.3f at (%d,%d)", d, x, y)
+			}
+			prev = got
+		}
+	}
+	// The last samples on the floor tiles are nearly clear, so no tile line shows.
+	if a := c.mossAlpha(16*32, 15*32-4); a > .05 {
+		t.Fatalf("moss bed still dark at the floor edge: %.3f", a)
+	}
+	// The bed itself still frames the meadow.
+	var darkest float32
+	for y := 11 * 32; y < 15*32; y += 4 {
+		darkest = max(darkest, c.mossAlpha(16*32, y))
+	}
+	if darkest < .2 {
+		t.Fatalf("moss bed vanished: darkest %.3f", darkest)
+	}
+}
+
+func TestHedgeEndsInARaggedLineNotTheRoomRectangle(t *testing.T) {
+	v, paths := clearingFixture()
+	c := knownClearings(v, paths)[0]
+	// Lowest hedge pixel in each 32 px stretch along the bottom wall.
+	lowest := map[int]int{}
+	for _, p := range c.plants(v) {
+		if p.rect.Min.Y < c.bounds.Max.Y-48 {
+			continue
+		}
+		col := p.rect.Min.X / 32
+		lowest[col] = max(lowest[col], p.rect.Max.Y)
+	}
+	lo, hi := 1<<30, 0
+	for col := c.bounds.Min.X/32 + 2; col < c.bounds.Max.X/32-2; col++ {
+		lo, hi = min(lo, lowest[col]), max(hi, lowest[col])
+	}
+	if hi-lo < 12 {
+		t.Fatalf("hedge bottom varies by only %d px: a straight edge", hi-lo)
+	}
+	if lo <= c.bounds.Max.Y {
+		t.Fatal("the hedge must still cover the floor edge everywhere")
+	}
+}

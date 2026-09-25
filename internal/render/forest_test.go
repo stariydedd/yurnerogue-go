@@ -393,3 +393,42 @@ func BenchmarkForestLayout(b *testing.B) {
 		forestProps(v, image.Rect(0, 0, 1280, 704))
 	}
 }
+
+func TestForestLightHasNoHardEdgesAroundALitRoom(t *testing.T) {
+	s := domain.NewSessionSeed(21)
+	room := s.Level.Rooms[0]
+	s.Player.X, s.Player.Y = room.X, room.Y
+	grid := s.BuildGrid(false)
+	v := newForestView(grid, s.ComputeVisibility(grid))
+	// Slide a bush-sized rect down out of the room, one pixel at a time.
+	x := (room.X + room.W/2) * TileSize
+	prev := v.light(image.Rect(x, (room.Y+room.H-2)*TileSize, x+46, (room.Y+room.H-2)*TileSize+38))
+	for y := (room.Y+room.H-2)*TileSize + 1; y < (room.Y+room.H+8)*TileSize; y++ {
+		got := v.light(image.Rect(x, y, x+46, y+38))
+		if d := prev - got; d > .02 || d < -.02 {
+			t.Fatalf("light jumps by %.3f at y=%d: a hard edge along the tile grid", d, y)
+		}
+		prev = got
+	}
+	if prev > .3 {
+		t.Fatal("light must still fade into the dark forest")
+	}
+}
+
+func TestFringeAlongAStraightWallIsRagged(t *testing.T) {
+	v, _ := clearingFixture() // floor rows 6..14
+	lo, hi, n := 1<<30, 0, 0
+	for _, p := range forestProps(v, image.Rect(0, 0, 1280, 704)) {
+		// Fringe pieces along the bottom wall face down (rotation 2).
+		if p.role != "verge" || p.rotation != 2 || p.rect.Min.X < 9*32 || p.rect.Max.X > 22*32 {
+			continue
+		}
+		lo, hi, n = min(lo, p.rect.Max.Y), max(hi, p.rect.Max.Y), n+1
+	}
+	if n < 8 {
+		t.Fatalf("only %d fringe pieces along the wall", n)
+	}
+	if hi-lo < 10 {
+		t.Fatalf("fringe outer edge varies by %d px: still one straight line", hi-lo)
+	}
+}

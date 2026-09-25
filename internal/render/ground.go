@@ -28,7 +28,7 @@ func groundWave(along, boundary, side int) float64 {
 func groundContour(v forestView, p domain.Point) []groundSpan {
 	var edge [4]bool
 	for side, d := range forestDirs {
-		edge[side] = !v.ground[domain.Point{X: p.X + d.X, Y: p.Y + d.Y}]
+		edge[side] = !v.isGround(p.X+d.X, p.Y+d.Y)
 	}
 	origin := image.Pt(p.X*TileSize, p.Y*TileSize)
 	if edge == [4]bool{} {
@@ -41,7 +41,7 @@ func groundContour(v forestView, p domain.Point) []groundSpan {
 		}
 		wx, wy := origin.X+x, origin.Y+y
 		owner := domain.Point{X: int(math.Floor(float64(wx) / TileSize)), Y: int(math.Floor(float64(wy) / TileSize))}
-		if owner != p && v.ground[owner] {
+		if owner != p && v.isGround(owner.X, owner.Y) {
 			return -1
 		}
 		left, right, top, bottom := 0.0, float64(TileSize), 0.0, float64(TileSize)
@@ -230,4 +230,52 @@ func (r *Renderer) drawWalkableGround(dst *ebiten.Image, v forestView, paths map
 			dst.DrawImage(r.dim, op)
 		}
 	}
+}
+
+// groundPad is how far a cell's ground contour reaches past the cell.
+const groundPad = 10
+
+type groundKey struct {
+	p         domain.Point
+	neighbors uint16 // known ground in the 3x3 block around p
+	visible   bool
+}
+
+// groundCache keeps each walkable cell's ground, contour and edge shadow as
+// one small image. The contour is drawn as a hundred 2 px strips per edge
+// cell; drawing those for every chunk redraw was the costliest part of it.
+type groundCache struct {
+	level *domain.Level
+	cells map[groundKey]*ebiten.Image
+}
+
+func groundNeighbors(v forestView, p domain.Point) uint16 {
+	var mask uint16
+	for i, d := range [9]domain.Point{{X: -1, Y: -1}, {Y: -1}, {X: 1, Y: -1}, {X: -1}, {}, {X: 1}, {X: -1, Y: 1}, {Y: 1}, {X: 1, Y: 1}} {
+		if v.isGround(p.X+d.X, p.Y+d.Y) {
+			mask |= 1 << i
+		}
+	}
+	return mask
+}
+
+// drawCachedGround draws the walkable ground of p like drawWalkableGround.
+func (r *Renderer) drawCachedGround(dst *ebiten.Image, level *domain.Level, v forestView, paths map[domain.Point]bool, p domain.Point, camX, camY int, visible bool) {
+	c := &r.ground
+	if c.level != level || c.cells == nil {
+		for _, img := range c.cells {
+			img.Deallocate()
+		}
+		*c = groundCache{level: level, cells: map[groundKey]*ebiten.Image{}}
+	}
+	key := groundKey{p: p, neighbors: groundNeighbors(v, p), visible: visible}
+	img := c.cells[key]
+	if img == nil {
+		img = ebiten.NewImage(TileSize+2*groundPad, TileSize+2*groundPad)
+		r.drawWalkableGround(img, v, paths, p, p.X*TileSize-groundPad, p.Y*TileSize-groundPad, visible)
+		c.cells[key] = img
+	}
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(p.X*TileSize-groundPad-camX), float64(p.Y*TileSize-groundPad-camY))
+	dst.DrawImage(img, op)
 }

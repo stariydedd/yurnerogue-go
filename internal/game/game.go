@@ -201,7 +201,8 @@ func (g *Game) handleHUDPointer(x, y int) {
 // HandleKey — единая точка входа для клавиш: сюда же приходят нажатия
 // экранных кнопок, транслированные в клавиши.
 func (g *Game) HandleKey(key ebiten.Key) {
-	// Browsers already own F11; do not race their native fullscreen shortcut.
+	// In the browser the page toggles fullscreen on F11 (web/index.html):
+	// Ebitengine cancels the key there, and the page must stay whole.
 	if runtime.GOOS != "js" && key == ebiten.KeyF11 && g.renderer != nil && !g.renderer.Layout.Touch {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
 		return
