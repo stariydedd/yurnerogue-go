@@ -38,41 +38,62 @@ const (
 	cueCount
 )
 
-// musicRate synthesizes the music at half the playback rate: drones and harp
-// notes have almost nothing above 5 kHz, so this halves startup work and the
-// result is upsampled to SampleRate. Effects keep the full rate for clarity.
-const musicRate = SampleRate / 2
+// toneResync is how often, in samples, tone sets its oscillators and decays
+// exactly again.
+const toneResync = 1024
 
+// tone adds one note to dst: a sine with two overtones under an envelope.
+// Every oscillator turns by a fixed rotation and every decay shrinks by a
+// fixed factor per sample, instead of calling math.Sin and math.Exp for each
+// one; they are set exactly again every toneResync samples, so rounding never
+// builds up. This is what lets the music be synthesized at the full rate.
+//
 // All synthesis uses local deterministic state, never the game's random stream.
 func tone(dst []float64, at, duration, hz, gain, attack float64, bell bool) {
-	toneAt(dst, SampleRate, at, duration, hz, gain, attack, bell)
-}
-
-func toneAt(dst []float64, rate int, at, duration, hz, gain, attack float64, bell bool) {
-	for i := 0; i < int(duration*float64(rate)); i++ {
-		t := float64(i) / float64(rate)
-		env := math.Min(1, t/attack) * math.Exp(-3*t/duration)
-		env *= math.Min(1, (duration-t)/0.08)
-		x := math.Sin(2 * math.Pi * hz * t)
-		if bell {
-			x += 0.28 * math.Sin(2*math.Pi*hz*2.01*t) * math.Exp(-3*t)
-			x += 0.09 * math.Sin(2*math.Pi*hz*3.98*t) * math.Exp(-5*t)
-		} else {
-			x += 0.22*math.Sin(2*math.Pi*hz*2*t) + 0.08*math.Sin(2*math.Pi*hz*3*t)
+	ratios, weights, decays := [3]float64{1, 2, 3}, [3]float64{1, 0.22, 0.08}, [3]float64{}
+	if bell {
+		ratios, weights, decays = [3]float64{1, 2.01, 3.98}, [3]float64{1, 0.28, 0.09}, [3]float64{0, 3, 5}
+	}
+	const dt = 1.0 / SampleRate
+	type oscillator struct{ sin, cos, turnSin, turnCos, amp, fall float64 }
+	var osc [3]oscillator
+	for k := range osc {
+		osc[k].turnSin, osc[k].turnCos = math.Sincos(2 * math.Pi * hz * ratios[k] * dt)
+		osc[k].fall = math.Exp(-decays[k] * dt)
+	}
+	body, fall := 0.0, math.Exp(-3/duration*dt)
+	start := int(at * SampleRate)
+	for i := 0; i < int(duration*SampleRate); i++ {
+		t := float64(i) / SampleRate
+		if i%toneResync == 0 {
+			for k := range osc {
+				osc[k].sin, osc[k].cos = math.Sincos(2 * math.Pi * hz * ratios[k] * t)
+				osc[k].amp = weights[k] * math.Exp(-decays[k]*t)
+			}
+			body = math.Exp(-3 * t / duration)
 		}
-		dst[(int(at*float64(rate))+i)%len(dst)] += x * env * gain
+		x := 0.0
+		for k := range osc {
+			o := &osc[k]
+			x += o.sin * o.amp
+			o.sin, o.cos = o.sin*o.turnCos+o.cos*o.turnSin, o.cos*o.turnCos-o.sin*o.turnSin
+			o.amp *= o.fall
+		}
+		env := body * min(1, t/attack) * min(1, (duration-t)/0.08)
+		body *= fall
+		dst[(start+i)%len(dst)] += x * env * gain
 	}
 }
 
 // Music is a 32-second seamless bed of warm drones, harp-like notes and echoes.
 // The two related arrangements crossfade without an abrupt change of key.
 func music(exploring bool) []byte {
-	dst := make([]float64, 32*musicRate)
+	dst := make([]float64, 32*SampleRate)
 	roots := []float64{146.8324, 130.8128, 116.5409, 130.8128}
 	melody := []float64{293.6648, 349.2282, 440, 391.9954, 261.6256, 349.2282, 293.6648, 220}
 	for bar, root := range roots {
 		for _, ratio := range []float64{0.5, 1, 1.5} {
-			toneAt(dst, musicRate, float64(bar*8), 12, root*ratio, 0.10, 2, false)
+			tone(dst, float64(bar*8), 12, root*ratio, 0.10, 2, false)
 		}
 		for n := 0; n < 4; n++ {
 			hz := melody[(bar*2+n)%len(melody)]
@@ -81,13 +102,13 @@ func music(exploring bool) []byte {
 				hz *= 0.5
 				gain = 0.08
 			}
-			toneAt(dst, musicRate, float64(bar*8+n*2)+0.5, 4, hz, gain, 0.025, true)
+			tone(dst, float64(bar*8+n*2)+0.5, 4, hz, gain, 0.025, true)
 		}
 		if exploring {
-			toneAt(dst, musicRate, float64(bar*8), 7, root*0.25, 0.10, 0.7, false)
+			tone(dst, float64(bar*8), 7, root*0.25, 0.10, 0.7, false)
 		}
 	}
-	return pcm(upsampleLoop(dst, SampleRate/musicRate), true)
+	return pcm(dst, true)
 }
 
 func effect(c Cue) []byte {
@@ -200,20 +221,6 @@ func whetstone(dst []float64) {
 	}
 	tone(dst, 0.24, 0.42, 987.77, 0.16, 0.006, true)
 	tone(dst, 0.31, 0.38, 1318.51, 0.13, 0.006, true)
-}
-
-// upsampleLoop raises a looping buffer's rate by an integer factor with linear
-// interpolation; the last samples interpolate towards the first, keeping the
-// loop seamless.
-func upsampleLoop(src []float64, factor int) []float64 {
-	dst := make([]float64, len(src)*factor)
-	for i, v := range src {
-		next := src[(i+1)%len(src)]
-		for k := 0; k < factor; k++ {
-			dst[i*factor+k] = v + (next-v)*float64(k)/float64(factor)
-		}
-	}
-	return dst
 }
 
 // victoryFanfare is the finale of a won run, about four seconds in D major,
