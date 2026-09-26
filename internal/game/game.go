@@ -100,7 +100,8 @@ type Game struct {
 	leaderboardSource  string
 	submitStatus       string
 	topResults         chan topResult
-	submitResults      chan error
+	submitResults      chan submitResult
+	placement          render.Placement
 	runTicket          string
 	startResults       chan startResult
 	startReturn        State
@@ -559,6 +560,7 @@ func (g *Game) startNewGame() {
 	g.pendingRun = false
 	g.submitStatus = ""
 	g.submitResults = nil
+	g.placement = render.Placement{}
 	g.state = StatePlaying
 }
 
@@ -568,6 +570,7 @@ func (g *Game) returnToMenu() {
 	g.startResults = nil
 	g.topResults = nil
 	g.submitResults = nil
+	g.placement = render.Placement{}
 	g.session = nil
 	g.menuSelected = 0
 	g.state = StateMainMenu

@@ -85,8 +85,9 @@ func (g *Game) pollNetwork() {
 	default:
 	}
 	select {
-	case err := <-g.submitResults:
+	case result := <-g.submitResults:
 		g.submitResults = nil
+		err := result.err
 		switch {
 		case errors.Is(err, leaderboard.ErrRateLimited):
 			g.submitStatus = "Too many scores. Submission rejected."
@@ -97,6 +98,7 @@ func (g *Game) pollNetwork() {
 			g.submitStatus = "Score submission could not be confirmed."
 		default:
 			g.submitStatus = "Score submitted to global leaderboard!"
+			g.placement = runPlacement(result.placement, g.session)
 		}
 	default:
 	}
@@ -156,7 +158,26 @@ func (g *Game) submitRun() {
 	ticket, actions := g.runTicket, s.Actions()
 	g.submitStatus = "Submitting score..."
 	client := leaderboard.New()
-	results := make(chan error, 1)
+	results := make(chan submitResult, 1)
 	g.submitResults = results
-	go func() { results <- client.SubmitReplay(ticket, actions) }()
+	go func() {
+		placement, err := client.SubmitReplay(ticket, actions)
+		results <- submitResult{placement, err}
+	}()
+}
+
+type submitResult struct {
+	placement leaderboard.Placement
+	err       error
+}
+
+// runPlacement turns the server's answer into what the results screen shows.
+// Outside the top 10 it counts the gold that would surely have beaten 10th
+// place: equal gold is not always enough.
+func runPlacement(p leaderboard.Placement, s *domain.Session) render.Placement {
+	shown := render.Placement{Place: p.Place}
+	if p.Place > 10 && p.Top10Gold != nil && s != nil && s.Player != nil {
+		shown.GoldShort = max(1, *p.Top10Gold-s.Player.Treasures+1)
+	}
+	return shown
 }

@@ -51,3 +51,11 @@ class RunOut(RunFields):
     verified: bool = True
 
     model_config = {"from_attributes": True}
+
+
+class RunSubmitted(RunOut):
+    """A submitted run with its place on the leaderboard."""
+
+    place: int = Field(ge=1)
+    # Gold of the 10th place, or None while fewer than ten runs exist.
+    top10_gold: int | None = None

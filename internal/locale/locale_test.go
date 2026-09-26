@@ -22,8 +22,7 @@ func TestTranslationsPreserveProperNames(t *testing.T) {
 		"Sharpened Desolator.":                                   "Заточено: Desolator.",
 		"You used Phantom Clarity [+3 AGI].":                     "Использовано: Phantom Clarity [+3 ЛОВ].",
 		"You used Vital Scroll [+5 MAX HP].":                     "Использовано: Vital Scroll [+5 МАКС ОЗ].",
-		"RUN SUMMARY / [+5 STR]":                                 "ИТОГИ / [+5 STR]",
-		"RUN SUMMARY / PLAY":                                     "ИТОГИ / PLAY",
+		"RUN SUMMARY":                                            "ИТОГИ",
 		"New game: Starting game...":                             "Новый забег: Запуск игры...",
 	}
 	for source, want := range cases {

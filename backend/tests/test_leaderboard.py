@@ -99,6 +99,38 @@ def test_leaderboard_sorts_legacy_records_by_score_then_level(client):
     assert [(r["treasures"], r["level"]) for r in rows] == [(300, 1), (100, 21), (100, 9)]
 
 
+def test_submission_reports_place_and_top10_gold(client):
+    first = submit(client, start(client)).json()
+    assert first["place"] == 1 and first["top10_gold"] is None
+    level = first["level"]
+    for gold in [900, 800, 100]:
+        client.seed_run(player_name="legacy", treasures=gold, level=level)
+    client.seed_run(player_name="legacy", treasures=502, level=level + 1)
+    body = submit(client, start(client)).json()
+    # 900, 800, the deeper 502 and the earlier equal 502 all rank ahead.
+    assert body["place"] == 5 and body["top10_gold"] is None
+    for _ in range(4):
+        client.seed_run(player_name="legacy", treasures=1000, level=1)
+    body = submit(client, start(client)).json()
+    assert body["place"] == 10 and body["top10_gold"] == 502
+    rows = client.get("/api/leaderboard").json()
+    assert rows[body["place"] - 1]["id"] == body["id"]
+
+
+def test_replayed_submission_keeps_its_place(client):
+    ticket = start(client)
+    first = submit(client, ticket).json()
+    client.seed_run(player_name="legacy", treasures=5000, level=1)
+    again = submit(client, ticket).json()
+    assert (first["place"], again["place"]) == (1, 2)
+
+
+def test_equal_runs_keep_their_submission_order(client):
+    ids = [client.seed_run(player_name=name, treasures=100, level=3) for name in "abc"]
+    rows = client.get("/api/leaderboard").json()
+    assert [r["id"] for r in rows] == ids
+
+
 @pytest.mark.parametrize("field,value,status", [
     ("expires_at", datetime.now(UTC) - timedelta(seconds=1), 410),
     ("version", "old", 409),

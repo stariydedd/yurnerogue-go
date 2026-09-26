@@ -41,9 +41,6 @@ func Message(language Language, message string) string {
 	if tail, ok := strings.CutPrefix(message, "New game: "); ok {
 		return "Новый забег: " + Message(language, tail)
 	}
-	if tail, ok := strings.CutPrefix(message, "RUN SUMMARY / "); ok {
-		return Text(language, "RUN SUMMARY / ") + tail
-	}
 	for _, suffix := range []struct{ en, ru string }{
 		{" You fall asleep!", " Вы засыпаете!"},
 	} {

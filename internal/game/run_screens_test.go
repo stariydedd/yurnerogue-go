@@ -56,7 +56,7 @@ func TestResultsReplayAndBackDetachOldResponses(t *testing.T) {
 				g.playerName = "tester"
 				g.finishRun(end)
 				oldSession := g.session
-				oldResults := make(chan error, 1)
+				oldResults := make(chan submitResult, 1)
 				g.submitResults = oldResults
 				tapMenuAction(t, g, action)
 				want := StateMainMenu
@@ -85,7 +85,7 @@ func TestResultsReplayAndBackDetachOldResponses(t *testing.T) {
 					t.Fatal("MAIN MENU kept the old run")
 				}
 				g.submitStatus = "new screen"
-				oldResults <- nil
+				oldResults <- submitResult{}
 				g.pollNetwork()
 				if g.state != want || g.submitStatus != "new screen" {
 					t.Fatal("late submission changed the new screen")
@@ -123,8 +123,8 @@ func TestResultsKeepStatsWhileSubmissionFinishes(t *testing.T) {
 	g.session.Stats.EnemiesKilled = 12
 	session := g.session
 	g.finishRun(StateDeath)
-	g.submitResults = make(chan error, 1)
-	g.submitResults <- nil
+	g.submitResults = make(chan submitResult, 1)
+	g.submitResults <- submitResult{}
 	g.pollNetwork()
 	if g.state != StateDeath || g.session != session || g.session.Stats.EnemiesKilled != 12 || g.submitStatus != "Score submitted to global leaderboard!" {
 		t.Fatal("submission erased the run summary")

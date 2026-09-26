@@ -18,6 +18,9 @@ type Fonts struct {
 	UI      text.Face // основной текст HUD
 	Compact text.Face // длинные строки на узком экране
 	Small   text.Face // подсказки
+
+	src   *text.GoTextFaceSource
+	sized map[int]text.Face
 }
 
 func loadFonts() (*Fonts, error) {
@@ -29,24 +32,42 @@ func loadFonts() (*Fonts, error) {
 	if err != nil {
 		return nil, err
 	}
-	face := func(size float64) text.Face {
-		f := &text.GoTextFace{Source: src, Size: size}
-		// Press Start 2P содержит лигатуры fl и fi, и шейпер подставляет их
-		// по умолчанию: пара букв становится одним глифом шириной в клетку.
-		// Для пиксельного шрифта это бессмысленно, а таблицу рекордов ломает —
-		// имя вроде «fle» занимает две клетки вместо трёх и сдвигает колонки.
-		for _, feature := range []string{"liga", "clig"} {
-			f.SetFeature(text.MustParseTag(feature), 0)
-		}
-		return f
-	}
+	face := func(size float64) text.Face { return newFace(src, size) }
 	return &Fonts{
 		Title:   face(40),
 		Menu:    face(18),
 		UI:      face(14),
 		Compact: face(12),
 		Small:   face(10),
+		src:     src,
+		sized:   map[int]text.Face{},
 	}, nil
+}
+
+func newFace(src *text.GoTextFaceSource, size float64) text.Face {
+	f := &text.GoTextFace{Source: src, Size: size}
+	// Press Start 2P содержит лигатуры fl и fi, и шейпер подставляет их
+	// по умолчанию: пара букв становится одним глифом шириной в клетку.
+	// Для пиксельного шрифта это бессмысленно, а таблицу рекордов ломает:
+	// имя вроде «fle» занимает две клетки вместо трёх и сдвигает колонки.
+	for _, feature := range []string{"liga", "clig"} {
+		f.SetFeature(text.MustParseTag(feature), 0)
+	}
+	return f
+}
+
+// Sized returns the font at any size, made once and kept: the glyph cache
+// belongs to the face, so a fresh face every frame would redraw every glyph.
+func (f *Fonts) Sized(size int) text.Face {
+	if face, ok := f.sized[size]; ok {
+		return face
+	}
+	if f.src == nil {
+		return f.Title
+	}
+	face := newFace(f.src, float64(size))
+	f.sized[size] = face
+	return face
 }
 
 // Renderer рисует все экраны игры.

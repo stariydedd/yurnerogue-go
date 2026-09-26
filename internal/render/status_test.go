@@ -40,7 +40,7 @@ func TestSecondaryCaptionsUseReadableSharedStyle(t *testing.T) {
 		if TextWidth("M", face) <= TextWidth("M", fonts.Small) {
 			t.Fatal("secondary text is still tiny")
 		}
-		for _, label := range []string{strings.ToUpper(Tagline), "EVERY STEP COUNTS", "EMPTY NAME = ANONYMOUS", "RUN SUMMARY / " + strings.Repeat("я", 16), "GLOBAL", "SERVER UNAVAILABLE"} {
+		for _, label := range []string{strings.ToUpper(Tagline), "EVERY STEP COUNTS", "EMPTY NAME = ANONYMOUS", "RUN SUMMARY", "GLOBAL", "SERVER UNAVAILABLE"} {
 			lines := r.statusLines(label, face)
 			if len(lines) != 1 || TextWidth(lines[0], face) > float64(l.ScreenW-40) {
 				t.Fatalf("caption no longer fits its header: %s", label)

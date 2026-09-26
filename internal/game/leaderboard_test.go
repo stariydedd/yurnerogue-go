@@ -17,8 +17,8 @@ import (
 func waitSubmission(t *testing.T, g *Game) {
 	t.Helper()
 	select {
-	case err := <-g.submitResults:
-		g.submitResults <- err
+	case result := <-g.submitResults:
+		g.submitResults <- result
 		g.pollNetwork()
 	case <-time.After(2 * leaderboard.Timeout):
 		t.Fatal("submission did not complete")

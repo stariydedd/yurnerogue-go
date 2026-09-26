@@ -83,11 +83,19 @@ func TestRunScreensContentFits(t *testing.T) {
 			t.Fatal("stats rows overlap")
 		}
 		for _, status := range []string{"Submitting score...", "Score submitted to global leaderboard!", "Score not submitted: leaderboard unavailable for this game.", "Game length limit reached: score cannot be submitted.", "Score submission could not be confirmed."} {
-			face := r.secondaryFace()
-			chars := int(float64(box.Dx()) / TextWidth("M", face))
-			if box.Max.Y+16+len(wrapText(status, chars))*(int(TextWidth("M", face))+6) > MenuButtons(l, MenuResults)[0].Bounds.Min.Y {
-				t.Fatal("submission status overlaps buttons")
+			for _, language := range []locale.Language{locale.English, locale.Russian} {
+				r.Layout.Language = language
+				face := r.secondaryFace()
+				chars := int(float64(box.Dx()) / TextWidth("M", face))
+				// The phone adds the gold still missing for the top 10.
+				lines := len(wrapText(r.translateMessage(status), chars)) + len(wrapText(r.goldShort(Placement{Place: 999, GoldShort: 99999}), chars))
+				lineH := int(TextWidth("M", face)) + 6
+				top := statusTop(r.Layout, box, lines, lineH)
+				if top < box.Max.Y+4 || top+lines*lineH > MenuButtons(l, MenuResults)[0].Bounds.Min.Y {
+					t.Fatalf("%dx%d %s: submission status overlaps the panel or buttons: %q", l.ScreenW, l.ScreenH, language, status)
+				}
 			}
+			r.Layout.Language = l.Language
 		}
 		for _, page := range []MenuPage{MenuWelcome, MenuResults} {
 			for i, button := range MenuButtons(l, page) {

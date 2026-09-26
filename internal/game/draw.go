@@ -112,7 +112,7 @@ func (g *Game) drawScreen(screen *ebiten.Image) {
 	case StateGlossary:
 		r.DrawHelp(screen, render.MenuGlossary, g.helpScroll)
 	case StateDeath, StateWin:
-		r.DrawRunSummary(screen, g.session, g.playerName, g.state == StateWin, g.submitStatus)
+		r.DrawRunSummary(screen, g.session, g.state == StateWin, g.submitStatus, g.placement)
 	}
 }
 

@@ -71,7 +71,7 @@ func TestMusicWaitsForTheFanfareEvenIfTheScreenIsLeft(t *testing.T) {
 	for i := 0; i < 300; i++ {
 		e.Update(true, true)
 	}
-	e.quietForFanfare()
+	e.quietFor(Victory)
 	e.SilenceMusic(false) // straight back to the menu
 	for i := 0; i < 3*60; i++ {
 		e.Update(false, true)
@@ -93,12 +93,33 @@ func TestLosingFocusDuringTheFanfareDoesNotLeaveSilence(t *testing.T) {
 	b := &bank{}
 	b.cues[Victory] = make([]byte, 4*SampleRate*8)
 	e := &Engine{bank: b, tracks: [2]musicTrack{menu, world}, settings: Settings{Music: 100, Effects: 100}}
-	e.quietForFanfare()
+	e.quietFor(Victory)
 	e.Update(false, false) // alt-tab away: the fanfare voice closes
 	for i := 0; i < 60; i++ {
 		e.Update(false, true)
 	}
 	if menu.volume == 0 {
 		t.Fatal("music stayed silent for a fanfare that no longer plays")
+	}
+}
+
+func TestMusicWaitsForTheDeathDirgeToo(t *testing.T) {
+	setupTestSettingsStorage(t)
+	menu, world := &fakeTrack{}, &fakeTrack{}
+	b := &bank{}
+	b.cues[Death] = make([]byte, 2*SampleRate*8)
+	e := &Engine{bank: b, tracks: [2]musicTrack{menu, world}, settings: Settings{Music: 100, Effects: 100}}
+	e.quietFor(Death)
+	for i := 0; i < 90; i++ {
+		e.Update(false, true)
+	}
+	if menu.volume != 0 {
+		t.Fatal("music came back over the death dirge")
+	}
+	for i := 0; i < 90; i++ {
+		e.Update(false, true)
+	}
+	if menu.volume == 0 {
+		t.Fatal("music did not return after the dirge")
 	}
 }

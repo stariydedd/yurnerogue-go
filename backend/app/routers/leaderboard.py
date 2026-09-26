@@ -4,13 +4,13 @@ import secrets
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import desc, select
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import RankedResult, RankedTicket, Run
-from app.schemas import RunOut, RunStart, RunSubmit, RunTicket
+from app.schemas import RunOut, RunStart, RunSubmit, RunSubmitted, RunTicket
 from app.verifier import rules_version, verify
 
 router = APIRouter(prefix="/api", tags=["leaderboard"])
@@ -33,7 +33,22 @@ def result_out(run: Run) -> RunOut:
     return RunOut.model_validate(run)
 
 
-@router.post("/runs", response_model=RunOut, status_code=201)
+# The one leaderboard order: gold, then depth, then whoever finished first.
+LEADERBOARD_ORDER = (desc(Run.treasures), desc(Run.level), Run.id)
+
+
+def submitted_out(db: Session, run: Run) -> RunSubmitted:
+    """The run with its place in LEADERBOARD_ORDER and the gold of 10th place."""
+    ahead = db.scalar(select(func.count()).select_from(Run).where(or_(
+        Run.treasures > run.treasures,
+        and_(Run.treasures == run.treasures, Run.level > run.level),
+        and_(Run.treasures == run.treasures, Run.level == run.level, Run.id < run.id),
+    )))
+    tenth = db.scalar(select(Run.treasures).order_by(*LEADERBOARD_ORDER).offset(9).limit(1))
+    return RunSubmitted(**RunOut.model_validate(run).model_dump(), place=ahead + 1, top10_gold=tenth)
+
+
+@router.post("/runs", response_model=RunSubmitted, status_code=201)
 def submit_run(payload: RunSubmit, response: Response, db: Session = Depends(get_db)):
     """Only server-recomputed terminal runs may create leaderboard records."""
     key = str(payload.ticket)
@@ -46,7 +61,7 @@ def submit_run(payload: RunSubmit, response: Response, db: Session = Depends(get
         if saved.actions_hash != digest:
             raise HTTPException(409, "Ticket already used for another replay")
         response.status_code = 200
-        return result_out(db.get(Run, saved.run_id))
+        return submitted_out(db, db.get(Run, saved.run_id))
 
     existing = replay()
     if existing is not None:
@@ -77,11 +92,11 @@ def submit_run(payload: RunSubmit, response: Response, db: Session = Depends(get
             return existing
         raise
     db.refresh(run)
-    return result_out(run)
+    return submitted_out(db, run)
 
 
 @router.get("/leaderboard", response_model=list[RunOut])
 def get_leaderboard(limit: int = Query(default=10, ge=1, le=100), db: Session = Depends(get_db)):
     """Legacy scores are trusted by owner decision; new writes require replay."""
-    stmt = select(Run).order_by(desc(Run.treasures), desc(Run.level)).limit(limit)
+    stmt = select(Run).order_by(*LEADERBOARD_ORDER).limit(limit)
     return [result_out(run) for run in db.scalars(stmt)]

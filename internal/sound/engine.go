@@ -84,13 +84,13 @@ type Engine struct {
 	lastStepTick int
 	stepPlayed   bool
 	silent       bool
-	// quietUntil keeps the music out until the fanfare ends, even if the
-	// player leaves the victory screen before that.
+	// quietUntil keeps the music out until the victory fanfare or the death
+	// dirge ends, even if the player leaves the results screen before that.
 	quietUntil int
 }
 
-// SilenceMusic fades the music out quickly and keeps it out, for the victory
-// fanfare; false lets it fade back in at the usual pace.
+// SilenceMusic fades the music out quickly and keeps it out, for the results
+// of a run; false lets it fade back in at the usual pace.
 func (e *Engine) SilenceMusic(on bool) {
 	if e != nil {
 		e.silent = on
@@ -235,8 +235,8 @@ func (e *Engine) Play(c Cue) {
 	if e.last[c] != 0 && e.tick-e.last[c] < 6 {
 		return
 	}
-	if c == Victory && len(e.bank.cues[Victory]) > 0 {
-		e.quietForFanfare() // only for a fanfare that actually starts
+	if (c == Victory || c == Death) && len(e.bank.cues[c]) > 0 {
+		e.quietFor(c) // only for a cue that actually starts
 	}
 	data := e.bank.cues[c]
 	if c == Critical {
@@ -284,9 +284,9 @@ func (e *Engine) startVoice(data []byte) {
 	e.voices = append(e.voices, p)
 }
 
-// quietForFanfare keeps the music out for as long as the victory fanfare
-// plays (float32 stereo samples, 60 ticks a second).
-func (e *Engine) quietForFanfare() {
-	frames := len(e.bank.cues[Victory]) / 8
+// quietFor keeps the music out for as long as the cue plays (float32 stereo
+// samples, 60 ticks a second).
+func (e *Engine) quietFor(c Cue) {
+	frames := len(e.bank.cues[c]) / 8
 	e.quietUntil = e.tick + frames*60/SampleRate + 1
 }

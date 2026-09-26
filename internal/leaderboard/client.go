@@ -77,13 +77,29 @@ func (c *Client) StartRun(name, version string) (Ticket, error) {
 	return ticket, err
 }
 
-func (c *Client) SubmitReplay(ticket, actions string) error {
+// Placement is where a submitted run landed on the leaderboard. Place is 0
+// when the server did not say; Top10Gold is nil while the top 10 is not full.
+type Placement struct {
+	Place     int  `json:"place"`
+	Top10Gold *int `json:"top10_gold"`
+}
+
+// SubmitReplay sends the run. A score the server accepted stays submitted even
+// if its placement cannot be read: the placement is then empty, not an error.
+func (c *Client) SubmitReplay(ticket, actions string) (Placement, error) {
 	body, err := json.Marshal(map[string]string{"ticket": ticket, "actions": actions})
 	if err != nil {
-		return err
+		return Placement{}, err
 	}
-	_, err = c.do("POST", "/api/runs", body)
-	return err
+	data, err := c.do("POST", "/api/runs", body)
+	if err != nil {
+		return Placement{}, err
+	}
+	var placement Placement
+	if json.Unmarshal(data, &placement) != nil || placement.Place < 1 {
+		return Placement{}, nil
+	}
+	return placement, nil
 }
 
 // Top запрашивает таблицу рекордов.
