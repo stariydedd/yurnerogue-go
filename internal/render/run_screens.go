@@ -270,13 +270,11 @@ func (r *Renderer) runHeader(title string, place Placement, hero runHero) runHea
 		h.x = float64(w)/2 - TextWidth(h.title, h.face)/2
 		return h
 	}
-	inset := hero.x + hero.w + phoneTitleGap
-	if number != "" {
-		// Sized for a one digit place, so the title is the same for the
-		// whole top 10; "#10" then shrinks into the room left beside it.
-		inset = max(inset, 16+len("#1")*size+phoneTitleGap)
-	}
-	pick(w - 2*inset)
+	// The title always leaves room for a one digit place, so it keeps its
+	// size when the place arrives from the server a moment after the screen
+	// opens, and it is the same whatever the place; "#10" then shrinks into
+	// the room left beside it.
+	pick(w - 2*max(hero.x+hero.w+phoneTitleGap, 16+len("#1")*min(hero.h, phoneMedal)+phoneTitleGap))
 	tw := TextWidth(h.title, h.face)
 	if number != "" {
 		room := (w-int(tw))/2 - 16 - phoneTitleGap

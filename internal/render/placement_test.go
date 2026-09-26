@@ -39,11 +39,15 @@ func TestPhoneTitleClearsHeroAndMedal(t *testing.T) {
 			r := &Renderer{Layout: l, Fonts: fonts}
 			r.Layout.Language = language
 			for _, title := range []string{"VICTORY", "YOU DIED"} {
-				first := r.runHeader(title, Placement{Place: 1}, hero)
+				// The place arrives after the screen opens: unknown first.
+				first := r.runHeader(title, Placement{}, hero)
+				if other := r.runHeader(title, Placement{Place: 42, GoldShort: 5}, hero); other.face != first.face {
+					t.Errorf("%s %q: the title changes size outside the top 10", language, title)
+				}
 				for place := 0; place <= 10; place++ {
 					head := r.runHeader(title, Placement{Place: place}, hero)
-					if place > 0 && head.face != first.face {
-						t.Errorf("%s %q place %d: the title changes size within the top 10", language, title, place)
+					if head.face != first.face {
+						t.Errorf("%s %q place %d: the title changes size when the place arrives", language, title, place)
 					}
 					tw := TextWidth(head.title, head.face)
 					if center := head.x + tw/2; center != float64(width)/2 {
