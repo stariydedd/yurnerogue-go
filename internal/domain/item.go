@@ -215,6 +215,8 @@ func (it *Item) StatLabel() string {
 	switch {
 	case it.HealthEffect > 0:
 		return " [+" + itoa(it.HealthEffect) + " HP]"
+	case it.MaxHealthEffect > 0 && it.Type == ItemElixir:
+		return " [+" + itoa(it.MaxHealthEffect) + " SHIELD]"
 	case it.MaxHealthEffect > 0:
 		return " [+" + itoa(it.MaxHealthEffect) + " MAX HP]"
 	case it.AgilityEffect > 0:

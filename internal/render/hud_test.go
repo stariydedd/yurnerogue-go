@@ -100,7 +100,7 @@ func TestHUDEffectTimerFollowsTurnsAndSleep(t *testing.T) {
 	add(&domain.Item{Type: domain.ItemElixir, AgilityEffect: 5})
 	add(&domain.Item{Type: domain.ItemElixir, MaxHealthEffect: 20})
 	bonuses := statusBonuses(p)
-	if len(bonuses) != 3 || bonusLabel(bonuses[0], true) != "STR +3 19T" || bonusLabel(bonuses[1], true) != "AGI +5 20T" || bonusLabel(bonuses[2], true) != "MHP +20 20T" {
+	if len(bonuses) != 3 || bonusLabel(bonuses[0], true) != "STR +3 19T" || bonusLabel(bonuses[1], true) != "AGI +5 20T" || bonusLabel(bonuses[2], true) != "SHLD +20 20T" {
 		t.Fatalf("not all stat bonuses visible: %+v", bonuses)
 	}
 	p.FallAsleep(2)
@@ -161,10 +161,11 @@ func TestSleepSharesStatusAreaWithAllBonuses(t *testing.T) {
 			if len(effects) != 4 || effects[0].tint != uiDebuff {
 				t.Fatalf("sleep must use the blue debuff color: %+v", effects)
 			}
-			for _, effect := range effects[1:] {
-				if effect.tint != uiAccent {
-					t.Fatal("potion buffs must keep their orange color")
-				}
+			if effects[1].tint != uiAccent || effects[2].tint != uiAccent {
+				t.Fatal("potion stat buffs must keep their orange color")
+			}
+			if effects[3].tint != uiShield {
+				t.Fatal("the potion shield must be grey like its part of the health bar")
 			}
 			wantHead, wantTurns := "SLEEP", "2T"
 			if language == locale.Russian {

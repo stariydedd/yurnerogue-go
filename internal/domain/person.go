@@ -64,9 +64,10 @@ func NewPerson() *Person {
 // IsAlive — жив ли персонаж.
 func (p *Person) IsAlive() bool { return p.Health > 0 }
 
-// TakeDamage наносит урон, здоровье не уходит ниже нуля.
+// TakeDamage наносит урон: сначала его принимает щит зелий, остаток идёт в
+// здоровье, которое не уходит ниже нуля.
 func (p *Person) TakeDamage(damage int) {
-	p.Health -= damage
+	p.Health -= p.absorb(damage)
 	if p.Health < 0 {
 		p.Health = 0
 	}
@@ -151,7 +152,7 @@ func (p *Person) indexOf(item *Item) int {
 }
 
 // UseItem применяет предмет из рюкзака и убирает его оттуда.
-// Эликсир действует ElixirDuration ходов, остальное — навсегда.
+// Эликсир действует ElixirDuration ходов, остальное навсегда.
 func (p *Person) UseItem(item *Item) bool {
 	i := p.indexOf(item)
 	if i < 0 {
@@ -169,15 +170,15 @@ func (p *Person) UseItem(item *Item) bool {
 	return true
 }
 
-// applyElixir выдаёт бонус и ставит его в очередь на откат.
+// applyElixir выдаёт бонус и ставит его в очередь на откат. Зелье здоровья
+// даёт щит: он принимает урон и кражу максимума раньше здоровья, а по
+// окончании остаток просто пропадает.
 func (p *Person) applyElixir(item *Item) {
 	add := func(sub ItemSubType, amount int) {
 		if amount == 0 {
 			return
 		}
 		switch sub {
-		case SubHealth:
-			p.IncreaseMaxHealth(amount)
 		case SubAgility:
 			p.Agility += amount
 		case SubStrength:
@@ -190,11 +191,18 @@ func (p *Person) applyElixir(item *Item) {
 	add(SubStrength, item.StrengthEffect)
 }
 
-// DrainMaxHealth отнимает максимум здоровья, как Bloodseeker. Сначала тратится
-// временный бонус зелий (раньше выпитые первыми), иначе по окончании зелья
-// тот же бонус отняли бы второй раз и украденное удвоилось бы.
+// DrainMaxHealth отнимает максимум здоровья, как Bloodseeker. Щит зелий
+// принимает кражу первым, отнимается только остаток.
 func (p *Person) DrainMaxHealth(amount int) {
-	p.MaxHealth -= amount
+	p.MaxHealth -= p.absorb(amount)
+	if p.Health > p.MaxHealth {
+		p.Health = p.MaxHealth
+	}
+}
+
+// absorb тратит щит зелий, начиная с раньше выпитых (они и кончатся раньше),
+// и возвращает то, что щит не принял.
+func (p *Person) absorb(amount int) int {
 	remaining := p.effects[:0]
 	for _, e := range p.effects {
 		if e.sub == SubHealth {
@@ -208,12 +216,22 @@ func (p *Person) DrainMaxHealth(amount int) {
 		remaining = append(remaining, e)
 	}
 	p.effects = remaining
-	if p.Health > p.MaxHealth {
-		p.Health = p.MaxHealth
-	}
+	return amount
 }
 
-// TickEffects уменьшает таймеры эликсиров и откатывает истёкшие.
+// Shield: сколько урона ещё примет щит зелий.
+func (p *Person) Shield() int {
+	total := 0
+	for _, e := range p.effects {
+		if e.sub == SubHealth {
+			total += e.amount
+		}
+	}
+	return total
+}
+
+// TickEffects уменьшает таймеры эликсиров и откатывает истёкшие. Остаток
+// истёкшего щита просто пропадает.
 func (p *Person) TickEffects() {
 	remaining := p.effects[:0]
 	for _, e := range p.effects {
@@ -223,14 +241,6 @@ func (p *Person) TickEffects() {
 			continue
 		}
 		switch e.sub {
-		case SubHealth:
-			p.MaxHealth -= e.amount
-			if p.MaxHealth < 1 {
-				p.MaxHealth = 1
-			}
-			if p.Health > p.MaxHealth {
-				p.Health = p.MaxHealth
-			}
 		case SubAgility:
 			p.Agility -= e.amount
 		case SubStrength:

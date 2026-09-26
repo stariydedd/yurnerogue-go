@@ -28,6 +28,7 @@ var messages = []struct {
 	{regexp.MustCompile(`^The (.+) missed you\.$`), `$1 промахивается.`},
 	{regexp.MustCompile(`^The (.+) is preparing to strike\.\.\.$`), `$1 готовится к удару...`},
 	{regexp.MustCompile(`^The (.+) drained your max HP by (\d+)!$`), `$1 снижает максимальное здоровье на $2!`},
+	{regexp.MustCompile(`^The (.+) struck your shield\.$`), `$1 бьёт по щиту.`},
 	{regexp.MustCompile(`^The (.+) hit you for (\d+) dmg\.$`), `$1 наносит $2 урона.`},
 }
 
@@ -62,7 +63,7 @@ func Message(language Language, message string) string {
 	return message
 }
 
-var statSuffix = regexp.MustCompile(`\[([+-]\d+) (MAX HP|STR|AGI|HP)\]`)
+var statSuffix = regexp.MustCompile(`\[([+-]\d+) (MAX HP|SHIELD|STR|AGI|HP)\]`)
 
 // Translate only stat suffixes, not words in item or player names.
 func StatSuffix(language Language, label string) string {

@@ -11,6 +11,7 @@ type CombatEvent struct {
 	MaxHP        bool
 	Parried      bool // the hero blocked this hit completely
 	Critical     bool // a Critical Strike that landed
+	Shielded     bool // the Clarity shield took the whole hit
 }
 
 const maxCombatEvents = 64

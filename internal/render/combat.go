@@ -110,6 +110,9 @@ func combatLabel(event domain.CombatEvent) (string, color.NRGBA) {
 	if event.MaxHP {
 		return label + " MAX HP", color.NRGBA{R: 234, G: 155, B: 255, A: 255}
 	}
+	if event.Shielded {
+		return label, color.NRGBA(uiShieldLight)
+	}
 	if event.TargetPlayer {
 		return label, color.NRGBA{R: 255, G: 130, B: 82, A: 255}
 	}

@@ -111,3 +111,35 @@ func TestCombatEventsKeepEveryCounterattackInOneTurn(t *testing.T) {
 		}
 	}
 }
+
+func TestHitsTheShieldTookWholeAreMarked(t *testing.T) {
+	shielded := func(kind OpponentType, shield int) (*Session, CombatEvent) {
+		s, o := combatEventSession(kind)
+		s.Player.Agility, o.Agility = -1_000_000, 1_000_000
+		if shield > 0 {
+			clarity := &Item{Type: ItemElixir, MaxHealthEffect: shield}
+			s.Player.PickUpItem(clarity)
+			s.Player.UseItem(clarity)
+		}
+		s.ProcessEnemyTurns()
+		if len(s.CombatEvents) != 1 {
+			t.Fatalf("%v: want one hit, got %+v", kind, s.CombatEvents)
+		}
+		return s, s.CombatEvents[0]
+	}
+
+	s, e := shielded(Zombie, 10_000)
+	if !e.Shielded || e.Damage <= 0 || s.Player.Health != DefaultMaxHealth {
+		t.Fatalf("a hit the shield took whole: %+v, health %d", e, s.Player.Health)
+	}
+	if _, e = shielded(Zombie, 1); e.Shielded {
+		t.Fatalf("a hit that got past the shield is marked: %+v", e)
+	}
+	if _, e = shielded(Zombie, 0); e.Shielded {
+		t.Fatalf("a hit with no shield is marked: %+v", e)
+	}
+	s, e = shielded(Vampire, 10_000)
+	if !e.Shielded || e.MaxHP || s.Player.MaxHealth != DefaultMaxHealth || s.Message != "The Bloodseeker struck your shield." {
+		t.Fatalf("a drain the shield took whole: %+v, %q", e, s.Message)
+	}
+}

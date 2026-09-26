@@ -155,12 +155,22 @@ func (s *Session) ProcessEnemyTurns() {
 			o.IsChasing = true // Riki перестаёт прятаться, когда бьёт
 		}
 		resting := o.Type == Ogre && o.Resting()
+		shield := p.Shield()
 		damage := OpponentAttacks(o, p)
+		absorbed := shield - p.Shield()
 		parried := p.Guarding && !resting && damage != Miss
+		// A drain shows only what got past the shield; a drain the shield
+		// took whole shows as a plain hit.
+		drained := o.Type == Vampire && damage > absorbed
 		if !resting {
+			shown := damage
+			if drained {
+				shown = damage - absorbed
+			}
 			s.recordCombat(CombatEvent{
-				Target: Point{X: p.X, Y: p.Y}, Damage: damage,
-				TargetPlayer: true, MaxHP: o.Type == Vampire && damage > 0, Parried: parried,
+				Target: Point{X: p.X, Y: p.Y}, Damage: shown,
+				TargetPlayer: true, MaxHP: drained, Parried: parried,
+				Shielded: damage > 0 && absorbed >= damage,
 			})
 		}
 		if damage > 0 {
@@ -174,7 +184,7 @@ func (s *Session) ProcessEnemyTurns() {
 			s.riposte(o) // its message replaces the enemy's zero-damage hit
 			continue
 		}
-		s.SetMessage(attackMessage(o, p, damage))
+		s.SetMessage(attackMessage(o, p, damage, absorbed))
 	}
 
 	p.TickEffects()
@@ -185,16 +195,19 @@ func (s *Session) ProcessEnemyTurns() {
 	}
 }
 
-// attackMessage — строка в HUD по результату вражеской атаки.
-func attackMessage(o *Opponent, p *Person, damage int) string {
+// attackMessage: строка в HUD по результату вражеской атаки; absorbed:
+// сколько из неё принял щит.
+func attackMessage(o *Opponent, p *Person, damage, absorbed int) string {
 	name := o.Type.DisplayName()
 	switch {
 	case damage == Miss:
 		return "The " + name + " missed you."
 	case damage == 0:
 		return "The " + name + " is preparing to strike..."
+	case o.Type == Vampire && absorbed >= damage:
+		return "The " + name + " struck your shield."
 	case o.Type == Vampire:
-		return "The " + name + " drained your max HP by " + itoa(damage) + "!"
+		return "The " + name + " drained your max HP by " + itoa(damage-absorbed) + "!"
 	}
 	msg := "The " + name + " hit you for " + itoa(damage) + " dmg."
 	if p.Sleeping {

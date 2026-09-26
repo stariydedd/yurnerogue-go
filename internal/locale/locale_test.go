@@ -22,6 +22,8 @@ func TestTranslationsPreserveProperNames(t *testing.T) {
 		"Sharpened Desolator.":                                   "Заточено: Desolator.",
 		"You used Phantom Clarity [+3 AGI].":                     "Использовано: Phantom Clarity [+3 ЛОВ].",
 		"You used Vital Scroll [+5 MAX HP].":                     "Использовано: Vital Scroll [+5 МАКС ОЗ].",
+		"You used Moon Clarity [+40 SHIELD].":                    "Использовано: Moon Clarity [+40 ЩИТ].",
+		"The Bloodseeker struck your shield.":                    "Bloodseeker бьёт по щиту.",
 		"RUN SUMMARY":                                            "ИТОГИ",
 		"New game: Starting game...":                             "Новый забег: Запуск игры...",
 	}
@@ -58,7 +60,7 @@ func TestRussianTerminologyAndStatSuffixes(t *testing.T) {
 		}
 	}
 	for source, want := range map[string]string{
-		" [+5 STR]": " [+5 СИЛ]", " [+4 AGI]": " [+4 ЛОВ]", " [+10 HP]": " [+10 ОЗ]", " [+5 MAX HP]": " [+5 МАКС ОЗ]",
+		" [+5 STR]": " [+5 СИЛ]", " [+4 AGI]": " [+4 ЛОВ]", " [+10 HP]": " [+10 ОЗ]", " [+5 MAX HP]": " [+5 МАКС ОЗ]", " [+40 SHIELD]": " [+40 ЩИТ]",
 		"STR Blade": "STR Blade",
 	} {
 		if StatSuffix(Russian, source) != want || StatSuffix(English, source) != source {

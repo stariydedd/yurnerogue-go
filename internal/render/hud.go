@@ -240,20 +240,33 @@ func healthBarColors(p *domain.Person) (fill, highlight, edge color.RGBA) {
 	return uiAccent, uiHighlight, uiEdge
 }
 
+// drawHPBar fills the bar with health and, after it, the Clarity shield in
+// grey. When health and shield together pass the maximum, the bar spans
+// them both, so the shield always shows.
 func (r *Renderer) drawHPBar(dst *ebiten.Image, p *domain.Person, box image.Rectangle) {
-	ratio := 0.0
-	if p.MaxHealth > 0 {
-		ratio = max(0, min(1, float64(p.Health)/float64(p.MaxHealth)))
-	}
 	fillBox(dst, box, uiInk)
 	inner := box.Inset(3)
 	fillBox(dst, inner, uiRecess)
-	fill := inner
-	fill.Max.X = fill.Min.X + int(float64(fill.Dx())*ratio)
+	span := max(p.MaxHealth, p.Health+p.Shield())
+	at := func(amount int) int {
+		if span <= 0 {
+			return inner.Min.X
+		}
+		return inner.Min.X + int(float64(inner.Dx())*max(0, min(1, float64(amount)/float64(span))))
+	}
+	fill, shield := inner, inner
+	fill.Max.X = at(p.Health)
+	shield.Min.X, shield.Max.X = fill.Max.X, at(p.Health+p.Shield())
 	fillColor, highlight, edge := healthBarColors(p)
-	fillBox(dst, fill, fillColor)
-	if !fill.Empty() {
-		fillBox(dst, image.Rect(fill.Min.X, fill.Min.Y, fill.Max.X, fill.Min.Y+3), highlight)
+	for _, part := range []struct {
+		box         image.Rectangle
+		fill, light color.RGBA
+	}{{fill, fillColor, highlight}, {shield, uiShield, uiShieldLight}} {
+		if part.box.Empty() {
+			continue
+		}
+		fillBox(dst, part.box, part.fill)
+		fillBox(dst, image.Rect(part.box.Min.X, part.box.Min.Y, part.box.Max.X, part.box.Min.Y+3), part.light)
 	}
 	strokeBox(dst, box, 1, edge)
 	r.slotLabel(dst, r.hudHealthLabel(p, float64(box.Dx()-8)), box, uiText)
@@ -316,9 +329,9 @@ func statusBonuses(p *domain.Person) []domain.EffectStatus {
 }
 
 func bonusStatLabel(stat domain.ItemSubType, compact bool) string {
-	label := map[domain.ItemSubType]string{domain.SubStrength: "STR", domain.SubAgility: "AGI", domain.SubHealth: "MAX HP"}[stat]
+	label := map[domain.ItemSubType]string{domain.SubStrength: "STR", domain.SubAgility: "AGI", domain.SubHealth: "SHIELD"}[stat]
 	if compact && stat == domain.SubHealth {
-		label = "MHP"
+		label = "SHLD"
 	}
 	return label
 }
@@ -348,7 +361,7 @@ func (r *Renderer) hudEffects(p *domain.Person) []hudEffect {
 	}
 	for _, bonus := range statusBonuses(p) {
 		head, turns := r.bonusParts(bonus)
-		effects = append(effects, hudEffect{head, turns, uiAccent})
+		effects = append(effects, hudEffect{head, turns, bonusTint(bonus.Stat)})
 	}
 	return effects
 }
@@ -361,10 +374,19 @@ func (r *Renderer) bonusParts(bonus domain.EffectStatus) (string, string) {
 }
 
 // drawBonus is the single bonus style of both HUDs: stat and amount in the
-// accent colour, turns in the text colour. Returns the drawn width.
+// bonus colour, turns in the text colour. Returns the drawn width.
 func (r *Renderer) drawBonus(dst *ebiten.Image, bonus domain.EffectStatus, x, y, width float64) float64 {
 	head, turns := r.bonusParts(bonus)
-	return r.drawEffect(dst, head, turns, x, y, width, uiAccent)
+	return r.drawEffect(dst, head, turns, x, y, width, bonusTint(bonus.Stat))
+}
+
+// bonusTint colours a bonus: the shield in its bar grey, stat buffs in the
+// accent colour.
+func bonusTint(stat domain.ItemSubType) color.RGBA {
+	if stat == domain.SubHealth {
+		return uiShield
+	}
+	return uiAccent
 }
 
 func (r *Renderer) drawEffect(dst *ebiten.Image, head, turns string, x, y, width float64, tint color.RGBA) float64 {

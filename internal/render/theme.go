@@ -22,6 +22,9 @@ var (
 	uiDebuff    = color.RGBA{163, 92, 255, 255} // sleep: bright violet, apart from PARRY blue and Bloodseeker lilac
 	uiRecess    = color.RGBA{18, 17, 16, 255}
 	uiPressed   = color.RGBA{65, 33, 17, 255}
+	// The Clarity shield: a cool grey, like a shield on a Dota 2 health bar.
+	uiShield      = color.RGBA{148, 155, 164, 255}
+	uiShieldLight = color.RGBA{204, 209, 216, 255}
 )
 
 func (r *Renderer) secondaryFace() text.Face {

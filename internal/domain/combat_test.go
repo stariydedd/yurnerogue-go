@@ -181,8 +181,8 @@ func TestEnemyTurnsAttackAdjacentPlayer(t *testing.T) {
 	}
 }
 
-func TestBloodseekerDrainSpendsElixirBonusFirst(t *testing.T) {
-	hp := func(p *Person) [2]int { return [2]int{p.Health, p.MaxHealth} }
+func TestHealthElixirIsAShield(t *testing.T) {
+	hp := func(p *Person) [3]int { return [3]int{p.Health, p.MaxHealth, p.Shield()} }
 	drink := func(p *Person, amount int) {
 		e := &Item{Type: ItemElixir, MaxHealthEffect: amount}
 		p.PickUpItem(e)
@@ -194,44 +194,72 @@ func TestBloodseekerDrainSpendsElixirBonusFirst(t *testing.T) {
 		}
 	}
 
+	// It neither heals nor raises the maximum: it takes damage first.
 	p := NewPerson()
+	p.TakeDamage(300)
+	drink(p, 100)
+	if hp(p) != [3]int{200, 500, 100} {
+		t.Fatalf("after drinking got %v", hp(p))
+	}
+	p.TakeDamage(60)
+	if hp(p) != [3]int{200, 500, 40} {
+		t.Fatalf("the shield must take the hit: %v", hp(p))
+	}
+	p.TakeDamage(70)
+	if hp(p) != [3]int{170, 500, 0} || p.ActiveEffects() != 0 {
+		t.Fatalf("only what the shield could not take reaches health: %v, %d effects", hp(p), p.ActiveEffects())
+	}
+
+	// What is left of it when it ends simply goes.
+	p = NewPerson()
+	drink(p, 100)
+	p.TakeDamage(30)
+	expire(p)
+	if hp(p) != [3]int{500, 500, 0} {
+		t.Fatalf("after it ends got %v", hp(p))
+	}
+
+	// Bloodseeker does not get through it: the drain is taken first.
+	p = NewPerson()
 	drink(p, 100)
 	p.DrainMaxHealth(30)
 	p.DrainMaxHealth(30)
-	if hp(p) != [2]int{540, 540} {
+	if hp(p) != [3]int{500, 500, 40} {
 		t.Fatalf("after two drains got %v", hp(p))
 	}
-	expire(p)
-	if hp(p) != [2]int{500, 500} {
-		t.Fatalf("the drained bonus was taken again on expiry: %v", hp(p))
+	p.DrainMaxHealth(70)
+	if hp(p) != [3]int{470, 470, 0} {
+		t.Fatalf("only the rest of a drain reaches the maximum: %v", hp(p))
 	}
 
-	// A drain larger than the bonus takes the rest from the base.
-	p = NewPerson()
-	drink(p, 100)
-	p.DrainMaxHealth(130)
-	if hp(p) != [2]int{470, 470} || p.ActiveEffects() != 0 {
-		t.Fatalf("spent bonus must end, the rest comes from the base: %v, %d effects", hp(p), p.ActiveEffects())
-	}
-	expire(p)
-	if hp(p) != [2]int{470, 470} {
-		t.Fatalf("nothing is left to expire: %v", hp(p))
-	}
-
-	// Two elixirs: the older bonus is spent first; stat buffs stay.
+	// Two elixirs: the older shield, which ends first, is spent first; stat
+	// buffs stay.
 	p = NewPerson()
 	drink(p, 50)
+	p.TickEffects()
 	drink(p, 50)
 	strength := &Item{Type: ItemElixir, StrengthEffect: 5}
 	p.PickUpItem(strength)
 	p.UseItem(strength)
-	p.DrainMaxHealth(70)
+	p.TakeDamage(70)
 	statuses := p.EffectStatuses()
 	if len(statuses) != 2 || statuses[0] != (EffectStatus{SubHealth, 30, ElixirDuration}) || statuses[1].Stat != SubStrength {
 		t.Fatalf("got %v", statuses)
 	}
-	expire(p)
-	if hp(p) != [2]int{500, 500} {
+	if hp(p) != [3]int{500, 500, 30} {
 		t.Fatalf("got %v", hp(p))
+	}
+}
+
+func TestShieldShowsInCombatAndMessages(t *testing.T) {
+	blood := &Opponent{Type: Vampire}
+	if got := attackMessage(blood, NewPerson(), 40, 40); got != "The Bloodseeker struck your shield." {
+		t.Fatalf("a drain the shield took whole: %q", got)
+	}
+	if got := attackMessage(blood, NewPerson(), 40, 30); got != "The Bloodseeker drained your max HP by 10!" {
+		t.Fatalf("a drain partly taken: %q", got)
+	}
+	if got := attackMessage(blood, NewPerson(), 40, 0); got != "The Bloodseeker drained your max HP by 40!" {
+		t.Fatalf("a drain with no shield: %q", got)
 	}
 }

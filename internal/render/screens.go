@@ -111,7 +111,7 @@ var helpEnemies = []helpEntry{
 
 var helpItems = []helpEntry{
 	{"food", "Tango", "Restores health.", ""},
-	{"elixir", "Clarity", "Temporary stat buff for 20 turns.", ""},
+	{"elixir", "Clarity", "Stat buff or shield for 20 turns.", ""},
 	{"scroll", "Scroll", "Permanent buff applied on pickup.", ""},
 	{"sword", "Weapon", "Equips if stronger, else sharpens yours.", ""},
 	{"portal", "Exit", "Descend deeper. Clear level 21 to win.", ""},
@@ -124,7 +124,7 @@ var helpDesktopControls = []helpEntry{
 	{"", "Run", "Then a direction: run until something blocks the way.", "R"},
 	{"", "Wait", "Wait a turn: let enemies come to you.", "Z"},
 	{"food", "Food", "Eat one: restores health.", "C"},
-	{"elixir", "Clarity", "Drink one: stat buff for 20 turns.", "X"},
+	{"elixir", "Clarity", "Drink one: stat buff or shield for 20 turns.", "X"},
 }
 
 var helpDesktopInterface = []helpEntry{

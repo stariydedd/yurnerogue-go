@@ -2,6 +2,7 @@ package render
 
 import (
 	"image"
+	"image/color"
 	"testing"
 
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
@@ -106,6 +107,9 @@ func TestCombatLabelsSeparateMissZeroAndMaxHP(t *testing.T) {
 		if got, _ := combatLabel(tc.event); got != tc.want {
 			t.Fatalf("label %q, want %q", got, tc.want)
 		}
+	}
+	if label, ink := combatLabel(domain.CombatEvent{Damage: 25, TargetPlayer: true, Shielded: true}); label != "-25" || ink != color.NRGBA(uiShieldLight) {
+		t.Fatalf("a hit the shield took whole: %q in %v, want grey", label, ink)
 	}
 	_, outgoing := combatLabel(domain.CombatEvent{Damage: 10})
 	_, incoming := combatLabel(domain.CombatEvent{Damage: 10, TargetPlayer: true})
