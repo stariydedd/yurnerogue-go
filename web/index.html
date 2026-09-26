@@ -155,7 +155,15 @@
 // Ebitengine cancels every key on the canvas, the browser's own F11 included,
 // so the page toggles fullscreen itself. The whole page goes fullscreen, not
 // just the canvas, so the HTML name field over the game stays visible.
+// In fullscreen the Escape key is locked where the Keyboard Lock API exists
+// (Chromium browsers): a tap reaches the game, which uses Escape, and holding
+// it leaves fullscreen, as the browser explains on entry. Elsewhere Escape
+// leaves fullscreen as usual.
 (function () {
+    const keyboard = window.navigator && window.navigator.keyboard;
+    function lockEscape() {
+        if (keyboard && keyboard.lock) keyboard.lock(["Escape"]).catch(() => {});
+    }
     function toggleFullscreen(doc) {
         const root = doc.documentElement;
         const request = root.requestFullscreen || root.webkitRequestFullscreen;
@@ -164,10 +172,15 @@
             if (exit) exit.call(doc);
         } else if (request) {
             const pending = request.call(root);
-            if (pending && pending.catch) pending.catch(() => {});
+            if (pending && pending.then) pending.then(lockEscape, () => {});
         }
     }
     window.yurneToggleFullscreen = toggleFullscreen;
+    if (document.addEventListener) {
+        document.addEventListener("fullscreenchange", () => {
+            if (!document.fullscreenElement && keyboard && keyboard.unlock) keyboard.unlock();
+        });
+    }
     window.addEventListener("keydown", (e) => {
         if (e.key !== "F11" && e.code !== "F11") return;
         e.preventDefault();

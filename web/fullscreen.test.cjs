@@ -48,3 +48,26 @@ test("browsers without the Fullscreen API ignore F11 quietly", () => {
     vm.runInNewContext(script, {window, document: {documentElement: {}}});
     assert.doesNotThrow(() => listener({key: "F11", code: "F11", preventDefault() {}}));
 });
+
+test("fullscreen locks Escape where the browser allows it and unlocks on exit", async () => {
+    const calls = [];
+    let keydown, change;
+    const document = {
+        fullscreenElement: null,
+        addEventListener(name, handler) { if (name === "fullscreenchange") change = handler; },
+        documentElement: {requestFullscreen() { document.fullscreenElement = this; return Promise.resolve(); }},
+        exitFullscreen() { document.fullscreenElement = null; change(); return Promise.resolve(); },
+    };
+    const keyboard = {
+        lock(keys) { calls.push("lock " + keys.join()); return Promise.resolve(); },
+        unlock() { calls.push("unlock"); },
+    };
+    const window = {navigator: {keyboard}, addEventListener(name, handler) { if (name === "keydown") keydown = handler; }};
+    vm.runInNewContext(script, {window, document});
+    const press = () => keydown({key: "F11", code: "F11", preventDefault() {}});
+    press();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(calls, ["lock Escape"]);
+    press();
+    assert.deepEqual(calls, ["lock Escape", "unlock"]);
+});
