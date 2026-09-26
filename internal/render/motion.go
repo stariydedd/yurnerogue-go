@@ -227,9 +227,10 @@ func (m *actorMotion) moving(tick int) bool {
 }
 
 // Animating reports whether the gameplay picture changes on its own right
-// now: actors or the camera sliding, or combat markers floating.
+// now: actors or the camera sliding, combat markers floating, new terrain
+// light fading in, or terrain chunks still waiting to be drawn.
 func (r *Renderer) Animating() bool {
-	if len(r.combat.active) > 0 || r.motion.player.moving(r.tick) {
+	if len(r.combat.active) > 0 || r.motion.player.moving(r.tick) || r.forest.fading(r.tick) || r.forest.pending {
 		return true
 	}
 	for _, m := range r.motion.enemies {

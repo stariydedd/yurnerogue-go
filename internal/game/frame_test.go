@@ -28,6 +28,14 @@ func TestStillPlayIsNotRedrawnButAnythingThatMovesIs(t *testing.T) {
 	}
 	for tick() < 1 {
 	}
+	for r.Animating() { // the ring of chunks ahead of the camera fills first
+		tick()
+	}
+	tick() // the frame after the work settles
+	for g.ticks%render.AnimFrameTicks != 0 {
+		tick() // start counting right after an animation frame
+	}
+	tick()
 	start := g.frames
 	for i := 0; i < render.AnimFrameTicks-2; i++ {
 		tick()

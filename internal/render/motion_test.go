@@ -4,6 +4,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"testing"
+	"time"
 
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
@@ -211,6 +212,8 @@ func chunkFixture(t *testing.T) (*Renderer, *domain.Session, func(image.Rectangl
 	room := s.Level.Rooms[0]
 	s.Player.X, s.Player.Y = room.X, room.Y
 	dst := ebiten.NewImage(r.Layout.GridW, r.Layout.GridH)
+	none := time.Duration(0) // one stale chunk per frame: deterministic
+	r.forest.budget = &none
 	// frame draws one frame and returns how many chunks it redrew.
 	frame := func(view image.Rectangle) int {
 		grid := s.BuildGrid(false)
@@ -227,8 +230,8 @@ func TestForestChunksRedrawOnlyWhatChanged(t *testing.T) {
 	view := image.Rect(600, 300, 600+r.Layout.GridW, 300+r.Layout.GridH)
 	lo, hi := chunkRange(view)
 	onScreen := (hi.X - lo.X + 1) * (hi.Y - lo.Y + 1)
-	if n := frame(view); n < onScreen || n > onScreen+chunksPerFrame {
-		t.Fatalf("first frame drew %d chunks, want the %d on screen plus up to %d ahead", n, onScreen, chunksPerFrame)
+	if n := frame(view); n < onScreen || n > onScreen+1 {
+		t.Fatalf("first frame drew %d chunks, want the %d on screen plus one ahead", n, onScreen)
 	}
 	for i := 0; i < 40 && frame(view) > 0; i++ {
 	}
@@ -241,12 +244,17 @@ func TestForestChunksRedrawOnlyWhatChanged(t *testing.T) {
 	if n := frame(view.Add(image.Pt(TileSize, 0))); n != 0 {
 		t.Fatalf("a step inside a room redrew %d chunks", n)
 	}
-	// New light: a few chunks per frame, and not all of them.
+	// New light: the chunk under the middle of the view first, then one per
+	// frame within the budget.
 	s.Player.X, s.Player.Y = s.Level.Rooms[1].X, s.Level.Rooms[1].Y
 	total := 0
+	middle, _ := chunkRange(image.Rectangle{Min: view.Min.Add(view.Size().Div(2)), Max: view.Min.Add(view.Size().Div(2)).Add(image.Pt(1, 1))})
 	for i := 0; i < 40; i++ {
 		n := frame(view)
-		if n > chunksPerFrame {
+		if i == 0 && n == 1 && r.forest.last != middle {
+			t.Fatalf("first redraw was chunk %v, not %v under the middle of the view", r.forest.last, middle)
+		}
+		if n > 1 {
 			t.Fatalf("frame redrew %d chunks already on screen", n)
 		}
 		total += n
@@ -273,5 +281,38 @@ func TestForestChunkKeyIgnoresChangesFarAway(t *testing.T) {
 	f.view.seen[(2*chunkTiles-chunkMargin)*domain.Cols+2*chunkTiles] = true // in the margin
 	if f.key(c) == before {
 		t.Fatal("a change in the margin was missed")
+	}
+}
+
+func TestRedrawnChunksFadeInOverTheirOldPicture(t *testing.T) {
+	r, s, frame := chunkFixture(t)
+	view := image.Rect(600, 300, 600+r.Layout.GridW, 300+r.Layout.GridH)
+	for i := 0; i < 40; i++ {
+		r.Tick()
+		frame(view)
+	}
+	s.Player.X, s.Player.Y = s.Level.Rooms[1].X, s.Level.Rooms[1].Y
+	var faded *forestChunk
+	for i := 0; i < 20 && faded == nil; i++ {
+		r.Tick()
+		frame(view)
+		faded = r.forest.chunks[r.forest.last]
+		if faded != nil && faded.old == nil {
+			faded = nil
+		}
+	}
+	if faded == nil {
+		t.Fatal("a redrawn chunk replaced its picture without fading")
+	}
+	if !r.Animating() {
+		t.Fatal("a fading chunk must keep frames coming")
+	}
+	pool := len(r.forest.pool)
+	for i := 0; i <= chunkFadeTicks; i++ {
+		r.Tick()
+		frame(view)
+	}
+	if faded.old != nil || len(r.forest.pool) <= pool {
+		t.Fatal("the old picture was not released after the fade")
 	}
 }
