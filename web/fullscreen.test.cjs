@@ -46,7 +46,10 @@ test("browsers without the Fullscreen API ignore F11 quietly", () => {
     let listener;
     const window = {addEventListener(_, handler) { listener = handler; }};
     vm.runInNewContext(script, {window, document: {documentElement: {}}});
-    assert.doesNotThrow(() => listener({key: "F11", code: "F11", preventDefault() {}}));
+    let prevented = false, stopped = false;
+    assert.doesNotThrow(() => listener({key: "F11", code: "F11", preventDefault() { prevented = true; }, stopPropagation() { stopped = true; }}));
+    assert.equal(prevented, false, "F11 stays with the browser when the page cannot go fullscreen");
+    assert.equal(stopped, true, "the canvas, which cancels every key, must not see it");
 });
 
 test("fullscreen locks Escape where the browser allows it and unlocks on exit", async () => {
@@ -70,4 +73,14 @@ test("fullscreen locks Escape where the browser allows it and unlocks on exit", 
     assert.deepEqual(calls, ["lock Escape"]);
     press();
     assert.deepEqual(calls, ["lock Escape", "unlock"]);
+});
+
+test("a page barred from fullscreen leaves F11 to the browser", () => {
+    let listener;
+    const window = {addEventListener(_, handler) { listener = handler; }};
+    vm.runInNewContext(script, {window, document: {fullscreenEnabled: false, documentElement: {requestFullscreen() {}}}});
+    let prevented = false, stopped = false;
+    listener({key: "F11", code: "F11", preventDefault() { prevented = true; }, stopPropagation() { stopped = true; }});
+    assert.equal(prevented, false);
+    assert.equal(stopped, true);
 });

@@ -28,7 +28,7 @@ func knownClearings(v forestView, paths map[domain.Point]bool) []clearing {
 	for y := 0; y < domain.Rows; y++ {
 		for x := 0; x < domain.Cols; x++ {
 			p := domain.Point{X: x, Y: y}
-			if seen[p] || !v.ground[p] || paths[p] {
+			if seen[p] || !v.isGround(x, y) || paths[p] {
 				continue
 			}
 			c := clearing{cells: map[domain.Point]bool{p: true}}
@@ -39,7 +39,7 @@ func knownClearings(v forestView, paths map[domain.Point]bool) []clearing {
 				c.bounds = c.bounds.Union(image.Rect(p.X*32, p.Y*32, (p.X+1)*32, (p.Y+1)*32))
 				for _, d := range forestDirs {
 					q := domain.Point{X: p.X + d.X, Y: p.Y + d.Y}
-					if !v.ground[q] {
+					if !v.isGround(q.X, q.Y) {
 						continue
 					}
 					if paths[q] {
@@ -319,4 +319,20 @@ func (c sceneClearing) mossAt(x, y int) float32 {
 		return c.mossAlpha(x, y)
 	}
 	return c.moss[(y-b.Min.Y)/4*(b.Dx()/4)+(x-b.Min.X)/4]
+}
+
+// plantsKey identifies what a clearing's hedge depends on: its shape and the
+// known ground its plants must keep clear of, within their reach.
+func (c clearing) plantsKey(v forestView) uint64 {
+	h := c.shapeKey()
+	area := c.bounds.Inset(-96)
+	for y := max(0, area.Min.Y/32); y <= min(domain.Rows-1, area.Max.Y/32); y++ {
+		for x := max(0, area.Min.X/32); x <= min(domain.Cols-1, area.Max.X/32); x++ {
+			h *= 1099511628211
+			if v.isGround(x, y) {
+				h ^= 1
+			}
+		}
+	}
+	return h
 }

@@ -235,18 +235,26 @@ func (r *Renderer) drawWalkableGround(dst *ebiten.Image, v forestView, paths map
 // groundPad is how far a cell's ground contour reaches past the cell.
 const groundPad = 10
 
-type groundKey struct {
-	p         domain.Point
-	neighbors uint16 // known ground in the 3x3 block around p
-	visible   bool
-}
-
 // groundCache keeps each walkable cell's ground, contour and edge shadow as
-// one small image. The contour is drawn as a hundred 2 px strips per edge
-// cell; drawing those for every chunk redraw was the costliest part of it.
+// small images. The contour is drawn as a hundred 2 px strips per edge cell;
+// drawing those for every chunk redraw was the costliest part of it. A cell
+// has one slot for its visible look and one for its remembered look, so
+// stepping in and out of view reuses both, and a slot is redrawn in place
+// only when newly known neighbours change the contour. Memory stays at two
+// images per known cell instead of growing with every variant.
 type groundCache struct {
 	level *domain.Level
-	cells map[groundKey]*ebiten.Image
+	cells map[groundSlot]*groundCell
+}
+
+type groundSlot struct {
+	p       domain.Point
+	visible bool
+}
+
+type groundCell struct {
+	neighbors uint16 // known ground in the 3x3 block around the cell
+	img       *ebiten.Image
 }
 
 func groundNeighbors(v forestView, p domain.Point) uint16 {
@@ -263,19 +271,25 @@ func groundNeighbors(v forestView, p domain.Point) uint16 {
 func (r *Renderer) drawCachedGround(dst *ebiten.Image, level *domain.Level, v forestView, paths map[domain.Point]bool, p domain.Point, camX, camY int, visible bool) {
 	c := &r.ground
 	if c.level != level || c.cells == nil {
-		for _, img := range c.cells {
-			img.Deallocate()
+		for _, cell := range c.cells {
+			cell.img.Deallocate()
 		}
-		*c = groundCache{level: level, cells: map[groundKey]*ebiten.Image{}}
+		*c = groundCache{level: level, cells: map[groundSlot]*groundCell{}}
 	}
-	key := groundKey{p: p, neighbors: groundNeighbors(v, p), visible: visible}
-	img := c.cells[key]
-	if img == nil {
-		img = ebiten.NewImage(TileSize+2*groundPad, TileSize+2*groundPad)
-		r.drawWalkableGround(img, v, paths, p, p.X*TileSize-groundPad, p.Y*TileSize-groundPad, visible)
-		c.cells[key] = img
+	slot := groundSlot{p: p, visible: visible}
+	neighbors := groundNeighbors(v, p)
+	cell := c.cells[slot]
+	switch {
+	case cell == nil:
+		cell = &groundCell{neighbors: neighbors, img: ebiten.NewImage(TileSize+2*groundPad, TileSize+2*groundPad)}
+		c.cells[slot] = cell
+		r.drawWalkableGround(cell.img, v, paths, p, p.X*TileSize-groundPad, p.Y*TileSize-groundPad, visible)
+	case cell.neighbors != neighbors:
+		cell.neighbors = neighbors
+		cell.img.Clear()
+		r.drawWalkableGround(cell.img, v, paths, p, p.X*TileSize-groundPad, p.Y*TileSize-groundPad, visible)
 	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(p.X*TileSize-groundPad-camX), float64(p.Y*TileSize-groundPad-camY))
-	dst.DrawImage(img, op)
+	dst.DrawImage(cell.img, op)
 }

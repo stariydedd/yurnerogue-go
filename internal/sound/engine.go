@@ -84,6 +84,9 @@ type Engine struct {
 	lastStepTick int
 	stepPlayed   bool
 	silent       bool
+	// quietUntil keeps the music out until the fanfare ends, even if the
+	// player leaves the victory screen before that.
+	quietUntil int
 }
 
 // SilenceMusic fades the music out quickly and keeps it out, for the victory
@@ -187,6 +190,9 @@ func (e *Engine) Update(exploring, focused bool) {
 			return
 		}
 	}
+	if !focused {
+		e.quietUntil = 0 // unfocused voices are closed: the fanfare is gone
+	}
 	for i, p := range e.tracks {
 		if p == nil {
 			continue
@@ -202,7 +208,7 @@ func (e *Engine) Update(exploring, focused bool) {
 		if (i == 1) == exploring {
 			target = float64(e.settings.Music) / 100
 		}
-		if e.silent {
+		if e.silent || e.tick < e.quietUntil {
 			target, step = 0, 0.05 // out in about a third of a second
 		}
 		e.mix[i] += math.Max(-step, math.Min(step, target-e.mix[i]))
@@ -228,6 +234,9 @@ func (e *Engine) Play(c Cue) {
 	}
 	if e.last[c] != 0 && e.tick-e.last[c] < 6 {
 		return
+	}
+	if c == Victory && len(e.bank.cues[Victory]) > 0 {
+		e.quietForFanfare() // only for a fanfare that actually starts
 	}
 	data := e.bank.cues[c]
 	if c == Critical {
@@ -273,4 +282,11 @@ func (e *Engine) startVoice(data []byte) {
 	p.SetVolume(float64(e.settings.Effects) / 100 * effectsGain)
 	p.Play()
 	e.voices = append(e.voices, p)
+}
+
+// quietForFanfare keeps the music out for as long as the victory fanfare
+// plays (float32 stereo samples, 60 ticks a second).
+func (e *Engine) quietForFanfare() {
+	frames := len(e.bank.cues[Victory]) / 8
+	e.quietUntil = e.tick + frames*60/SampleRate + 1
 }

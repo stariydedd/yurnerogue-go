@@ -8,32 +8,30 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/render"
 )
 
-// Draw рисует кадр: сперва в логическую поверхность, затем растягивает её
-// на всё окно.
+// Draw рисует кадр в логическую поверхность; на экран её растягивает
+// DrawFinalScreen.
 func (g *Game) Draw(screen *ebiten.Image) {
+	// DrawFinalScreen (surface.go) shows the logical surface, not Ebitengine's
+	// offscreen. Ebitengine only calls it while the offscreen keeps changing,
+	// so a new frame touches the offscreen with one pixel to be shown, and an
+	// unchanged frame leaves it alone and is skipped entirely. A resized
+	// window or a fullscreen switch needs showing too, even if the frame is
+	// the same: the device screen was recreated.
 	surface := g.ensureSurface()
-	fresh := !g.reuseFrame(surface)
-	if fresh {
-		g.drawFrame(surface)
-	}
-
-	sx, sy, x, y := g.surfaceTransform(g.outW, g.outH)
-	// The screen is not cleared between frames (main.go): an unchanged frame
-	// that is already on screen needs no copy at all.
-	shown := [4]float64{sx, sy, x, y}
-	bounds := screen.Bounds().Size()
-	if !fresh && g.shown == shown && g.shownSize == bounds {
+	size := screen.Bounds().Size()
+	resized := size != g.shownSize
+	g.shownSize = size
+	reused := g.reuseFrame(surface)
+	if reused && !resized {
 		return
 	}
-	if g.shown != shown || g.shownSize != bounds {
-		screen.Clear() // the letterbox margins moved
+	if !reused {
+		g.drawFrame(surface)
 	}
-	g.shown, g.shownSize = shown, bounds
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Scale(sx, sy)
-	op.GeoM.Translate(x, y)
-	op.Filter = ebiten.FilterNearest // пиксель-арт остаётся чётким
-	screen.DrawImage(surface, op)
+	if g.shownMark == nil {
+		g.shownMark = ebiten.NewImage(1, 1)
+	}
+	screen.DrawImage(g.shownMark, nil)
 }
 
 // drawFrame рисует кадр текущего экрана в логическую поверхность.

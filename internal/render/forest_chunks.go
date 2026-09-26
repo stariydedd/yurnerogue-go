@@ -20,8 +20,9 @@ const (
 	chunkTiles = 8
 	chunkSize  = chunkTiles * TileSize
 	// chunkMargin is how far, in tiles, outside a chunk its content can come
-	// from: tall props reach in and sample light under their full height.
-	chunkMargin = 5
+	// from: a tree up to 152 px tall reaching in takes its light at its foot,
+	// and the light there blends the next tile row too.
+	chunkMargin = 7
 	// chunkFrameBudget bounds the time a frame spends redrawing stale chunks;
 	// until then they keep their previous picture for a few frames.
 	chunkFrameBudget = 6 * time.Millisecond
@@ -51,7 +52,8 @@ type forestChunks struct {
 	paths     map[domain.Point]bool
 	clearings []sceneClearing
 	chunks    map[image.Point]*forestChunk
-	moss      map[uint64][]float32 // moss grids by clearing shape
+	moss      map[uint64][]float32     // moss grids by clearing shape
+	plants    map[uint64]clearingHedge // latest hedge by clearing shape
 	pool      []*ebiten.Image
 	// drawn counts chunk redraws; budget overrides chunkFrameBudget. Tests.
 	drawn int
@@ -68,7 +70,7 @@ func (f *forestChunks) reset(level *domain.Level) {
 		}
 		f.recycle(c.frame)
 	}
-	*f = forestChunks{level: level, chunks: map[image.Point]*forestChunk{}, moss: map[uint64][]float32{}, pool: f.pool, drawn: f.drawn, budget: f.budget}
+	*f = forestChunks{level: level, chunks: map[image.Point]*forestChunk{}, moss: map[uint64][]float32{}, plants: map[uint64]clearingHedge{}, pool: f.pool, drawn: f.drawn, budget: f.budget}
 }
 
 func (f *forestChunks) recycle(frame *ebiten.Image) {
@@ -157,7 +159,13 @@ func (r *Renderer) updateForest(level *domain.Level, grid domain.Grid, vis domai
 			moss = c.mossGrid()
 			f.moss[key] = moss
 		}
-		f.clearings = append(f.clearings, sceneClearing{c, c.plants(f.view), moss})
+		pk := c.plantsKey(f.view)
+		hedge, ok := f.plants[key]
+		if !ok || hedge.key != pk {
+			hedge = clearingHedge{pk, c.plants(f.view)}
+			f.plants[key] = hedge // one entry per clearing: older ground is gone
+		}
+		f.clearings = append(f.clearings, sceneClearing{c, hedge.plants, moss})
 	}
 }
 
@@ -197,6 +205,8 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, level *domain.Level, grid
 				chunk = &forestChunk{frame: f.image()}
 				f.chunks[c] = chunk
 				r.drawChunk(c, chunk)
+			case chunk == nil && !c.In(worldChunks):
+				// The camera never shows past the map: nothing to prepare there.
 			case chunk == nil:
 				queue = append(queue, c)
 			case chunk.version != f.version:
@@ -300,3 +310,15 @@ func (f *forestChunks) fading(tick int) bool {
 	}
 	return false
 }
+
+// clearingHedge is a clearing's hedge and the plantsKey it was built for.
+type clearingHedge struct {
+	key    uint64
+	plants []forestProp
+}
+
+// worldChunks is the range of chunks that cover the map.
+var worldChunks = func() image.Rectangle {
+	lo, hi := chunkRange(image.Rect(0, 0, domain.Cols*TileSize, domain.Rows*TileSize))
+	return image.Rectangle{Min: lo, Max: hi.Add(image.Pt(1, 1))}
+}()

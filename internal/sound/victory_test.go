@@ -61,3 +61,44 @@ func TestVictorySilencesTheForestMusicAndItComesBack(t *testing.T) {
 		t.Fatalf("menu music should fade back in gently, got %.3f", menu.volume)
 	}
 }
+
+func TestMusicWaitsForTheFanfareEvenIfTheScreenIsLeft(t *testing.T) {
+	setupTestSettingsStorage(t)
+	menu, world := &fakeTrack{}, &fakeTrack{}
+	b := &bank{}
+	b.cues[Victory] = make([]byte, 4*SampleRate*8) // four seconds of float32 stereo
+	e := &Engine{bank: b, tracks: [2]musicTrack{menu, world}, settings: Settings{Music: 100, Effects: 100}}
+	for i := 0; i < 300; i++ {
+		e.Update(true, true)
+	}
+	e.quietForFanfare()
+	e.SilenceMusic(false) // straight back to the menu
+	for i := 0; i < 3*60; i++ {
+		e.Update(false, true)
+	}
+	if menu.volume != 0 || world.volume != 0 {
+		t.Fatal("music came back over the fanfare")
+	}
+	for i := 0; i < 3*60; i++ {
+		e.Update(false, true)
+	}
+	if menu.volume == 0 {
+		t.Fatal("music did not return after the fanfare")
+	}
+}
+
+func TestLosingFocusDuringTheFanfareDoesNotLeaveSilence(t *testing.T) {
+	setupTestSettingsStorage(t)
+	menu, world := &fakeTrack{}, &fakeTrack{}
+	b := &bank{}
+	b.cues[Victory] = make([]byte, 4*SampleRate*8)
+	e := &Engine{bank: b, tracks: [2]musicTrack{menu, world}, settings: Settings{Music: 100, Effects: 100}}
+	e.quietForFanfare()
+	e.Update(false, false) // alt-tab away: the fanfare voice closes
+	for i := 0; i < 60; i++ {
+		e.Update(false, true)
+	}
+	if menu.volume == 0 {
+		t.Fatal("music stayed silent for a fanfare that no longer plays")
+	}
+}

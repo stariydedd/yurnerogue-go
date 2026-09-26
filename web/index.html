@@ -183,6 +183,13 @@
     }
     window.addEventListener("keydown", (e) => {
         if (e.key !== "F11" && e.code !== "F11") return;
+        const root = document.documentElement;
+        if ((!root.requestFullscreen && !root.webkitRequestFullscreen) || document.fullscreenEnabled === false) {
+            // The page cannot go fullscreen: leave F11 to the browser. The
+            // canvas handler would cancel it, so it must not get there.
+            e.stopPropagation();
+            return;
+        }
         e.preventDefault();
         if (!e.repeat) toggleFullscreen(document);
     }, true);

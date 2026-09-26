@@ -252,3 +252,17 @@ func TestCachedMossMatchesTheDirectValue(t *testing.T) {
 		t.Fatal("a different clearing shape shares the cached moss")
 	}
 }
+
+func TestHedgeCacheFollowsNearbyGroundOnly(t *testing.T) {
+	v, paths := clearingFixture() // floor x 8..23, y 6..14
+	c := knownClearings(v, paths)[0]
+	key := c.plantsKey(v)
+	v.ground[domain.Point{X: 90, Y: 40}] = true // far away
+	if c.plantsKey(v) != key {
+		t.Fatal("far ground invalidated the hedge")
+	}
+	v.ground[domain.Point{X: 12, Y: 4}] = true // a corridor cell just above the room
+	if c.plantsKey(v) == key {
+		t.Fatal("ground next to the hedge was ignored")
+	}
+}

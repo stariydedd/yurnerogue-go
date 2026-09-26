@@ -316,3 +316,16 @@ func TestRedrawnChunksFadeInOverTheirOldPicture(t *testing.T) {
 		t.Fatal("the old picture was not released after the fade")
 	}
 }
+
+func TestNoChunksArePreparedPastTheMap(t *testing.T) {
+	r, _, frame := chunkFixture(t)
+	corner := image.Rect(0, 0, r.Layout.GridW, r.Layout.GridH) // camera clamped to the top left
+	for i := 0; i < 60; i++ {
+		frame(corner)
+	}
+	for c := range r.forest.chunks {
+		if c.X < 0 || c.Y < 0 {
+			t.Fatalf("chunk %v lies past the map edge", c)
+		}
+	}
+}

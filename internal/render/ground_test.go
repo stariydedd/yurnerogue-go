@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
 
@@ -181,5 +182,29 @@ func TestTrailFringesOnlyUseKnownConnections(t *testing.T) {
 			t.Fatalf("grass crosses known path connection on side %d", side)
 		}
 		delete(v.ground, q)
+	}
+}
+
+func TestGroundCacheReusesVisibleAndRememberedLooks(t *testing.T) {
+	r, err := New(DesktopLayout())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := domain.NewSessionSeed(21)
+	grid := s.BuildGrid(false)
+	v := newForestView(grid, s.ComputeVisibility(grid))
+	dst := ebiten.NewImage(64, 64)
+	p := domain.Point{X: s.Level.Rooms[0].X, Y: s.Level.Rooms[0].Y}
+	r.drawCachedGround(dst, s.Level, v, nil, p, 0, 0, true)
+	r.drawCachedGround(dst, s.Level, v, nil, p, 0, 0, false)
+	lit, dim := r.ground.cells[groundSlot{p, true}], r.ground.cells[groundSlot{p, false}]
+	for i := 0; i < 6; i++ { // stepping in and out of view
+		r.drawCachedGround(dst, s.Level, v, nil, p, 0, 0, i%2 == 0)
+	}
+	if len(r.ground.cells) != 2 {
+		t.Fatalf("one cell kept %d images, want its two looks", len(r.ground.cells))
+	}
+	if r.ground.cells[groundSlot{p, true}] != lit || r.ground.cells[groundSlot{p, false}] != dim {
+		t.Fatal("a visibility flip replaced a cached look")
 	}
 }
