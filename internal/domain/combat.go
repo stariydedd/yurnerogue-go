@@ -147,7 +147,7 @@ func (s *Session) ProcessEnemyTurns() {
 
 	for _, o := range living {
 		if !inContact(o, p) {
-			o.Move(p.X, p.Y, s.Level.Rooms, s.Level.Passages, living)
+			o.Move(p.X, p.Y, s.Level.Exit, s.Level.Rooms, s.Level.Passages, living)
 			continue
 		}
 		o.FacePlayer(p.X)

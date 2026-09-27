@@ -126,11 +126,13 @@ func baseStats(t OpponentType) (health, agility, strength int, h hostility) {
 }
 
 // NewOpponent создаёт врага заданного типа (для тестов и точечных спавнов).
+// Riki с самого начала невидим, иначе до первого хода врагов его было бы
+// видно на каждом новом уровне.
 func NewOpponent(t OpponentType) *Opponent {
 	health, agility, strength, h := baseStats(t)
 	return &Opponent{
 		Type: t, Health: health, Agility: agility, Strength: strength,
-		hostility: h, IsVisible: true, Facing: 1, vampireFirstStrike: true,
+		hostility: h, IsVisible: t != Ghost, Facing: 1, vampireFirstStrike: true,
 	}
 }
 
@@ -200,17 +202,26 @@ func shuffled(src []Point, rng ...*rand.Rand) []Point {
 	return out
 }
 
-// canStep — можно ли врагу встать на клетку: пол комнаты или коридор,
-// не занятые другим живым врагом.
-func (o *Opponent) canStep(x, y int, player Point, rooms []*Room, passages []Rect, opponents []*Opponent) bool {
-	// The hero's cell is never free: enemies attack it from next to it instead.
-	if !InBounds(x, y) || (Point{x, y}) == player {
+// moveArea: всё, от чего зависит ход врага: где стоят игрок и портал, где
+// пол и кто ещё на уровне.
+type moveArea struct {
+	player, exit Point
+	rooms        []*Room
+	passages     []Rect
+	opponents    []*Opponent
+}
+
+// canStep: можно ли врагу встать на клетку: пол комнаты или коридор, не
+// занятые другим живым врагом. Клетки игрока и портала всегда заняты: враг
+// бьёт игрока с соседней клетки, а портал никогда не загораживает.
+func (o *Opponent) canStep(x, y int, a moveArea) bool {
+	if !InBounds(x, y) || (Point{x, y}) == a.player || (Point{x, y}) == a.exit {
 		return false
 	}
-	if !IsAnyRoomFloorCell(x, y, rooms) && !InPassageCenter(x, y, passages) {
+	if !IsAnyRoomFloorCell(x, y, a.rooms) && !InPassageCenter(x, y, a.passages) {
 		return false
 	}
-	for _, other := range opponents {
+	for _, other := range a.opponents {
 		if other != o && other.IsAlive() && other.X == x && other.Y == y {
 			return false
 		}
@@ -218,9 +229,9 @@ func (o *Opponent) canStep(x, y int, player Point, rooms []*Room, passages []Rec
 	return true
 }
 
-// pathStep — первый шаг кратчайшего пути к цели (обход в ширину) или nil.
-func (o *Opponent) pathStep(tx, ty int, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
-	player := Point{tx, ty}
+// pathStep: первый шаг кратчайшего пути к игроку (обход в ширину) или nil.
+func (o *Opponent) pathStep(a moveArea) *Point {
+	tx, ty := a.player.X, a.player.Y
 	if o.X == tx && o.Y == ty {
 		return nil
 	}
@@ -244,7 +255,7 @@ func (o *Opponent) pathStep(tx, ty int, rooms []*Room, passages []Rect, opponent
 				return step
 			}
 			p := Point{nx, ny}
-			if !visited[p] && o.canStep(nx, ny, player, rooms, passages, opponents) {
+			if !visited[p] && o.canStep(nx, ny, a) {
 				visited[p] = true
 				queue = append(queue, node{nx, ny, step})
 			}
@@ -254,26 +265,31 @@ func (o *Opponent) pathStep(tx, ty int, rooms []*Room, passages []Rect, opponent
 }
 
 // patternStep — ход по собственному паттерну типа, когда игрок не преследуется.
-func (o *Opponent) patternStep(player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+func (o *Opponent) patternStep(a moveArea) *Point {
 	switch o.Type {
 	case Zombie:
-		return o.firstWalkable(shuffled(dirs4, o.rng), player, rooms, passages, opponents)
+		return o.firstWalkable(shuffled(dirs4, o.rng), a)
 	case Vampire:
-		return o.firstWalkable(shuffled(dirs8, o.rng), player, rooms, passages, opponents)
+		return o.firstWalkable(shuffled(dirs8, o.rng), a)
 	case Ghost:
-		return o.blinkInRoom(player, rooms, passages, opponents)
+		if step := o.blinkInRoom(a); step != nil {
+			return step
+		}
+		// Blinks need a room: in a corridor or a doorway Riki walks, or he
+		// would stand there for good, mostly invisible, blocking the way.
+		return o.firstWalkable(shuffled(dirs4, o.rng), a)
 	case Ogre:
-		return o.doubleStep(player, rooms, passages, opponents)
+		return o.doubleStep(a)
 	case Snake:
-		return o.diagonalStep(player, rooms, passages, opponents)
+		return o.diagonalStep(a)
 	}
 	return nil
 }
 
 // firstWalkable возвращает первое проходимое направление из списка.
-func (o *Opponent) firstWalkable(candidates []Point, player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+func (o *Opponent) firstWalkable(candidates []Point, a moveArea) *Point {
 	for _, d := range candidates {
-		if o.canStep(o.X+d.X, o.Y+d.Y, player, rooms, passages, opponents) {
+		if o.canStep(o.X+d.X, o.Y+d.Y, a) {
 			dd := d
 			return &dd
 		}
@@ -281,10 +297,11 @@ func (o *Opponent) firstWalkable(candidates []Point, player Point, rooms []*Room
 	return nil
 }
 
-// blinkInRoom — Riki телепортируется в случайную клетку своей комнаты.
-func (o *Opponent) blinkInRoom(player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+// blinkInRoom: Riki телепортируется в случайную другую клетку своей комнаты;
+// nil, если он не в комнате или свободной клетки не нашлось.
+func (o *Opponent) blinkInRoom(a moveArea) *Point {
 	var room *Room
-	for _, r := range rooms {
+	for _, r := range a.rooms {
 		if r != nil && r.IsFloorCell(o.X, o.Y) {
 			room = r
 			break
@@ -296,7 +313,7 @@ func (o *Opponent) blinkInRoom(player Point, rooms []*Room, passages []Rect, opp
 	for i := 0; i < 16; i++ {
 		nx := room.X + random(o.rng).Intn(room.W)
 		ny := room.Y + random(o.rng).Intn(room.H)
-		if o.canStep(nx, ny, player, rooms, passages, opponents) {
+		if (nx != o.X || ny != o.Y) && o.canStep(nx, ny, a) {
 			return &Point{nx - o.X, ny - o.Y}
 		}
 	}
@@ -304,10 +321,10 @@ func (o *Opponent) blinkInRoom(player Point, rooms []*Room, passages []Rect, opp
 }
 
 // doubleStep — Axe шагает на две клетки, если свободны обе.
-func (o *Opponent) doubleStep(player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+func (o *Opponent) doubleStep(a moveArea) *Point {
 	for _, d := range shuffled(dirs4, o.rng) {
-		if o.canStep(o.X+d.X, o.Y+d.Y, player, rooms, passages, opponents) &&
-			o.canStep(o.X+d.X*OgreStep, o.Y+d.Y*OgreStep, player, rooms, passages, opponents) {
+		if o.canStep(o.X+d.X, o.Y+d.Y, a) &&
+			o.canStep(o.X+d.X*OgreStep, o.Y+d.Y*OgreStep, a) {
 			return &Point{d.X * OgreStep, d.Y * OgreStep}
 		}
 	}
@@ -315,12 +332,12 @@ func (o *Opponent) doubleStep(player Point, rooms []*Room, passages []Rect, oppo
 }
 
 // diagonalStep — Skywrath ходит по диагонали, стараясь не повторять прошлый шаг.
-func (o *Opponent) diagonalStep(player Point, rooms []*Room, passages []Rect, opponents []*Opponent) *Point {
+func (o *Opponent) diagonalStep(a moveArea) *Point {
 	for _, d := range shuffled(diag4, o.rng) {
 		if o.lastDirection != nil && *o.lastDirection == d {
 			continue
 		}
-		if o.canStep(o.X+d.X, o.Y+d.Y, player, rooms, passages, opponents) {
+		if o.canStep(o.X+d.X, o.Y+d.Y, a) {
 			dd := d
 			o.lastDirection = &dd
 			return &dd
@@ -328,27 +345,29 @@ func (o *Opponent) diagonalStep(player Point, rooms []*Room, passages []Rect, op
 	}
 	if o.lastDirection != nil {
 		d := *o.lastDirection
-		if o.canStep(o.X+d.X, o.Y+d.Y, player, rooms, passages, opponents) {
+		if o.canStep(o.X+d.X, o.Y+d.Y, a) {
 			return &d
 		}
 	}
 	return nil
 }
 
-// Move двигает врага: преследует игрока по кратчайшему пути либо идёт по паттерну.
-func (o *Opponent) Move(px, py int, rooms []*Room, passages []Rect, opponents []*Opponent) {
+// Move двигает врага: преследует игрока по кратчайшему пути либо идёт по
+// паттерну. На клетку портала exit враг не встаёт.
+func (o *Opponent) Move(px, py int, exit Point, rooms []*Room, passages []Rect, opponents []*Opponent) {
+	a := moveArea{player: Point{px, py}, exit: exit, rooms: rooms, passages: passages, opponents: opponents}
 	dist := abs(o.X-px) + abs(o.Y-py)
 
 	var step *Point
 	if o.CanSeePlayer(dist) {
 		o.IsChasing = true
-		step = o.pathStep(px, py, rooms, passages, opponents)
+		step = o.pathStep(a)
 	}
 	if step == nil {
 		if o.IsChasing && dist > HighHostilityRadius*2 {
 			o.IsChasing = false
 		}
-		step = o.patternStep(Point{px, py}, rooms, passages, opponents)
+		step = o.patternStep(a)
 	}
 	if step == nil {
 		return

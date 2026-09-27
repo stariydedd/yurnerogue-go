@@ -90,12 +90,12 @@ func TestReplayRejectsInvalidAndUnfinishedRuns(t *testing.T) {
 }
 
 func TestGoldenReplayMatchesServerOnEveryPlatform(t *testing.T) {
-	const actions = "sssddsssdddddddddddddddsssssssssddddwwwwwwaaaaaaaaaaaaaaawwwwwwwwwddddddddddddddddsssdddddddddddddddddsssssdddddddssssddddddddddsssssdddddddddddddddddssddddddddddddddsdddwwwwwwwwdwwaaaaaaaaaawwwwwwwwwwwwwaaaaassssssaassssaaaaaaaaaaaaaasssssssssssssdwwwwwwaaaaaaaaaaaaaaaaaaaaaaassaawssawaswsaaawwasswawswsaaaaaawaaaaaaaaaaaaaaaaaaaaaassaaaaassssssaaaaaaaaaasssssssaaaaaaaaaawwwwwwwddddddddwwwwwwwwddddddddddddddddddddddsdddddddddddddddddwwdddddddddddddddddddsssssssssssddssssssssssssaasssssssssssssssddddddssssaaaawddddwwwwwaaaa"
+	const actions = "sssddsssdddddddddddddddsssssssssddddwwwwwwaaaaaaaaaaaaaaawwwwwwwwwddddddddddddddddsssdddddddddddddddddsssssdddddddssssddddddddddssssssssswdddddddddddssddddddddddddddsdddddddddsssssaaaaaaaaassssssssssssssssdddddddddddsssddddddssssaaaasssaaaaaasssaaaaaaaaaaaawwwwwwaaaaaaaaaaaaaaaaaaaaawaaaaawwwwaawwaaaaawwwwaaaazaaaaaazaaasddsssdddddsssddddddddddddddddddddssssssdddddsdddddddddddddddddwdddddddddwwwaaaaaaaaaaawwwwdddddddddwwwwwwwwwwaaaasssaaaaaaaaaawwwwaaawaaaaawwwwaaaawwwaaawsaaaaaaasddddssdssssaaaaaaaaaaaaaaaaasssssaaaaaaaaaaaaaasassssssssaaaaaaaaaaa"
 	s, err := Replay(1, actions)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Player.Treasures != 502 || s.Stats != (Stats{EnemiesKilled: 8, AttacksMade: 44, HitsTaken: 21, TilesMoved: 484}) {
+	if s.Player.Treasures != 600 || s.Stats != (Stats{EnemiesKilled: 10, AttacksMade: 46, HitsTaken: 22, TilesMoved: 506}) {
 		t.Fatalf("rules version %s changed: gold=%d stats=%+v", RulesVersion, s.Player.Treasures, s.Stats)
 	}
 }

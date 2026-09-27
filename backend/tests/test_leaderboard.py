@@ -28,11 +28,11 @@ def test_server_recomputes_score(client):
     assert response.status_code == 201
     body = response.json()
     assert body["player_name"] == "tester"
-    assert body["treasures"] == 502
-    assert body["enemies_killed"] == 8
-    assert body["attacks_made"] == 44
-    assert body["hits_taken"] == 21
-    assert body["tiles_moved"] == 484
+    assert body["treasures"] == 600
+    assert body["enemies_killed"] == 10
+    assert body["attacks_made"] == 46
+    assert body["hits_taken"] == 22
+    assert body["tiles_moved"] == 506
     assert body["verified"] is True
     assert "ticket" not in body and "actions" not in body
 
@@ -105,14 +105,14 @@ def test_submission_reports_place_and_top10_gold(client):
     level = first["level"]
     for gold in [900, 800, 100]:
         client.seed_run(player_name="legacy", treasures=gold, level=level)
-    client.seed_run(player_name="legacy", treasures=502, level=level + 1)
+    client.seed_run(player_name="legacy", treasures=600, level=level + 1)
     body = submit(client, start(client)).json()
-    # 900, 800, the deeper 502 and the earlier equal 502 all rank ahead.
+    # 900, 800, the deeper 600 and the earlier equal 600 all rank ahead.
     assert body["place"] == 5 and body["top10_gold"] is None
     for _ in range(4):
         client.seed_run(player_name="legacy", treasures=1000, level=1)
     body = submit(client, start(client)).json()
-    assert body["place"] == 10 and body["top10_gold"] == 502
+    assert body["place"] == 10 and body["top10_gold"] == 600
     rows = client.get("/api/leaderboard").json()
     assert rows[body["place"] - 1]["id"] == body["id"]
 

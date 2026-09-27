@@ -188,7 +188,7 @@ Menu pages have their own BACK button; the mobile d-pad and item panel appear du
 |-------|----------|
 | **Pudge** | Slow and tough. Wanders randomly. |
 | **Bloodseeker** | Steals max HP on hit. Deflects the player's first attack. Moves in 8 directions. |
-| **Riki** | Blinks around the room, mostly invisible until he attacks. |
+| **Riki** | Blinks around the room and walks through corridors, mostly invisible until he attacks. |
 | **Axe** | Moves 2 tiles per turn. Rests after attacking, then counters. His strikes cannot be dodged. |
 | **Skywrath Mage** | Moves and attacks diagonally. Hits may put the player to sleep. |
 
@@ -201,7 +201,7 @@ Rooms hold more enemies and fewer items deeper down.
 | Item | Effect |
 |------|--------|
 | Food (Tango) | Restores health by depth, not by max HP: 25-50 on level 1 up to 75-150 on level 21, never above max HP. |
-| Elixir (Clarity) | Temporary buff to strength, agility or max HP for 20 turns, twice a scroll of the same depth. |
+| Elixir (Clarity) | For 20 turns, twice a scroll of the same depth: a buff to strength or agility, or a shield that takes damage and Bloodseeker's max HP drain before health and max HP. Whatever is left of the shield when it ends is gone. |
 | Scroll (TP Scroll artwork) | Read on pickup: permanent buff to one stat, growing with depth (strength or agility +2…+3 on level 1 and +6…+9 on level 21; max HP +13…+25 and +63…+125, which also heals the same amount). Never takes a backpack slot. |
 | Weapon (Juggernaut blade) | Bonus from +1 to +50, growing with depth: +1…+17 on level 1, +36…+50 on level 21. The name shows the strength, ordered by Dota 2 item cost in steps of five: Crystalys (+1…+5), Yasha, Diffusal Blade, Shadow Blade, Desolator, Battle Fury, Radiance, Butterfly, Silver Edge, Abyssal Blade (+46…+50). The bonus adds to the Quelling Blade damage and scales with strength (about +1.2 damage per point at the starting strength). Equipped on pickup if it hits harder, so any weapon replaces the starter; otherwise it sharpens the equipped weapon by +1, so every weapon found makes you stronger. A sharpened weapon is renamed by its new bonus, e.g. Shadow Blade +20 becomes Desolator +21. |
 | Treasure | Credited for slain enemies; determines leaderboard rank. |
@@ -221,12 +221,14 @@ hero is asleep: the turn is skipped as usual.
 
 Item names are short Dota-inspired variants, including Phantom Clarity,
 Aghanim's Scroll and Yasha. Names do not change their category's effects.
-The HUD shows temporary STR, AGI and MAX HP bonuses (MHP on mobile).
+The HUD shows temporary STR, AGI and SHIELD bonuses (SHLD on mobile).
+The shield is also the grey part of the health bar, and a hit it takes whole
+shows as a grey number.
 Stacked bonuses are summed; their timer counts turns until the next partial expiry.
 
-The Dota-inspired artwork does not change item effects: Clarity is a stat buff,
-and the scroll is not a teleport. The exit is a blue-glowing portal —
-descending after floor 21 wins the run, and the
+The Dota-inspired artwork does not change item effects: Clarity is a stat buff
+or a shield, and the scroll is not a teleport. The exit is a blue-glowing portal
+that no enemy ever stands on. Descending after floor 21 wins the run, and the
 result is submitted to the global leaderboard.
 
 Ranked runs obtain a server-issued seed and ticket before starting. The server
