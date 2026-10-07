@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
+from app.models import Run
 from app.routers import leaderboard
 from app.verifier import rules_version
 
@@ -14,19 +14,17 @@ async def lifespan(app: FastAPI):
     # Creates missing tables only (including run_submissions). Changes to
     # existing columns require a migration; create_all does not alter them.
     Base.metadata.create_all(bind=engine)
+    # create_all leaves existing tables alone, new indexes included.
+    for index in Run.__table__.indexes:
+        index.create(bind=engine, checkfirst=True)
     yield
 
 
 app = FastAPI(title="Rogue 2.0 Leaderboard API", lifespan=lifespan)
 
-# Игра ходит в API из браузера; на проде nginx отдаёт игру и API с одного домена,
-# но для локальной разработки (pygbag-сервер на другом порту) нужен CORS.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
-)
+# No CORS: the browser game always calls /api on its own origin, and the
+# native build is not a browser. Other sites cannot post to the API from a
+# visitor's browser.
 
 app.include_router(leaderboard.router)
 

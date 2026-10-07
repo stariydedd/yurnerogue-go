@@ -14,7 +14,7 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           sparse-checkout: infra/deploy-host-keys
           sparse-checkout-cone-mode: false
@@ -37,7 +37,7 @@ jobs:
           echo "name=$name" >> "$GITHUB_OUTPUT"
       - name: Verify dump
         run: |
-          docker run --rm -i postgres:16-alpine pg_restore --list < "${{ steps.dump.outputs.name }}" > toc.txt
+          docker run --rm -i postgres:16.15-alpine pg_restore --list < "${{ steps.dump.outputs.name }}" > toc.txt
           grep -q "TABLE DATA public ranked_results" toc.txt
           grep -q "TABLE DATA public infra_meta" toc.txt
       - name: Encrypt
@@ -48,7 +48,7 @@ jobs:
           openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:BACKUP_PASSPHRASE \
             -in "${{ steps.dump.outputs.name }}" -out "${{ steps.dump.outputs.name }}.enc"
           rm "${{ steps.dump.outputs.name }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: db-${{ steps.dump.outputs.name }}
           path: ${{ steps.dump.outputs.name }}.enc

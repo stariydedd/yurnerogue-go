@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, desc
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -10,6 +10,8 @@ class Run(Base):
     """Результат одного забега, присланный игрой после смерти или победы."""
 
     __tablename__ = "runs"
+    # The leaderboard and a run's place both read runs in this order.
+    __table_args__ = (Index("runs_leaderboard_order", desc("treasures"), desc("level"), "id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     player_name: Mapped[str] = mapped_column(String(32), default="anonymous")

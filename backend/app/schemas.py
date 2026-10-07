@@ -1,8 +1,9 @@
 from datetime import datetime
+import unicodedata
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 Counter = Annotated[int, Field(ge=0, le=2**31 - 1)]
@@ -23,10 +24,27 @@ class RunFields(BaseModel):
     tiles_moved: Counter = 0
 
 
+# As many characters as the game lets you type and shows.
+PLAYER_NAME_LENGTH = 16
+
+
+def clean_player_name(name: str) -> str:
+    """Drop control and invisible characters (zero-width, text direction),
+    trim, keep at most PLAYER_NAME_LENGTH characters; nothing left is
+    "anonymous", as in the game."""
+    kept = "".join(ch for ch in name if not unicodedata.category(ch).startswith("C"))
+    return kept.strip()[:PLAYER_NAME_LENGTH].strip() or "anonymous"
+
+
 class RunStart(BaseModel):
     player_name: str = Field(default="anonymous", min_length=1, max_length=32)
     version: str = Field(min_length=1, max_length=64)
     model_config = {"extra": "forbid"}
+
+    @field_validator("player_name")
+    @classmethod
+    def clean_name(cls, name: str) -> str:
+        return clean_player_name(name)
 
 
 class RunTicket(BaseModel):

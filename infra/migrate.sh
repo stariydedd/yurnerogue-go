@@ -66,7 +66,9 @@ cat <<EOF
 Next steps:
   1. Point the A records of yurnerogue.ru and www.yurnerogue.ru to $2.
   2. gh secret set DEPLOY_HOST --body "$2"
-  3. Update the IP in infra/nginx/rogue.conf (server_name).
+  3. Update the IP in infra/nginx/rogue.conf (server_name), and put the new
+     server's host keys in infra/deploy-host-keys, or deploys and backups
+     refuse to connect: ssh-keygen -F $2 | awk '!/^#/ {print \$2, \$3}'
   4. After DNS switches: ssh $NEW certbot renew --dry-run
   5. Runs started on $1 before the DNS switch are not copied. Remove the
      old stack only after checking the new server.

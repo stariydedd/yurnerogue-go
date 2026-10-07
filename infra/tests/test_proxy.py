@@ -50,6 +50,14 @@ class ProxyTest(unittest.TestCase):
         code, headers, data = self.request("/old.wasm", headers={"Accept-Encoding": "br, gzip"})
         self.assertEqual((code, headers["Content-Encoding"], data), (200, "gzip", b"old gzip body\n"))
         self.assertEqual(headers["Content-Type"], "application/wasm")
+        # Headers every reply carries, the bundle included.
+        for path, accept in [("/index.html", ""), ("/main.wasm", "br"), ("/main.wasm", "gzip"),
+                             ("/old.wasm", "br"), ("/api/health", "")]:
+            with self.subTest(path=path, accept=accept):
+                headers = self.request(path, headers={"Accept-Encoding": accept})[1]
+                self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+                self.assertIn("max-age", headers["Strict-Transport-Security"])
+                self.assertEqual(headers["Server"], "nginx")
         # The .br file itself is not a public URL.
         self.assertEqual(self.request("/main.wasm.br", headers={"Accept-Encoding": "br"})[0], 404)
         self.assertEqual(self.request("/index.html")[0], 200)
