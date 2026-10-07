@@ -195,8 +195,8 @@ func (s *Session) doorBeside(dx, dy int) bool {
 // мимо которой пробегает; но если игрок уже стоит вплотную к двери, шаг в её
 // сторону проносит через дверь и дальше по коридору. Коридорный бег следует
 // поворотам и заканчивается в дверном проёме на том конце. Также стоп: стена
-// или развилка, враг, портал впереди (на бегу не спускаемся), полученный урон,
-// подобранный предмет, сон или смерть.
+// или развилка, враг, портал впереди (на бегу не спускаемся), атака врага
+// (даже промах или удар в щит), клетка с предметом, сон или смерть.
 func (s *Session) Run(dx, dy int) {
 	p := s.Player
 	for step := 0; step < RunLimit; step++ {
@@ -238,8 +238,8 @@ func (s *Session) Run(dx, dy int) {
 			return
 		}
 
-		hpBefore := p.Health
-		itemsBefore := len(p.Backpack)
+		hpBefore, maxBefore := p.Health, p.MaxHealth
+		itemHere := s.Level.itemAt(Point{nx, ny}) != nil
 		levelBefore := s.LevelNum
 
 		var moved bool
@@ -253,7 +253,11 @@ func (s *Session) Run(dx, dy int) {
 		}
 		s.ResolveTurn()
 
-		if p.Health < hpBefore || len(p.Backpack) != itemsBefore || s.LevelNum != levelBefore {
+		// Health alone misses a miss, a hit the shield took and a drain that
+		// left health below the new maximum: any attack stops the run. So
+		// does any item underfoot, read or equipped ones included.
+		if p.Health < hpBefore || p.MaxHealth < maxBefore || s.attackedPlayer() ||
+			itemHere || s.LevelNum != levelBefore {
 			return
 		}
 		if enteringDoor && !fromRoom {
@@ -266,6 +270,16 @@ func (s *Session) Run(dx, dy int) {
 			return
 		}
 	}
+}
+
+// attackedPlayer: an enemy attacked the hero during this action.
+func (s *Session) attackedPlayer() bool {
+	for _, e := range s.CombatEvents {
+		if e.TargetPlayer {
+			return true
+		}
+	}
+	return false
 }
 
 // pickUpWeapon equips a weapon that hits harder (any weapon beats the starter

@@ -140,6 +140,22 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return outsideWidth, outsideHeight
 }
 
+// settleStateChange drops input carried over from the screen the game left.
+// A turn queued on the way back into play stays: an item picked from its menu
+// right after a step waits for that step and must not be lost.
+func (g *Game) settleStateChange(before State) {
+	if g.state == before {
+		return
+	}
+	g.keyboard.reset()
+	if g.state != StatePlaying {
+		g.queuedAction, g.queuedAttack = "", false
+	}
+	if g.touch != nil {
+		g.touch.reset()
+	}
+}
+
 // State возвращает текущий экран (нужно панели экранных кнопок).
 func (g *Game) State() State { return g.state }
 
@@ -147,15 +163,7 @@ func (g *Game) State() State { return g.state }
 func (g *Game) Update() error {
 	before := g.state
 	defer func() { g.updateAudio(before) }()
-	defer func() {
-		if g.state != before {
-			g.keyboard.reset()
-			g.queuedAction, g.queuedAttack = "", false
-			if g.touch != nil {
-				g.touch.reset()
-			}
-		}
-	}()
+	defer func() { g.settleStateChange(before) }()
 	g.ticks++
 	g.pollNetwork()
 	browserNameEntry := g.syncBrowserNameEntry()

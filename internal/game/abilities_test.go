@@ -211,3 +211,37 @@ func TestRapidStepsFollowTheStepAnimation(t *testing.T) {
 		t.Fatal("a swing must not be quicker than a step")
 	}
 }
+
+// An item picked from its menu right after a step waits for that step. The
+// state change back into play used to wipe it, so the food was never eaten.
+func TestItemPickedRightAfterAStepIsNotLost(t *testing.T) {
+	g, s, enemy := pacingFixture()
+	enemy.Health = 0
+	s.Player.Health = 100
+	s.Player.PickUpItem(domain.NewFood(s.Player, 1))
+	frame := func(key ebiten.Key) {
+		before := g.state
+		g.HandleKey(key)
+		g.settleStateChange(before)
+	}
+	frame(ebiten.KeyUp) // the step: the next turn waits for its animation
+	frame(ebiten.KeyC)  // the food menu
+	frame(ebiten.Key1)  // eat, still inside the step's interval
+	if g.state != StatePlaying || g.queuedAction != "j0" {
+		t.Fatalf("the pick must wait in the queue, state %v queued %q", g.state, g.queuedAction)
+	}
+	g.ticks = g.turnReady
+	g.releaseQueuedAction()
+	if s.Actions() != "wj0" || s.Stats.FoodUsed != 1 {
+		t.Fatalf("the food was not eaten: actions %q", s.Actions())
+	}
+
+	// Leaving play still drops a queued turn.
+	g.ticks = 0
+	g.turnReady = turnInterval
+	frame(ebiten.KeyUp)
+	frame(ebiten.KeyQ) // pause
+	if g.state != StatePauseMenu || g.queuedAction != "" {
+		t.Fatalf("a turn queued before the pause survived it: %q", g.queuedAction)
+	}
+}
