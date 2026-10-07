@@ -1,9 +1,9 @@
-// Package leaderboard — HTTP-клиент глобальной таблицы рекордов.
+// Package leaderboard: HTTP-клиент глобальной таблицы рекордов.
 //
-// FastAPI issues run tickets and verifies input replays before writing scores.
+// FastAPI выдаёт билеты забегов и проверяет повторы ввода, прежде чем записать счёт.
 //
 // Транспорт разный по платформам: в браузере используется родной fetch, а не
-// net/http — тот тянет в WASM TLS и HTTP/2 и стоит около 1.7 МБ в gzip.
+// net/http: тот тянет в WASM TLS и HTTP/2 и стоит около 1.7 МБ в gzip.
 package leaderboard
 
 import (
@@ -12,11 +12,11 @@ import (
 	"time"
 )
 
-// Timeout — запрос не должен подвешивать игру: при недоступном сервере
+// Timeout: запрос не должен подвешивать игру; при недоступном сервере
 // показывается сообщение, а не бесконечная загрузка.
 const Timeout = 5 * time.Second
 
-// Run — результат забега; поля совпадают со схемой бэкенда.
+// Run: результат забега; поля совпадают со схемой бэкенда.
 type Run struct {
 	Verified      bool   `json:"verified"`
 	PlayerName    string `json:"player_name"`
@@ -38,7 +38,7 @@ type Client struct {
 	BaseURL string
 }
 
-// ErrUnavailable — сервер недоступен или ответил ошибкой.
+// ErrUnavailable: сервер недоступен или ответил ошибкой.
 var ErrUnavailable = errors.New("leaderboard unavailable")
 
 var ErrTimeout = errors.New("leaderboard request timed out")
@@ -77,15 +77,15 @@ func (c *Client) StartRun(name, version string) (Ticket, error) {
 	return ticket, err
 }
 
-// Placement is where a submitted run landed on the leaderboard. Place is 0
-// when the server did not say; Top10Gold is nil while the top 10 is not full.
+// Placement: место отправленного забега в таблице рекордов. Place равен 0,
+// если сервер его не сообщил; Top10Gold равен nil, пока топ-10 не заполнен.
 type Placement struct {
 	Place     int  `json:"place"`
 	Top10Gold *int `json:"top10_gold"`
 }
 
-// SubmitReplay sends the run. A score the server accepted stays submitted even
-// if its placement cannot be read: the placement is then empty, not an error.
+// SubmitReplay отправляет забег. Принятый сервером счёт остаётся отправленным,
+// даже если место прочитать не удалось: тогда место пустое, а не ошибка.
 func (c *Client) SubmitReplay(ticket, actions string) (Placement, error) {
 	body, err := json.Marshal(map[string]string{"ticket": ticket, "actions": actions})
 	if err != nil {

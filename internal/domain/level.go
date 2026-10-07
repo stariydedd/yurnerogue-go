@@ -2,11 +2,11 @@ package domain
 
 import "math/rand"
 
-// Level — уровень подземелья: комнаты, коридоры, точка старта и выход.
+// Level: уровень подземелья; комнаты, коридоры, точка старта и выход.
 type Level struct {
 	Num      int
 	Seed     int64
-	Rooms    []*Room // длина GridDim*GridDim, nil — пустая ячейка сетки
+	Rooms    []*Room // длина GridDim*GridDim, nil означает пустую ячейку сетки
 	Passages []Rect
 	Items    []*Item        // предметы на полу комнат, коридоров и дверных проёмов
 	Doors    map[Point]bool // считаются один раз, единое определение из geometry
@@ -49,8 +49,8 @@ func (l *Level) generateValid() {
 // generateRooms раскладывает комнаты по сетке GridDim x GridDim; часть ячеек
 // остаётся пустой с вероятностью 1-ProbRoom.
 func (l *Level) generateRooms() {
-	// Diagnostic level marker. Ranked replay is seeded once for the whole
-	// session; it must retain the RNG stream across floor transitions.
+	// Метка уровня для диагностики. Рейтинговый повтор получает seed один раз
+	// на всю сессию, поэтому поток RNG должен сохраняться между уровнями.
 	l.Seed = int64(random(l.rng).Intn(10_000_000_000-100) + 100)
 
 	rooms := make([]*Room, 0, GridDim*GridDim)
@@ -84,7 +84,7 @@ func (l *Level) generateRooms() {
 	}
 }
 
-// roomEdges — пары индексов соседних по сетке комнат, которые можно соединить.
+// roomEdges: пары индексов соседних по сетке комнат, которые можно соединить.
 func (l *Level) roomEdges() [][2]int {
 	var edges [][2]int
 	for i := 0; i < GridDim; i++ {
@@ -106,7 +106,7 @@ func (l *Level) roomEdges() [][2]int {
 	return edges
 }
 
-// dsu — система непересекающихся множеств для алгоритма Крускала.
+// dsu: система непересекающихся множеств для алгоритма Крускала.
 type dsu struct {
 	parent, rank []int
 }
@@ -233,12 +233,12 @@ func (l *Level) pickStartRoom() {
 	l.StartRoomIdx = pick(valid, l.rng)
 }
 
-// PlayerStart — случайная клетка стартовой комнаты.
+// PlayerStart: случайная клетка стартовой комнаты.
 func (l *Level) PlayerStart() Point {
 	return l.Rooms[l.StartRoomIdx].RandomCell(l.rng)
 }
 
-// RandomCell — случайная клетка пола комнаты.
+// RandomCell: случайная клетка пола комнаты.
 func (r *Room) RandomCell(rng ...*rand.Rand) Point {
 	return Point{r.X + random(source(rng)).Intn(r.W), r.Y + random(source(rng)).Intn(r.H)}
 }
@@ -267,7 +267,7 @@ func (l *Level) generateOpponents() {
 	}
 }
 
-// enemyAt — живой враг в клетке комнаты или nil.
+// enemyAt: живой враг в клетке комнаты или nil.
 func (r *Room) enemyAt(c Point) *Opponent {
 	for _, op := range r.Enemies {
 		if op.IsAlive() && op.X == c.X && op.Y == c.Y {
@@ -318,7 +318,7 @@ func (l *Level) exitPosition() Point {
 	return room.RandomCell(l.rng)
 }
 
-// farFromDoors — клетка дальше чем на одну (по Чебышёву) от каждой двери:
+// farFromDoors: клетка дальше чем на одну (по Чебышёву) от каждой двери;
 // портал у самого входа проваливал бы игрока, едва он вошёл.
 func (l *Level) farFromDoors(c Point) bool {
 	for d := range l.Doors {
@@ -330,7 +330,7 @@ func (l *Level) farFromDoors(c Point) bool {
 }
 
 // GenerateItems наполняет комнаты предметами, кроме стартовой; клетку выхода
-// обходит — предмет под порталом не виден и подбирается без сообщения.
+// обходит: предмет под порталом не виден и подбирается без сообщения.
 func (l *Level) GenerateItems(player *Person) {
 	maxItems := MaxConsumablesPerRoom - l.Num/LevelUpdateDifficulty
 	if maxItems < 1 {
@@ -356,7 +356,7 @@ func (l *Level) GenerateItems(player *Person) {
 	}
 }
 
-// itemAt — предмет в клетке уровня или nil.
+// itemAt: предмет в клетке уровня или nil.
 func (l *Level) itemAt(c Point) *Item {
 	for _, it := range l.Items {
 		if it.X == c.X && it.Y == c.Y {
@@ -366,7 +366,7 @@ func (l *Level) itemAt(c Point) *Item {
 	return nil
 }
 
-// AllOpponents — все враги уровня.
+// AllOpponents: все враги уровня.
 func (l *Level) AllOpponents() []*Opponent {
 	var out []*Opponent
 	for _, r := range l.Rooms {
@@ -377,7 +377,7 @@ func (l *Level) AllOpponents() []*Opponent {
 	return out
 }
 
-// RoomAt — комната, содержащая клетку, или nil.
+// RoomAt: комната, содержащая клетку, или nil.
 func (l *Level) RoomAt(x, y int) *Room {
 	for _, r := range l.Rooms {
 		if r != nil && r.IsFloorCell(x, y) {

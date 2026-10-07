@@ -11,12 +11,12 @@ import (
 // Draw рисует кадр в логическую поверхность; на экран её растягивает
 // DrawFinalScreen.
 func (g *Game) Draw(screen *ebiten.Image) {
-	// DrawFinalScreen (surface.go) shows the logical surface, not Ebitengine's
-	// offscreen. Ebitengine only calls it while the offscreen keeps changing,
-	// so a new frame touches the offscreen with one pixel to be shown, and an
-	// unchanged frame leaves it alone and is skipped entirely. A resized
-	// window or a fullscreen switch needs showing too, even if the frame is
-	// the same: the device screen was recreated.
+	// DrawFinalScreen (surface.go) показывает логическую поверхность, а не offscreen
+	// Ebitengine. Ebitengine вызывает его, только пока offscreen меняется, поэтому
+	// новый кадр трогает offscreen одним пикселем, чтобы его показали, а неизменный
+	// кадр его не трогает и пропускается целиком. Изменённый размер окна или
+	// переход в полноэкранный режим тоже нужно показать, даже если кадр тот же:
+	// экран устройства был создан заново.
 	surface := g.ensureSurface()
 	size := screen.Bounds().Size()
 	resized := size != g.shownSize
@@ -67,7 +67,7 @@ func (g *Game) drawFrame(surface *ebiten.Image) {
 	}
 }
 
-// pressedControls — контролы, которые сейчас удерживаются (для подсветки).
+// pressedControls: контролы, которые сейчас удерживаются (для подсветки).
 func (g *Game) pressedControls() map[string]bool {
 	held := map[string]bool{}
 	if g.state == StatePlaying && g.pendingRun {
@@ -116,7 +116,7 @@ func (g *Game) drawScreen(screen *ebiten.Image) {
 	}
 }
 
-// frameMemo describes the last frame drawn into the surface.
+// frameMemo описывает последний кадр, нарисованный на поверхность.
 type frameMemo struct {
 	drawn     bool
 	surface   *ebiten.Image
@@ -127,12 +127,12 @@ type frameMemo struct {
 	animating bool
 }
 
-// reuseFrame reports whether the surface already holds this frame. During
-// play the picture changes only on an animation frame, while actors or
-// markers move, or when the turn, the HUD or the controls change; between
-// those the surface is shown again instead of redrawn, which leaves a still
-// game nearly idle. One more frame is drawn after motion ends, so the last
-// position is shown. Other screens are drawn every frame, as before.
+// reuseFrame сообщает, есть ли этот кадр уже на поверхности. Во время игры
+// картинка меняется только на кадре анимации, пока движутся персонажи или
+// отметки, или когда меняются ход, HUD или контролы; между этим поверхность
+// показывается заново, а не перерисовывается, и неподвижная игра почти
+// не нагружает машину. После конца движения рисуется ещё один кадр, чтобы
+// показать последнюю позицию. Остальные экраны рисуются каждый кадр, как раньше.
 func (g *Game) reuseFrame(surface *ebiten.Image) bool {
 	r := g.renderer
 	if r == nil || g.session == nil || g.state != StatePlaying {
@@ -154,7 +154,7 @@ func (g *Game) reuseFrame(surface *ebiten.Image) bool {
 	return reuse
 }
 
-// sceneHash mixes the game's own frame inputs into the renderer's scene key.
+// sceneHash подмешивает собственные входные данные кадра игры в ключ сцены рендерера.
 type sceneHash uint64
 
 func (h *sceneHash) flag(v bool) {
@@ -171,7 +171,7 @@ func (h *sceneHash) text(s string) {
 	}
 }
 
-// pressedControlNames lists held controls in a stable order.
+// pressedControlNames перечисляет удерживаемые контролы в стабильном порядке.
 func (g *Game) pressedControlNames() []string {
 	held := g.pressedControls()
 	names := make([]string, 0, len(held))

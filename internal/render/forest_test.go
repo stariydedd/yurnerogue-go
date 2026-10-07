@@ -46,7 +46,7 @@ func TestForestKeepsCorridorAndDoorwayClear(t *testing.T) {
 		t.Fatal("missing forest scenery")
 	}
 	for _, prop := range props {
-		// Flat decals are drawn below the opaque walkable tiles, unlike plants.
+		// Плоские наклейки рисуются под непрозрачными проходимыми клетками, в отличие от растений.
 		if prop.role == "moss" {
 			continue
 		}
@@ -110,7 +110,7 @@ func TestForestStableAcrossAdjacentCorridorSteps(t *testing.T) {
 		return newForestView(grid, memory.reveal(s.Level, grid, s.ComputeVisibility(grid)))
 	}
 	a, b := domain.Point{X: 19, Y: 20}, domain.Point{X: 19, Y: 19}
-	// Discover both views, then walk back and forth around the bend.
+	// Открываем оба вида, потом ходим туда-обратно вокруг поворота.
 	view(a)
 	view(b)
 	va, vb := view(a), view(b)
@@ -189,7 +189,7 @@ func TestForestMemoryDoesNotRevealGameplayOrUnknownTerrain(t *testing.T) {
 	if len(remembered.Explored) == 0 || len(remembered.Visible) != 0 || len(visible) != 0 {
 		t.Fatal("remembered terrain must not make items or enemies visible")
 	}
-	// Changing concealed geometry must not influence the remembered forest.
+	// Изменение скрытой геометрии не должно влиять на запомненный лес.
 	other := s.BuildGrid(false)
 	for y := 0; y < domain.Rows; y++ {
 		for x := 0; x < domain.Cols; x++ {
@@ -233,7 +233,7 @@ func TestForestTreesHaveBreathingRoom(t *testing.T) {
 }
 
 func TestForestMixesPlantsAndStonesThroughoutWoodland(t *testing.T) {
-	// No clearing boundary: bushes and stones must also occur in the forest.
+	// Без границы поляны: кусты и камни должны встречаться и в лесу.
 	props := forestProps(forestView{}, image.Rect(0, 0, 1280, 704))
 	counts := map[string]int{}
 	seenForeground := false
@@ -400,7 +400,7 @@ func TestForestLightHasNoHardEdgesAroundALitRoom(t *testing.T) {
 	s.Player.X, s.Player.Y = room.X, room.Y
 	grid := s.BuildGrid(false)
 	v := newForestView(grid, s.ComputeVisibility(grid))
-	// Slide a bush-sized rect down out of the room, one pixel at a time.
+	// Сдвигаем прямоугольник размером с куст вниз из комнаты, по пикселю за раз.
 	x := (room.X + room.W/2) * TileSize
 	prev := v.light(image.Rect(x, (room.Y+room.H-2)*TileSize, x+46, (room.Y+room.H-2)*TileSize+38))
 	for y := (room.Y+room.H-2)*TileSize + 1; y < (room.Y+room.H+8)*TileSize; y++ {
@@ -416,10 +416,10 @@ func TestForestLightHasNoHardEdgesAroundALitRoom(t *testing.T) {
 }
 
 func TestFringeAlongAStraightWallIsRagged(t *testing.T) {
-	v, _ := clearingFixture() // floor rows 6..14
+	v, _ := clearingFixture() // строки пола 6..14
 	lo, hi, n := 1<<30, 0, 0
 	for _, p := range forestProps(v, image.Rect(0, 0, 1280, 704)) {
-		// Fringe pieces along the bottom wall face down (rotation 2).
+		// Куски каймы вдоль нижней стены смотрят вниз (поворот 2).
 		if p.role != "verge" || p.rotation != 2 || p.rect.Min.X < 9*32 || p.rect.Max.X > 22*32 {
 			continue
 		}

@@ -1,10 +1,10 @@
 #!/bin/sh
-# Runs scripts/db-guard.sh against a disposable PostgreSQL and checks what the
-# backend role rogue_app may and may not do. Needs Docker; not production.
+# Запускает scripts/db-guard.sh на одноразовом PostgreSQL и проверяет, что
+# роль бэкенда rogue_app может и чего не может. Нужен Docker; не для прода.
 set -eu
-export MSYS_NO_PATHCONV=1   # Git Bash on Windows: keep container paths as they are
+export MSYS_NO_PATHCONV=1   # Git Bash в Windows: пути внутри контейнеров не трогаем
 
-# Docker on Windows needs Windows paths for bind mounts.
+# Docker в Windows ждёт пути Windows для подключаемых папок.
 host_path() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(host_path "$(cd "$here/../scripts" && pwd)")
@@ -46,7 +46,7 @@ must_fail() {
     fi
 }
 
-# Production: the tables exist already, owned by rogue.
+# Как на проде: таблицы уже есть, их владелец rogue.
 as_rogue -c "CREATE TABLE runs (id serial PRIMARY KEY, player_name text)"
 
 guard ""
@@ -55,7 +55,7 @@ if as_rogue -c "SELECT 1 FROM pg_roles WHERE rolname = 'rogue_app'" | grep -q 1;
     exit 1
 fi
 guard "$pw"
-guard "$pw"   # every start runs it again
+guard "$pw"   # каждый старт запускает его снова
 if guard "not-hex!" >/dev/null 2>&1; then
     echo "FAIL: a non-hex password must stop db-guard" >&2
     exit 1
@@ -65,7 +65,7 @@ as_app -c "INSERT INTO runs (player_name) VALUES ('m')"
 [ "$(as_app -c "SELECT count(*) FROM runs")" = 1 ]
 as_app -c "UPDATE runs SET player_name = 'n'"
 as_app -c "DELETE FROM runs"
-as_app -c "CREATE TABLE added_later (id int)"   # create_all for a new model
+as_app -c "CREATE TABLE added_later (id int)"   # create_all для новой модели
 as_app -c "CREATE INDEX added_later_id ON added_later (id)"
 
 must_fail "SELECT * FROM infra_meta"
@@ -76,7 +76,7 @@ must_fail "SELECT pg_read_file('/etc/passwd')"
 must_fail "CREATE ROLE intruder"
 [ "$(as_rogue -c "SELECT rolsuper FROM pg_roles WHERE rolname = 'rogue_app'")" = f ]
 
-# A table rogue creates later, a restore included, is granted at once.
+# Таблица, которую rogue создаст позже, в том числе при восстановлении, доступна сразу.
 as_rogue -c "CREATE TABLE restored (id int)"
 as_app -c "SELECT count(*) FROM restored" >/dev/null
 echo "db-guard role test passed"

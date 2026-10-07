@@ -31,15 +31,15 @@ func TestPhoneTitleClearsHeroAndMedal(t *testing.T) {
 		t.Fatal(err)
 	}
 	hero := runHero{scale: 2, x: 16, y: 20, w: 64, h: 64}
-	// Every phone is laid out 480 wide, portrait or landscape; desktop is
-	// always wide enough to stand the hero beside the panel.
+	// Любой телефон раскладывается шириной 480, в портрете и в ландшафте; десктоп
+	// всегда достаточно широк, чтобы герой стоял рядом с панелью.
 	for _, l := range []Layout{TouchLayout(360, 740), TouchLayout(430, 932), TouchLayout(844, 390)} {
 		width := l.ScreenW
 		for _, language := range []locale.Language{locale.English, locale.Russian} {
 			r := &Renderer{Layout: l, Fonts: fonts}
 			r.Layout.Language = language
 			for _, title := range []string{"VICTORY", "YOU DIED"} {
-				// The place arrives after the screen opens: unknown first.
+				// Место приходит после открытия экрана: сначала оно неизвестно.
 				first := r.runHeader(title, Placement{}, hero)
 				if other := r.runHeader(title, Placement{Place: 42, GoldShort: 5}, hero); other.face != first.face {
 					t.Errorf("%s %q: the title changes size outside the top 10", language, title)

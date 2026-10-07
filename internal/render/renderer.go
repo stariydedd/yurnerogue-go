@@ -10,7 +10,7 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/assets"
 )
 
-// Fonts — пиксельный Press Start 2P в нужных размерах. Шрифт зашит в бинарник,
+// Fonts: пиксельный Press Start 2P в нужных размерах. Шрифт зашит в бинарник,
 // поэтому выглядит одинаково на десктопе и в браузере.
 type Fonts struct {
 	Title   text.Face // заголовки экранов
@@ -56,8 +56,8 @@ func newFace(src *text.GoTextFaceSource, size float64) text.Face {
 	return f
 }
 
-// Sized returns the font at any size, made once and kept: the glyph cache
-// belongs to the face, so a fresh face every frame would redraw every glyph.
+// Sized возвращает шрифт любого размера, созданный один раз и сохранённый: кеш глифов
+// принадлежит начертанию, и новое начертание каждый кадр перерисовывало бы каждый глиф.
 func (f *Fonts) Sized(size int) text.Face {
 	if face, ok := f.sized[size]; ok {
 		return face
@@ -113,7 +113,7 @@ func (r *Renderer) Tick() {
 // Sprites даёт доступ к спрайтам (нужен панели экранных кнопок).
 func (r *Renderer) Sprites() *Sprites { return r.sprites }
 
-// AnimTick — текущий кадр idle-анимаций.
+// AnimTick: текущий кадр idle-анимаций.
 func (r *Renderer) AnimTick() int { return r.tick / AnimFrameTicks }
 
 // Text рисует строку с якорем в левом верхнем углу.
@@ -136,7 +136,7 @@ func (r *Renderer) TextRight(dst *ebiten.Image, s string, face text.Face, x, y f
 	r.Text(dst, s, face, x-w, y, clr)
 }
 
-// TextWidth — ширина строки в пикселях.
+// TextWidth: ширина строки в пикселях.
 func TextWidth(s string, face text.Face) float64 {
 	w, _ := text.Measure(s, face, 0)
 	return w

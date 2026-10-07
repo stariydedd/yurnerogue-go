@@ -112,7 +112,7 @@ func TestScrollElixirAndFoodNeverRollTiny(t *testing.T) {
 	if b := StatBonusRange(MaxLevels); b != (StatBonus{StatLow: 6, StatHigh: 9, HealthLow: 63, HealthHigh: 125}) {
 		t.Fatalf("last-level scrolls: %+v", b)
 	}
-	// Food depends on depth only: a drained max HP must not shrink it.
+	// Еда зависит только от глубины: украденный максимум не должен её уменьшать.
 	p.MaxHealth = 50
 	for level := 1; level <= MaxLevels; level++ {
 		low, high := FoodHealRange(level)

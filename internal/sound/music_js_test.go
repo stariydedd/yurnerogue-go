@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// A stand-in for the browser AudioContext, recording what the track does.
+// Замена браузерного AudioContext, которая записывает, что делает трек.
 const fakeAudioContext = `
 globalThis.AudioContext = class {
 	constructor(options) {

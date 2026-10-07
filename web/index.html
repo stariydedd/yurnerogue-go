@@ -13,7 +13,7 @@
         height: 100%;
         overflow: hidden;
         background: #0a0a0a;
-        /* iOS Safari «умно» увеличивает текст — из-за этого плашка загрузки
+        /* iOS Safari «умно» увеличивает текст, и из-за этого плашка загрузки
            распухала и переносилась на две строки. */
         -webkit-text-size-adjust: 100%;
         text-size-adjust: 100%;
@@ -23,7 +23,7 @@
     body {
         position: relative;
         width: 100%;
-        /* Keep the engine's body size and the displayed canvas identical. */
+        /* Размер body у движка и показанный канвас должны совпадать. */
         height: calc(var(--viewport-height, 100vh) - env(safe-area-inset-bottom, 0px)) !important;
     }
     /* Канвас на весь экран без чёрных полос. !important обязателен: Ebitengine
@@ -152,13 +152,13 @@
 })();
 </script>
 <script id="fullscreen-key">
-// Ebitengine cancels every key on the canvas, the browser's own F11 included,
-// so the page toggles fullscreen itself. The whole page goes fullscreen, not
-// just the canvas, so the HTML name field over the game stays visible.
-// In fullscreen the Escape key is locked where the Keyboard Lock API exists
-// (Chromium browsers): a tap reaches the game, which uses Escape, and holding
-// it leaves fullscreen, as the browser explains on entry. Elsewhere Escape
-// leaves fullscreen as usual.
+// Ebitengine отменяет на канвасе любую клавишу, включая собственный F11 браузера,
+// поэтому полноэкранный режим переключает сама страница. В него уходит вся страница,
+// а не только канвас, чтобы HTML-поле имени поверх игры оставалось видно.
+// В полноэкранном режиме Escape блокируется там, где есть Keyboard Lock API
+// (браузеры на Chromium): короткое нажатие доходит до игры, которой нужен Escape,
+// а удержание выходит из полноэкранного режима, как браузер объясняет при входе.
+// В остальных браузерах Escape выходит из полноэкранного режима как обычно.
 (function () {
     const keyboard = window.navigator && window.navigator.keyboard;
     function lockEscape() {
@@ -185,8 +185,8 @@
         if (e.key !== "F11" && e.code !== "F11") return;
         const root = document.documentElement;
         if ((!root.requestFullscreen && !root.webkitRequestFullscreen) || document.fullscreenEnabled === false) {
-            // The page cannot go fullscreen: leave F11 to the browser. The
-            // canvas handler would cancel it, so it must not get there.
+            // Страница не может уйти в полноэкранный режим: оставляем F11 браузеру.
+            // Обработчик канваса отменил бы клавишу, поэтому до него она доходить не должна.
             e.stopPropagation();
             return;
         }
@@ -196,11 +196,11 @@
 })();
 </script>
 <script id="audio-headroom">
-// The Go audio library (oto) feeds an AudioWorklet that holds only about 46 ms
-// of sound at 44.1 kHz. On a slow machine one long frame empties it and every
-// sound, music included, drops out. The worklet is taught to double its buffer
-// after an underrun, up to about 190 ms: fast machines never underrun and keep
-// the short latency. If oto's script ever changes shape, it loads untouched.
+// Звуковая библиотека Go (oto) кормит AudioWorklet, который держит лишь около 46 мс
+// звука при 44,1 кГц. На медленной машине один длинный кадр опустошает его, и пропадает
+// весь звук, музыка тоже. Worklet учится удваивать буфер после нехватки,
+// до примерно 190 мс: на быстрых машинах нехватки не бывает, и задержка остаётся
+// короткой. Если скрипт oto когда-нибудь изменится, он загрузится нетронутым.
 (function () {
     const maxFrames = 8192;
     function patchOtoWorklet(source) {
@@ -234,7 +234,7 @@
 <script>
 ;(function () {
     // Telegram передаёт параметры запуска во фрагменте URL. Если их нет, игра
-    // открыта в обычном браузере — тогда SDK не нужен и лишний запрос к
+    // открыта в обычном браузере: тогда SDK не нужен и лишний запрос к
     // стороннему домену не делается.
     if (location.hash.indexOf("tgWebApp") < 0) return;
 
@@ -247,13 +247,13 @@
         var tg = window.Telegram && window.Telegram.WebApp;
         if (!tg) return;
         tg.ready();
-        // expand разворачивает приложение на всю высоту экрана — без него
+        // expand разворачивает приложение на всю высоту экрана; без него
         // Telegram открывает его наполовину. На десктопе вызов ничего не
         // делает: размером того окна страница управлять не может.
         tg.expand();
         if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
         // Полноэкранный режим Bot API 8.0 мы не просим: на Telegram Desktop он
-        // сообщает странице размер всего экрана, но окно не разворачивает —
+        // сообщает странице размер всего экрана, но окно не разворачивает:
         // канвас растягивается на 2048 px внутри окна шириной 1200, и правая
         // треть уходит за край. Режим к тому же запоминается между запусками,
         // поэтому мало его не включать, нужно выйти, если он уже включён.

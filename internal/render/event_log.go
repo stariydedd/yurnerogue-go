@@ -45,7 +45,7 @@ func (r *Renderer) eventLogLines(s *domain.Session, width, rows int) []eventLogL
 	return lines
 }
 
-// eventLogRowHeight is the same on desktop and touch layouts.
+// eventLogRowHeight одинакова на десктопной и тач-раскладке.
 const eventLogRowHeight = 16
 
 func (r *Renderer) drawEventLog(dst *ebiten.Image, s *domain.Session, box image.Rectangle) {
@@ -72,7 +72,7 @@ func (r *Renderer) drawEventLog(dst *ebiten.Image, s *domain.Session, box image.
 }
 
 func eventLogTextTop(box image.Rectangle, rows, rowHeight, textHeight int) int {
-	// The last line has glyph height only, not a trailing line spacing.
+	// У последней строки только высота глифа, без межстрочного интервала после неё.
 	blockHeight := max(0, rows-1)*rowHeight + textHeight
 	return box.Min.Y + (box.Dy()-blockHeight)/2
 }

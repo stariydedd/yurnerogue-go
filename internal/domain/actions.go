@@ -2,7 +2,7 @@ package domain
 
 import "errors"
 
-// RulesVersion must change when simulation rules or random call order changes.
+// RulesVersion меняется при любом изменении правил симуляции или порядка вызовов RNG.
 const RulesVersion = "2"
 const MaxReplayBytes = 60000
 const MaxReplayTurns = 100000
@@ -10,8 +10,8 @@ const MaxReplayTurns = 100000
 var ErrAction = errors.New("invalid replay action")
 var ErrReplayLimit = errors.New("replay limit exceeded")
 
-// UseChoice shares inventory rules between the UI and the headless verifier.
-// Weapon choice 0 returns to Quelling Blade; other categories use zero-based indices.
+// UseChoice: общие правила инвентаря для интерфейса и верификатора без экрана.
+// Выбор оружия 0 возвращает Quelling Blade; в остальных категориях индексы с нуля.
 func (s *Session) UseChoice(t ItemType, choice int) bool {
 	p := s.Player
 	items := p.ItemsOfType(t)
@@ -75,10 +75,10 @@ func (s *Session) UseChoice(t ItemType, choice int) bool {
 	return true
 }
 
-// ApplyAction is the sole ranked input path. Menus/rendering consume no RNG.
-// Lowercase WASD is a step; uppercase is a run; hjke + digit selects an item.
-// t + lowercase direction is a Critical Strike; b is a Parry.
-// z skips a turn: while asleep, or awake as a wait that lets enemies act.
+// ApplyAction: единственный путь ввода в рейтинговом забеге. Меню и отрисовка RNG не трогают.
+// Строчные WASD: шаг; заглавные: бег; hjke и цифра: выбор предмета.
+// t и строчное направление: критический удар; b: парирование.
+// z пропускает ход: во сне или наяву, как ожидание, во время которого ходят враги.
 func (s *Session) ApplyAction(action string) error {
 	s.CombatEvents = s.CombatEvents[:0]
 	if !s.Player.IsAlive() || s.Won() {
@@ -156,7 +156,7 @@ func (s *Session) ApplyAction(action string) error {
 			s.SetMessage(s.Player.GuardChargeMessage())
 			return ErrAction
 		}
-		// Parry is not a free wait: it needs an enemy that can hit now.
+		// Парирование не бесплатное ожидание: нужен враг, который может ударить прямо сейчас.
 		if !s.enemyInContact() {
 			s.SetMessage("No enemy next to you.")
 			return ErrAction
@@ -196,7 +196,7 @@ func (s *Session) ApplyAction(action string) error {
 
 func (s *Session) Actions() string { return string(s.actions) }
 
-// Replay recomputes a terminal run. No client-supplied statistics are used.
+// Replay заново считает завершённый забег. Статистика от клиента не используется.
 func Replay(seed int64, actions string) (*Session, error) {
 	if len(actions) == 0 || len(actions) > MaxReplayBytes {
 		return nil, ErrReplayLimit

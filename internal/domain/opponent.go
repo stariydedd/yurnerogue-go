@@ -2,7 +2,7 @@ package domain
 
 import "math/rand"
 
-// OpponentType — тип врага. Отображаются как узнаваемые герои Dota.
+// OpponentType: тип врага. Отображаются как узнаваемые герои Dota.
 type OpponentType int
 
 const (
@@ -13,10 +13,10 @@ const (
 	Snake                       // Skywrath Mage
 )
 
-// AllOpponentTypes — для случайного выбора при генерации уровня.
+// AllOpponentTypes: для случайного выбора при генерации уровня.
 var AllOpponentTypes = []OpponentType{Zombie, Vampire, Ghost, Ogre, Snake}
 
-// DisplayName — имя врага в сообщениях и справке.
+// DisplayName: имя врага в сообщениях и справке.
 func (t OpponentType) DisplayName() string {
 	switch t {
 	case Zombie:
@@ -33,7 +33,7 @@ func (t OpponentType) DisplayName() string {
 	return "Unknown"
 }
 
-// Symbol — символ врага в сетке карты.
+// Symbol: символ врага в сетке карты.
 func (t OpponentType) Symbol() byte {
 	switch t {
 	case Zombie:
@@ -50,7 +50,7 @@ func (t OpponentType) Symbol() byte {
 	return '?'
 }
 
-// SpriteRole — роль спрайта в assets/custom.
+// SpriteRole: роль спрайта в assets/custom.
 func (t OpponentType) SpriteRole() string {
 	switch t {
 	case Zombie:
@@ -67,7 +67,7 @@ func (t OpponentType) SpriteRole() string {
 	return "pudge"
 }
 
-// hostility — радиус, в котором враг замечает игрока.
+// hostility: радиус, в котором враг замечает игрока.
 type hostility int
 
 const (
@@ -86,7 +86,7 @@ func (h hostility) radius() int {
 	return AverageHostilityRadius
 }
 
-// Opponent — враг на уровне.
+// Opponent: враг на уровне.
 type Opponent struct {
 	rng      *rand.Rand
 	Type     OpponentType
@@ -100,7 +100,7 @@ type Opponent struct {
 	Facing    int
 
 	hostility hostility
-	level     int // floor the enemy was generated for; 0 for fixtures
+	level     int // уровень, для которого создан враг; 0 в тестовых сценах
 
 	// Особенности поведения отдельных типов.
 	lastDirection      *Point // Snake: не повторяет прошлый диагональный шаг
@@ -108,7 +108,7 @@ type Opponent struct {
 	vampireFirstStrike bool   // Vampire: отражает первую атаку игрока
 }
 
-// baseStats — характеристики врага до масштабирования по уровню.
+// baseStats: характеристики врага до масштабирования по уровню.
 func baseStats(t OpponentType) (health, agility, strength int, h hostility) {
 	switch t {
 	case Zombie:
@@ -157,7 +157,7 @@ func (o *Opponent) MaxHealthDrain() int {
 	return BloodseekerDrainBase + BloodseekerDrainPerLevel*max(1, o.level)
 }
 
-// IsAlive — жив ли враг.
+// IsAlive: жив ли враг.
 func (o *Opponent) IsAlive() bool { return o.Health > 0 }
 
 // TakeDamage наносит урон, здоровье не уходит ниже нуля.
@@ -168,7 +168,7 @@ func (o *Opponent) TakeDamage(damage int) {
 	}
 }
 
-// CanSeePlayer — попал ли игрок в радиус агрессии.
+// CanSeePlayer: попал ли игрок в радиус агрессии.
 func (o *Opponent) CanSeePlayer(distance int) bool {
 	return distance <= o.hostility.radius()
 }
@@ -183,7 +183,7 @@ func (o *Opponent) DeflectsFirstStrike() bool {
 	return true
 }
 
-// Resting — Axe отдыхает ход после атаки, следующим ходом контратакует.
+// Resting: Axe отдыхает ход после атаки, следующим ходом контратакует.
 func (o *Opponent) Resting() bool { return o.ogreCooldown }
 
 // SetResting ставит или снимает отдых Axe.
@@ -264,7 +264,7 @@ func (o *Opponent) pathStep(a moveArea) *Point {
 	return nil
 }
 
-// patternStep — ход по собственному паттерну типа, когда игрок не преследуется.
+// patternStep: ход по собственному паттерну типа, когда игрок не преследуется.
 func (o *Opponent) patternStep(a moveArea) *Point {
 	switch o.Type {
 	case Zombie:
@@ -275,8 +275,8 @@ func (o *Opponent) patternStep(a moveArea) *Point {
 		if step := o.blinkInRoom(a); step != nil {
 			return step
 		}
-		// Blinks need a room: in a corridor or a doorway Riki walks, or he
-		// would stand there for good, mostly invisible, blocking the way.
+		// Прыжку нужна комната: в коридоре или в двери Riki ходит, иначе он
+		// стоял бы там навсегда, почти всегда невидимый, и перекрывал проход.
 		return o.firstWalkable(shuffled(dirs4, o.rng), a)
 	case Ogre:
 		return o.doubleStep(a)
@@ -320,7 +320,7 @@ func (o *Opponent) blinkInRoom(a moveArea) *Point {
 	return nil
 }
 
-// doubleStep — Axe шагает на две клетки, если свободны обе.
+// doubleStep: Axe шагает на две клетки, если свободны обе.
 func (o *Opponent) doubleStep(a moveArea) *Point {
 	for _, d := range shuffled(dirs4, o.rng) {
 		if o.canStep(o.X+d.X, o.Y+d.Y, a) &&
@@ -331,7 +331,7 @@ func (o *Opponent) doubleStep(a moveArea) *Point {
 	return nil
 }
 
-// diagonalStep — Skywrath ходит по диагонали, стараясь не повторять прошлый шаг.
+// diagonalStep: Skywrath ходит по диагонали, стараясь не повторять прошлый шаг.
 func (o *Opponent) diagonalStep(a moveArea) *Point {
 	for _, d := range shuffled(diag4, o.rng) {
 		if o.lastDirection != nil && *o.lastDirection == d {

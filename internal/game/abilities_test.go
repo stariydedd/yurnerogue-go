@@ -92,10 +92,10 @@ func TestWeaponSoundFollowsTheLog(t *testing.T) {
 		after          actionAudioSnapshot
 		sharpen, equip bool
 	}{
-		{actionAudioSnapshot{weaponName: "Yasha", weaponBonus: 8}, true, false},      // sharpened
-		{actionAudioSnapshot{weaponName: "Yasha", weaponBonus: 9}, true, false},      // stronger copy, same name
-		{actionAudioSnapshot{weaponName: "Butterfly", weaponBonus: 38}, false, true}, // new name
-		{actionAudioSnapshot{weaponName: "Yasha", weaponBonus: 7}, false, false},     // nothing changed
+		{actionAudioSnapshot{weaponName: "Yasha", weaponBonus: 8}, true, false},      // заточено
+		{actionAudioSnapshot{weaponName: "Yasha", weaponBonus: 9}, true, false},      // более сильная копия, то же название
+		{actionAudioSnapshot{weaponName: "Butterfly", weaponBonus: 38}, false, true}, // новое название
+		{actionAudioSnapshot{weaponName: "Yasha", weaponBonus: 7}, false, false},     // ничего не изменилось
 	} {
 		cues := actionCues(yasha, tc.after, "d")
 		if has(cues, sound.Sharpen) != tc.sharpen || has(cues, sound.Equip) != tc.equip {
@@ -164,7 +164,7 @@ func pacingFixture() (*Game, *domain.Session, *domain.Opponent) {
 func TestRapidAttacksKeepOneSwingPerStepAndQueueTheLatest(t *testing.T) {
 	g, s, enemy := pacingFixture()
 	p := s.Player
-	for i := 0; i < 5; i++ { // five taps in one frame
+	for i := 0; i < 5; i++ { // пять нажатий за один кадр
 		g.HandleKey(ebiten.KeyRight)
 	}
 	if s.Actions() != "d" || g.queuedAction != "d" || !g.queuedAttack {
@@ -181,7 +181,7 @@ func TestRapidAttacksKeepOneSwingPerStepAndQueueTheLatest(t *testing.T) {
 		t.Fatal("queued swing did not come right after the interval")
 	}
 
-	// A queued swing whose enemy has gone does not turn into a step.
+	// Удар из очереди, чей враг ушёл, не превращается в шаг.
 	enemy.X, enemy.Y = 13, 10
 	g.HandleKey(ebiten.KeyRight)
 	enemy.Health = 0
@@ -195,7 +195,7 @@ func TestRapidAttacksKeepOneSwingPerStepAndQueueTheLatest(t *testing.T) {
 func TestRapidStepsFollowTheStepAnimation(t *testing.T) {
 	g, s, enemy := pacingFixture()
 	enemy.Health = 0
-	for i := 0; i < 4; i++ { // mashing: one step, the last press waits
+	for i := 0; i < 4; i++ { // частые нажатия: один шаг, последнее нажатие ждёт
 		g.HandleKey(ebiten.KeyUp)
 		g.HandleKey(ebiten.KeyLeft)
 	}
@@ -212,8 +212,8 @@ func TestRapidStepsFollowTheStepAnimation(t *testing.T) {
 	}
 }
 
-// An item picked from its menu right after a step waits for that step. The
-// state change back into play used to wipe it, so the food was never eaten.
+// Предмет, выбранный в меню сразу после шага, ждёт этот шаг. Возврат
+// в игру раньше стирал его, и еда так и не съедалась.
 func TestItemPickedRightAfterAStepIsNotLost(t *testing.T) {
 	g, s, enemy := pacingFixture()
 	enemy.Health = 0
@@ -224,9 +224,9 @@ func TestItemPickedRightAfterAStepIsNotLost(t *testing.T) {
 		g.HandleKey(key)
 		g.settleStateChange(before)
 	}
-	frame(ebiten.KeyUp) // the step: the next turn waits for its animation
-	frame(ebiten.KeyC)  // the food menu
-	frame(ebiten.Key1)  // eat, still inside the step's interval
+	frame(ebiten.KeyUp) // шаг: следующий ход ждёт его анимацию
+	frame(ebiten.KeyC)  // меню еды
+	frame(ebiten.Key1)  // съесть, ещё внутри интервала шага
 	if g.state != StatePlaying || g.queuedAction != "j0" {
 		t.Fatalf("the pick must wait in the queue, state %v queued %q", g.state, g.queuedAction)
 	}
@@ -236,11 +236,11 @@ func TestItemPickedRightAfterAStepIsNotLost(t *testing.T) {
 		t.Fatalf("the food was not eaten: actions %q", s.Actions())
 	}
 
-	// Leaving play still drops a queued turn.
+	// Уход из игры по-прежнему сбрасывает ход из очереди.
 	g.ticks = 0
 	g.turnReady = turnInterval
 	frame(ebiten.KeyUp)
-	frame(ebiten.KeyQ) // pause
+	frame(ebiten.KeyQ) // пауза
 	if g.state != StatePauseMenu || g.queuedAction != "" {
 		t.Fatalf("a turn queued before the pause survived it: %q", g.queuedAction)
 	}

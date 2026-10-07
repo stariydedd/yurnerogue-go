@@ -53,7 +53,7 @@ type welcomeTextLayout struct {
 	rows          []welcomeRow
 }
 
-// Keep the existing font selection, but size each block to its actual text.
+// Выбор шрифта прежний, но каждый блок подгоняется под его настоящий текст.
 func (r *Renderer) welcomeText(box image.Rectangle) welcomeTextLayout {
 	entries := welcomeEntries(r.Layout.Touch)
 	available := box.Dy() - 32
@@ -134,9 +134,9 @@ func runSummaryStats(s *domain.Session) []runStat {
 	}
 }
 
-// Placement is where a finished run landed on the leaderboard. Place 0 means
-// the place is not known. GoldShort, outside the top 10, is the gold that
-// would have got the run in.
+// Placement: место завершённого забега в таблице рекордов. Place 0 означает,
+// что место неизвестно. GoldShort за пределами топ-10: золото, которого
+// не хватило, чтобы туда попасть.
 type Placement struct {
 	Place, GoldShort int
 }
@@ -148,8 +148,8 @@ var (
 	placeBronze = color.RGBA{205, 127, 50, 255}
 )
 
-// placeColor gives the podium its medals; the rest of the top 10 is plain
-// and a place further down is muted.
+// placeColor даёт пьедесталу медали; остальная часть топ-10 обычная,
+// а места ниже приглушены.
 func placeColor(place int) color.Color {
 	switch {
 	case place == 1:
@@ -198,7 +198,7 @@ func (r *Renderer) DrawRunSummary(screen *ebiten.Image, s *domain.Session, won b
 	chars := int(float64(box.Dx()) / TextWidth("M", face))
 	lines := wrapText(r.translateMessage(status), chars)
 	if !hero.wide && place.GoldShort > 0 {
-		// The phone has no room beside the panel: the gap goes under it.
+		// На телефоне рядом с панелью места нет: нехватка золота уходит под неё.
 		lines = append(lines, wrapText(r.goldShort(place), chars)...)
 	}
 	lineH := int(TextWidth("M", face)) + 6
@@ -208,8 +208,8 @@ func (r *Renderer) DrawRunSummary(screen *ebiten.Image, s *domain.Session, won b
 	}
 }
 
-// statusTop puts the lines under the results panel 16 px below it, or higher,
-// centered in the gap, when that would crowd the buttons.
+// statusTop ставит строки под панелью итогов на 16 px ниже неё или выше,
+// по центру промежутка, если иначе они теснят кнопки.
 func statusTop(l Layout, box image.Rectangle, lines, lineH int) int {
 	gap := MenuButtons(l, MenuResults)[0].Bounds.Min.Y - box.Max.Y
 	return box.Max.Y + max(4, min(16, (gap-lines*lineH)/2))
@@ -219,13 +219,13 @@ func (r *Renderer) goldShort(place Placement) string {
 	return fmt.Sprintf(r.tr("%d gold short of the top 10"), place.GoldShort)
 }
 
-// phoneTitleGap keeps the phone title this far from the hero and the place;
-// phoneMedal is the place's font size there, three quarters of the hero.
+// phoneTitleGap держит заголовок на телефоне на таком расстоянии от героя и места;
+// phoneMedal: размер шрифта места там, три четверти героя.
 const phoneTitleGap, phoneMedal = 20, 48
 
-// placeNumber is the top 10 place as drawn, "#N": on desktop as tall as the
-// hero where the column beside the panel allows, on the phone phoneMedal;
-// empty for any other place.
+// placeNumber: место в топ-10 в виде "#N"; на десктопе в рост героя,
+// насколько позволяет столбец рядом с панелью, на телефоне phoneMedal;
+// пусто для любого другого места.
 func placeNumber(place Placement, hero runHero) (string, int) {
 	if place.Place < 1 || place.Place > 10 {
 		return "", 0
@@ -235,7 +235,7 @@ func placeNumber(place Placement, hero runHero) (string, int) {
 	if hero.wide {
 		size = min(hero.h, hero.placeRoom/len(number))
 	}
-	// Press Start 2P is drawn on an 8 px grid: whole multiples stay crisp.
+	// Press Start 2P нарисован на сетке 8 px: целые кратные остаются чёткими.
 	return number, max(8, size/8*8)
 }
 
@@ -246,8 +246,8 @@ type runHeader struct {
 	numberSize int
 }
 
-// runHeader lays out the title, centered on the screen. On the phone it is
-// level with the hero and keeps clear of both him and a top 10 place.
+// runHeader размещает заголовок по центру экрана. На телефоне он на уровне
+// героя и не задевает ни его, ни место в топ-10.
 func (r *Renderer) runHeader(title string, place Placement, hero runHero) runHeader {
 	f := r.Fonts
 	faces := []text.Face{f.Title, f.Sized(32), f.Sized(24), f.Menu}
@@ -270,10 +270,10 @@ func (r *Renderer) runHeader(title string, place Placement, hero runHero) runHea
 		h.x = float64(w)/2 - TextWidth(h.title, h.face)/2
 		return h
 	}
-	// The title always leaves room for a one digit place, so it keeps its
-	// size when the place arrives from the server a moment after the screen
-	// opens, and it is the same whatever the place; "#10" then shrinks into
-	// the room left beside it.
+	// Заголовок всегда оставляет место под однозначное место, поэтому
+	// не меняет размер, когда место приходит с сервера через миг после открытия
+	// экрана, и одинаков при любом месте; "#10" потом ужимается
+	// в оставшееся рядом место.
 	pick(w - 2*max(hero.x+hero.w+phoneTitleGap, 16+len("#1")*min(hero.h, phoneMedal)+phoneTitleGap))
 	tw := TextWidth(h.title, h.face)
 	if number != "" {
@@ -288,21 +288,21 @@ func (r *Renderer) runHeader(title string, place Placement, hero runHero) runHea
 type runHero struct {
 	img               *ebiten.Image
 	scale, x, y, w, h int
-	wide              bool // beside the panel; false: small, beside the title
-	placeRoom         int  // width right of the panel, where the place goes
+	wide              bool // рядом с панелью; false: маленький, рядом с заголовком
+	placeRoom         int  // ширина справа от панели, где стоит место
 }
 
-// runHero places Juggernaut beside the results of a run, idling, at a
-// whole-number scale so the pixel art stays sharp. On desktop he stands left
-// of the panel; the phone panel is full width, so there he stands smaller
-// beside the title.
+// runHero ставит Juggernaut рядом с итогами забега, в анимации ожидания,
+// с целым масштабом, чтобы пиксель-арт оставался чётким. На десктопе он стоит слева
+// от панели; на телефоне панель во всю ширину, поэтому там он меньше
+// и стоит рядом с заголовком.
 func (r *Renderer) runHero(panel image.Rectangle) runHero {
 	img := r.sprites.Frame("player", r.AnimTick())
 	size := image.Pt(32, 32)
 	if img != nil {
 		size = img.Bounds().Size()
 	}
-	room := panel.Min.X - 24 // free width left of the panel
+	room := panel.Min.X - 24 // свободная ширина слева от панели
 	h := runHero{img: img, scale: min(6, room/max(1, size.X), panel.Dy()/max(1, size.Y))}
 	h.x, h.y = (panel.Min.X-size.X*h.scale)/2, panel.Min.Y+(panel.Dy()-size.Y*h.scale)/2
 	h.wide = h.scale >= 3
@@ -325,13 +325,13 @@ func (r *Renderer) drawRunHero(screen *ebiten.Image, h runHero) {
 	screen.DrawImage(h.img, op)
 }
 
-// drawPlace mirrors the hero: right of the panel on desktop, right of the
-// title on the phone. A top 10 place is a number as tall as the hero, in
-// medal colors on the podium. Further down only the gold still missing for
-// the top 10 is shown, and an unknown place shows nothing.
+// drawPlace зеркалит героя: справа от панели на десктопе, справа от
+// заголовка на телефоне. Место в топ-10 это число в рост героя, на пьедестале
+// в цветах медалей. Ниже показывается только золото, которого не хватило
+// до топ-10, а неизвестное место не показывается.
 func (r *Renderer) drawPlace(screen *ebiten.Image, panel image.Rectangle, place Placement, hero runHero, size int) {
 	if place.Place < 1 || place.Place > 10 && (place.GoldShort < 1 || !hero.wide) {
-		return // on the phone the missing gold goes under the panel
+		return // на телефоне нехватка золота уходит под панель
 	}
 	left := panel.Max.X + 12
 	colW := r.Layout.ScreenW - 12 - left
@@ -340,7 +340,7 @@ func (r *Renderer) drawPlace(screen *ebiten.Image, panel image.Rectangle, place 
 	centered := func(s string, face text.Face, y float64, clr color.Color) {
 		x := cx - TextWidth(s, face)/2
 		if !hero.wide {
-			x = float64(r.Layout.ScreenW-16) - TextWidth(s, face) // flush with the edge
+			x = float64(r.Layout.ScreenW-16) - TextWidth(s, face) // вплотную к краю
 		}
 		r.Text(screen, s, face, x, y, clr)
 	}

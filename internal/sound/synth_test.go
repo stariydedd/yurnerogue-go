@@ -29,7 +29,7 @@ func TestEffectsAreDeterministicAndHaveSoftEndpoints(t *testing.T) {
 	for c := Cue(0); c < cueCount; c++ {
 		if Recorded(c) {
 			continue
-		} // Covered by embedded recording tests.
+		} // Покрыто тестами встроенных записей.
 		data := effect(c)
 		checkPCM(t, data)
 		if !bytes.Equal(data, effect(c)) {

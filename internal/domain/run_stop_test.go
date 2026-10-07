@@ -2,8 +2,8 @@ package domain
 
 import "testing"
 
-// runPast puts the hero at 10,10 of the combat room, running right, with an
-// enemy standing just above the second cell of the way.
+// runPast ставит героя в клетку 10,10 боевой комнаты и запускает бег вправо;
+// враг стоит прямо над второй клеткой пути.
 func runPast(t *testing.T, agility int, shield int) (*Session, *Opponent) {
 	t.Helper()
 	s, o := combatEventSession(Zombie)
@@ -20,14 +20,14 @@ func runPast(t *testing.T, agility int, shield int) (*Session, *Opponent) {
 	return s, o
 }
 
-// The run used to stop only when health dropped, so it ran on through a hit
-// the shield took, a miss, or a drain that left health below the maximum.
+// Раньше бег останавливался только при потере здоровья и пробегал мимо удара
+// в щит, промаха и кражи, после которой здоровье и так ниже максимума.
 func TestRunStopsWhenAnEnemyAttacks(t *testing.T) {
-	s, _ := runPast(t, 1_000_000, 10_000) // every hit lands in the shield
+	s, _ := runPast(t, 1_000_000, 10_000) // каждый удар попадает в щит
 	if s.Player.X != 11 || s.Player.Health != DefaultMaxHealth {
 		t.Fatalf("a hit taken by the shield: hero at x=%d, health %d", s.Player.X, s.Player.Health)
 	}
-	s, _ = runPast(t, -1_000_000, 0) // every hit misses
+	s, _ = runPast(t, -1_000_000, 0) // каждый удар мимо
 	if s.Player.X != 11 {
 		t.Fatalf("a miss: hero ran on to x=%d", s.Player.X)
 	}
@@ -35,8 +35,8 @@ func TestRunStopsWhenAnEnemyAttacks(t *testing.T) {
 
 func TestRunStopsOnAnyItem(t *testing.T) {
 	for _, it := range []*Item{
-		{Type: ItemScroll, StrengthEffect: 2},                // read on pickup
-		{Type: ItemWeapon, Name: "Yasha", StrengthEffect: 9}, // equipped on pickup
+		{Type: ItemScroll, StrengthEffect: 2},                // читается при подборе
+		{Type: ItemWeapon, Name: "Yasha", StrengthEffect: 9}, // экипируется при подборе
 	} {
 		s, o := combatEventSession(Zombie)
 		o.Health = 0

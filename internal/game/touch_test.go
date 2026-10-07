@@ -51,7 +51,7 @@ func TestSelectIsHelpInGameAndConfirmElsewhere(t *testing.T) {
 }
 
 func TestMenuCancelsInDialogsAndExitsInGame(t *testing.T) {
-	// В диалогах MENU означает «отмена», в игре — выход в главное меню.
+	// В диалогах MENU означает «отмена», в игре выход в главное меню.
 	for _, state := range []State{StateItemMenu, StateQuitDialog, StateNameEntry} {
 		if got := keyForControl(render.CtrlMenu, state); got != ebiten.KeyEscape {
 			t.Fatalf("MENU на экране %v -> %v, ожидался Escape", state, got)
@@ -108,7 +108,7 @@ func TestDPadHoldAutoRepeats(t *testing.T) {
 		}
 	}
 
-	// Палец отпущен — повторы прекращаются.
+	// Палец отпущен: повторы прекращаются.
 	ti.release(7)
 	ti.ticks += repeatInterval
 	if fired := ti.repeatFired(); len(fired) != 0 {

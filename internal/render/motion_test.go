@@ -202,7 +202,7 @@ func TestHeldStepsWalkAtSteadySpeedWithoutEasing(t *testing.T) {
 	}
 }
 
-// chunkFixture is a renderer and a session standing in its first room.
+// chunkFixture: рендерер и сессия, где герой стоит в первой комнате.
 func chunkFixture(t *testing.T) (*Renderer, *domain.Session, func(image.Rectangle) int) {
 	r, err := New(DesktopLayout())
 	if err != nil {
@@ -212,9 +212,9 @@ func chunkFixture(t *testing.T) (*Renderer, *domain.Session, func(image.Rectangl
 	room := s.Level.Rooms[0]
 	s.Player.X, s.Player.Y = room.X, room.Y
 	dst := ebiten.NewImage(r.Layout.GridW, r.Layout.GridH)
-	none := time.Duration(0) // one stale chunk per frame: deterministic
+	none := time.Duration(0) // один устаревший чанк за кадр: детерминированно
 	r.forest.budget = &none
-	// frame draws one frame and returns how many chunks it redrew.
+	// frame рисует один кадр и возвращает, сколько чанков перерисовано.
 	frame := func(view image.Rectangle) int {
 		grid := s.BuildGrid(false)
 		vis := s.ComputeVisibility(grid)
@@ -238,14 +238,14 @@ func TestForestChunksRedrawOnlyWhatChanged(t *testing.T) {
 	if frame(view) != 0 {
 		t.Fatal("a settled forest keeps redrawing")
 	}
-	// A step inside the room and a short slide within the same chunks.
+	// Шаг внутри комнаты и короткое скольжение в пределах тех же чанков.
 	room := s.Level.Rooms[0]
 	s.Player.X = room.X + 1
 	if n := frame(view.Add(image.Pt(TileSize, 0))); n != 0 {
 		t.Fatalf("a step inside a room redrew %d chunks", n)
 	}
-	// New light: the chunk under the middle of the view first, then one per
-	// frame within the budget.
+	// Новый свет: сначала чанк под серединой вида, потом по одному
+	// за кадр в пределах бюджета.
 	s.Player.X, s.Player.Y = s.Level.Rooms[1].X, s.Level.Rooms[1].Y
 	total := 0
 	middle, _ := chunkRange(image.Rectangle{Min: view.Min.Add(view.Size().Div(2)), Max: view.Min.Add(view.Size().Div(2)).Add(image.Pt(1, 1))})
@@ -269,16 +269,16 @@ func TestForestChunkKeyIgnoresChangesFarAway(t *testing.T) {
 	f.view = forestView{lights: make([]float32, domain.Cols*domain.Rows), cells: make([]bool, domain.Cols*domain.Rows), seen: make([]bool, domain.Cols*domain.Rows)}
 	c := image.Pt(2, 2)
 	before := f.key(c)
-	f.view.lights[40*domain.Cols+90] = 1 // far corner of the map
+	f.view.lights[40*domain.Cols+90] = 1 // дальний угол карты
 	if f.key(c) != before {
 		t.Fatal("a far change touched the chunk")
 	}
-	f.view.lights[(2*chunkTiles+3)*domain.Cols+2*chunkTiles+3] = 1 // inside the chunk
+	f.view.lights[(2*chunkTiles+3)*domain.Cols+2*chunkTiles+3] = 1 // внутри чанка
 	if f.key(c) == before {
 		t.Fatal("a change inside the chunk was missed")
 	}
 	before = f.key(c)
-	f.view.seen[(2*chunkTiles-chunkMargin)*domain.Cols+2*chunkTiles] = true // in the margin
+	f.view.seen[(2*chunkTiles-chunkMargin)*domain.Cols+2*chunkTiles] = true // в запасе
 	if f.key(c) == before {
 		t.Fatal("a change in the margin was missed")
 	}
@@ -319,7 +319,7 @@ func TestRedrawnChunksFadeInOverTheirOldPicture(t *testing.T) {
 
 func TestNoChunksArePreparedPastTheMap(t *testing.T) {
 	r, _, frame := chunkFixture(t)
-	corner := image.Rect(0, 0, r.Layout.GridW, r.Layout.GridH) // camera clamped to the top left
+	corner := image.Rect(0, 0, r.Layout.GridW, r.Layout.GridH) // камера прижата к левому верхнему углу
 	for i := 0; i < 60; i++ {
 		frame(corner)
 	}

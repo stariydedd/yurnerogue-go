@@ -10,11 +10,11 @@ from app.verifier import rules_version
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    rules_version()  # Missing or broken verifier must prevent an unsafe deploy.
-    # Creates missing tables only (including run_submissions). Changes to
-    # existing columns require a migration; create_all does not alter them.
+    rules_version()  # Отсутствующий или сломанный верификатор должен сорвать небезопасный деплой.
+    # Создаёт только недостающие таблицы (включая run_submissions). Изменения
+    # существующих столбцов требуют миграции: create_all их не меняет.
     Base.metadata.create_all(bind=engine)
-    # create_all leaves existing tables alone, new indexes included.
+    # create_all не трогает существующие таблицы, в том числе новые индексы к ним.
     for index in Run.__table__.indexes:
         index.create(bind=engine, checkfirst=True)
     yield
@@ -22,9 +22,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Rogue 2.0 Leaderboard API", lifespan=lifespan)
 
-# No CORS: the browser game always calls /api on its own origin, and the
-# native build is not a browser. Other sites cannot post to the API from a
-# visitor's browser.
+# Без CORS: браузерная игра всегда обращается к /api со своего адреса, а
+# нативная сборка не браузер. Чужие сайты не могут отправлять запросы к API
+# из браузера посетителя.
 
 app.include_router(leaderboard.router)
 

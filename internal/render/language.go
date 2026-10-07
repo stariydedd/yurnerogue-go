@@ -16,7 +16,7 @@ func (r *Renderer) translateMessage(message string) string {
 
 func helpEntryName(l Layout, entry helpEntry) string {
 	if entry.role == "" {
-		return locale.Text(l.Language, entry.name) // key binding
+		return locale.Text(l.Language, entry.name) // привязка клавиши
 	}
 	if l.Language == locale.Russian {
 		if category, ok := map[string]string{
@@ -29,7 +29,7 @@ func helpEntryName(l Layout, entry helpEntry) string {
 	return entry.name
 }
 
-// Language targets are pointer-only and intentionally absent from MenuButtons.
+// Кнопки языка только для указателя и намеренно отсутствуют в MenuButtons.
 func LanguageTargets(l Layout) map[locale.Language]image.Rectangle {
 	x, y := l.ScreenW/2-80, l.ScreenH-72
 	return map[locale.Language]image.Rectangle{
@@ -66,7 +66,7 @@ func drawFlag(dst *ebiten.Image, box image.Rectangle, language locale.Language) 
 		return
 	}
 	fillBox(dst, box, blue)
-	// Pixel-stepped diagonals preserve crisp edges at every display scale.
+	// Диагонали ступеньками по пикселю остаются чёткими при любом масштабе экрана.
 	for x := 0; x < box.Dx(); x++ {
 		y := x * (box.Dy() - 1) / (box.Dx() - 1)
 		for _, row := range []int{y, box.Dy() - 1 - y} {

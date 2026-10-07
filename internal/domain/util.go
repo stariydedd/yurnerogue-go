@@ -2,7 +2,7 @@ package domain
 
 import "strconv"
 
-// itoa — короткая обёртка для сборки сообщений в HUD.
+// itoa: короткая обёртка для сборки сообщений в HUD.
 func itoa(v int) string { return strconv.Itoa(v) }
 
 func abs(v int) int {

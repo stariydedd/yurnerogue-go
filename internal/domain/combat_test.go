@@ -2,7 +2,7 @@ package domain
 
 import "testing"
 
-// sharpPlayer — игрок с запредельными характеристиками: попадание и убийство
+// sharpPlayer: игрок с запредельными характеристиками, попадание и убийство
 // с одного удара гарантированы, тест не зависит от бросков.
 func sharpPlayer() *Person {
 	p := NewPerson()
@@ -194,7 +194,7 @@ func TestHealthElixirIsAShield(t *testing.T) {
 		}
 	}
 
-	// It neither heals nor raises the maximum: it takes damage first.
+	// Он не лечит и не поднимает максимум: он первым принимает урон.
 	p := NewPerson()
 	p.TakeDamage(300)
 	drink(p, 100)
@@ -210,7 +210,7 @@ func TestHealthElixirIsAShield(t *testing.T) {
 		t.Fatalf("only what the shield could not take reaches health: %v, %d effects", hp(p), p.ActiveEffects())
 	}
 
-	// What is left of it when it ends simply goes.
+	// Остаток щита по окончании просто пропадает.
 	p = NewPerson()
 	drink(p, 100)
 	p.TakeDamage(30)
@@ -219,7 +219,7 @@ func TestHealthElixirIsAShield(t *testing.T) {
 		t.Fatalf("after it ends got %v", hp(p))
 	}
 
-	// Bloodseeker does not get through it: the drain is taken first.
+	// Bloodseeker его не пробивает: кражу щит принимает первым.
 	p = NewPerson()
 	drink(p, 100)
 	p.DrainMaxHealth(30)
@@ -232,8 +232,8 @@ func TestHealthElixirIsAShield(t *testing.T) {
 		t.Fatalf("only the rest of a drain reaches the maximum: %v", hp(p))
 	}
 
-	// Two elixirs: the older shield, which ends first, is spent first; stat
-	// buffs stay.
+	// Два эликсира: первым тратится старший щит, он и кончится первым; баффы
+	// характеристик остаются.
 	p = NewPerson()
 	drink(p, 50)
 	p.TickEffects()

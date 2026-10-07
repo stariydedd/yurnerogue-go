@@ -2,7 +2,7 @@ package domain
 
 import "testing"
 
-// cleanSession — сессия без врагов и предметов: бег становится детерминированным.
+// cleanSession: сессия без врагов и предметов, чтобы бег стал детерминированным.
 func cleanSession(t *testing.T) *Session {
 	t.Helper()
 	s := NewSession()
@@ -17,7 +17,7 @@ func cleanSession(t *testing.T) *Session {
 
 // findDoorApproach ищет дверь, к которой слева ведёт прямой коридор, и
 // возвращает её координаты. Раскладка карты случайна, поэтому подходящий
-// участок находится не на каждом уровне — пробуем несколько сессий.
+// участок находится не на каждом уровне, поэтому пробуем несколько сессий.
 func findDoorApproach(t *testing.T, want func(s *Session, d Point) bool) (*Session, Point) {
 	t.Helper()
 	for attempt := 0; attempt < 60; attempt++ {
@@ -107,7 +107,7 @@ func TestRunNextToDoorPassesThrough(t *testing.T) {
 }
 
 func TestRunIntoWallDoesNothing(t *testing.T) {
-	// Бег в непроходимую сторону — «невозможный ход», нулевое движение.
+	// Бег в непроходимую сторону: «невозможный ход», нулевое движение.
 	s := cleanSession(t)
 	room := s.Level.Rooms[s.Level.StartRoomIdx]
 	s.Player.X, s.Player.Y = room.X, room.Y

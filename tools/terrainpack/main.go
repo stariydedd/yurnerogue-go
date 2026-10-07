@@ -1,6 +1,6 @@
-// terrainpack mechanically packs generated 2x2 sheets into game sprite strips.
-// Artwork and alpha are preserved; no drawing,
-// background removal, palette changes or runtime generation happens here.
+// terrainpack механически упаковывает сгенерированные листы 2x2 в полосы спрайтов игры.
+// Рисунок и альфа сохраняются; здесь нет ни рисования,
+// ни удаления фона, ни смены палитры, ни генерации во время игры.
 package main
 
 import (
@@ -35,9 +35,9 @@ func packFrames(src image.Image, width, height, padding int, trim bool) (*image.
 		sr := image.Rect(x, y, x+sw, y+sh)
 		dr := image.Rect(frame*width+padding, padding, (frame+1)*width-padding, height-padding)
 		if trim {
-			// Crop transparent margins and fit without stretching. Keep the
-			// original alpha; the threshold only ignores faint extraction dust
-			// when measuring the silhouette's bounding box.
+			// Обрезаем прозрачные поля и вписываем без растяжения. Исходная
+			// альфа сохраняется; порог лишь отбрасывает слабую пыль от вырезки
+			// при измерении ограничивающего прямоугольника силуэта.
 			bounds := image.Rectangle{}
 			for sy := sr.Min.Y; sy < sr.Max.Y; sy++ {
 				for sx := sr.Min.X; sx < sr.Max.X; sx++ {

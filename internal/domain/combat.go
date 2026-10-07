@@ -2,16 +2,16 @@ package domain
 
 import "math/rand"
 
-// Miss — результат атаки при промахе (в отличие от нуля урона у отдыхающего Axe).
+// Miss: результат атаки при промахе (в отличие от нуля урона у отдыхающего Axe).
 const Miss = -1
 
-// checkHit — попадание зависит от разницы в ловкости атакующего и цели.
+// checkHit: попадание зависит от разницы в ловкости атакующего и цели.
 func checkHit(attackerAgility, defenderAgility int, rng ...*rand.Rand) bool {
 	chance := InitialHitChance + float64(attackerAgility-defenderAgility-StandardAgility)*AgilityFactor
 	return random(source(rng)).Intn(100) < clamp(int(chance), 0, 100)
 }
 
-// calculateLoot — сокровища, выпадающие из поверженного врага.
+// calculateLoot: сокровища, выпадающие из поверженного врага.
 func calculateLoot(o *Opponent, rng ...*rand.Rand) int {
 	return int(float64(o.Agility)*0.2+float64(o.Health)*0.5+float64(o.Strength)*0.5) + random(source(rng)).Intn(20)
 }
@@ -27,7 +27,7 @@ func WeaponDamage(p *Person, weapon *Item) int {
 	return max(0, damage)
 }
 
-// PlayerAttacks — атака игрока по врагу. Возвращает урон или Miss.
+// PlayerAttacks: атака игрока по врагу. Возвращает урон или Miss.
 func PlayerAttacks(p *Person, o *Opponent) int {
 	// Bloodseeker отражает первый удар по себе.
 	if o.DeflectsFirstStrike() {
@@ -49,7 +49,7 @@ func PlayerAttacks(p *Person, o *Opponent) int {
 	return damage
 }
 
-// OpponentAttacks — атака врага по игроку. Возвращает урон, Miss при промахе
+// OpponentAttacks: атака врага по игроку. Возвращает урон, Miss при промахе
 // или 0, когда Axe отдыхает после удара.
 func OpponentAttacks(o *Opponent, p *Person) int {
 	// Удар Axe нельзя увернуться.
@@ -60,7 +60,7 @@ func OpponentAttacks(o *Opponent, p *Person) int {
 	// Bloodseeker крадёт максимум здоровья вместо обычного урона.
 	if o.Type == Vampire {
 		if p.Guarding {
-			return 0 // parried: nothing is drained
+			return 0 // парировано: ничего не украдено
 		}
 		damage := o.MaxHealthDrain()
 		p.DrainMaxHealth(damage)
@@ -81,7 +81,7 @@ func OpponentAttacks(o *Opponent, p *Person) int {
 	if damage < 0 {
 		damage = 0
 	}
-	// A parried hit deals no damage and cannot put the hero to sleep.
+	// Парированный удар не наносит урона и не может усыпить героя.
 	if p.Guarding {
 		return 0
 	}
@@ -122,7 +122,7 @@ func (s *Session) enemyInContact() bool {
 	return false
 }
 
-// inContact — стоит ли враг вплотную к игроку (Skywrath достаёт и по диагонали).
+// inContact: стоит ли враг вплотную к игроку (Skywrath достаёт и по диагонали).
 func inContact(o *Opponent, p *Person) bool {
 	dx, dy := abs(o.X-p.X), abs(o.Y-p.Y)
 	if dx+dy <= 1 {
@@ -131,7 +131,7 @@ func inContact(o *Opponent, p *Person) bool {
 	return o.Type == Snake && dx == 1 && dy == 1
 }
 
-// ProcessEnemyTurns — ход всех живых врагов: атака при контакте либо движение.
+// ProcessEnemyTurns: ход всех живых врагов, атака при контакте либо движение.
 // Здесь же тикают сон игрока и эффекты эликсиров.
 func (s *Session) ProcessEnemyTurns() {
 	p := s.Player
@@ -159,8 +159,8 @@ func (s *Session) ProcessEnemyTurns() {
 		damage := OpponentAttacks(o, p)
 		absorbed := shield - p.Shield()
 		parried := p.Guarding && !resting && damage != Miss
-		// A drain shows only what got past the shield; a drain the shield
-		// took whole shows as a plain hit.
+		// Кража показывает только то, что прошло сквозь щит; кража, целиком
+		// принятая щитом, показывается как обычный удар.
 		drained := o.Type == Vampire && damage > absorbed
 		if !resting {
 			shown := damage
@@ -176,12 +176,12 @@ func (s *Session) ProcessEnemyTurns() {
 		if damage > 0 {
 			s.Stats.HitsTaken++
 		}
-		// A landed hit charges the parry, except hits taken while parrying.
+		// Попавший удар заряжает парирование, кроме ударов, полученных во время парирования.
 		if !resting && damage != Miss && !p.Guarding {
 			p.GuardCooldown = max(0, p.GuardCooldown-1)
 		}
 		if parried {
-			s.riposte(o) // its message replaces the enemy's zero-damage hit
+			s.riposte(o) // его сообщение заменяет удар врага без урона
 			continue
 		}
 		s.SetMessage(attackMessage(o, p, damage, absorbed))

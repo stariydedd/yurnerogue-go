@@ -48,11 +48,11 @@ func TestRadiantItemCutouts(t *testing.T) {
 				t.Fatalf("missing alpha or opaque silhouette: transparent=%d solid=%d", transparent, solid)
 			}
 			if role == "portal" {
-				// Broad luminous blue detail must survive packing to game size.
+				// Крупная светящаяся синяя деталь должна пережить упаковку до игрового размера.
 				if brightBlue < 100 {
 					t.Fatalf("portal glow lost at runtime scale: %d bright blue pixels", brightBlue)
 				}
-				// The opening is above the solid, grounded landing platform.
+				// Проём находится над сплошной площадкой, стоящей на земле.
 				_, _, _, a := img.At(w/2, h*3/8).RGBA()
 				if a != 0 {
 					t.Fatal("Portal opening must be genuinely transparent")

@@ -54,7 +54,7 @@ func TestFootstepsFollowMovementNotInput(t *testing.T) {
 		}
 	}
 	after := before
-	after.position.X += 5 // A position change alone is not a walking event.
+	after.position.X += 5 // Одна только смена позиции ещё не шаг.
 	if got := actionCues(before, after, "e0"); len(got) != 0 {
 		t.Fatal("teleport sounded like walking")
 	}
@@ -78,9 +78,9 @@ func TestRealStepsChangeSurfaceAtDoorAndStaySilentAtWall(t *testing.T) {
 		want   []sound.Cue
 	}{
 		{"d", []sound.Cue{sound.StepGrass}},
-		{"d", []sound.Cue{sound.StepTrail}}, // Doorway, not a wooden door.
+		{"d", []sound.Cue{sound.StepTrail}}, // Дверной проём, а не деревянная дверь.
 		{"d", []sound.Cue{sound.StepTrail}},
-		{"w", nil}, // Corridor wall.
+		{"w", nil}, // Стена коридора.
 		{"a", []sound.Cue{sound.StepTrail}},
 		{"a", []sound.Cue{sound.StepGrass}},
 	} {

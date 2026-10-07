@@ -48,7 +48,7 @@ func TestWalkingDoesNotRechargeSpecialStrike(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, room := range s.Level.Rooms {
-		room.Enemies = nil // nothing left to hit: only walking remains
+		room.Enemies = nil // бить больше некого: остаётся только ходьба
 	}
 	for i := 0; i < 10; i++ {
 		s.Player.Health = s.Player.MaxHealth
@@ -69,7 +69,7 @@ func TestWalkingDoesNotRechargeSpecialStrike(t *testing.T) {
 
 func TestDefenseNeedsAnEnemyInContact(t *testing.T) {
 	s, enemy := combatEventSession(Zombie)
-	enemy.X, enemy.Y = s.Player.X+2, s.Player.Y // approaching, not yet in contact
+	enemy.X, enemy.Y = s.Player.X+2, s.Player.Y // подходит, но ещё не вплотную
 	turns := s.Turns
 	if s.ApplyAction("b") == nil || s.Turns != turns || s.Actions() != "" || s.Player.GuardCooldown != 0 {
 		t.Fatal("defense worked as a free wait")
@@ -78,7 +78,7 @@ func TestDefenseNeedsAnEnemyInContact(t *testing.T) {
 		t.Fatalf("message %q", s.Message)
 	}
 	snake, other := combatEventSession(Snake)
-	other.X, other.Y = snake.Player.X+1, snake.Player.Y+1 // Skywrath hits diagonally
+	other.X, other.Y = snake.Player.X+1, snake.Player.Y+1 // Skywrath бьёт по диагонали
 	if err := snake.ApplyAction("b"); err != nil {
 		t.Fatal("defense must work against a diagonal Skywrath")
 	}
@@ -91,11 +91,11 @@ func TestParryBlocksHitsCompletelyAndExpires(t *testing.T) {
 		enemy.Strength = 100
 		if kind == Snake {
 			enemy.X, enemy.Y = s.Player.X+1, s.Player.Y+1
-			enemy.Health = 1_000_000 // survive every riposte of the loop below
+			enemy.Health = 1_000_000 // переживает все ответные удары цикла ниже
 		}
 		health, maxHealth := s.Player.Health, s.Player.MaxHealth
 		for i := 0; i < 50 && kind == Snake; i++ {
-			// A parried Skywrath hit must never put the hero to sleep.
+			// Парированный удар Skywrath никогда не должен усыплять героя.
 			s.Player.GuardCooldown = 0
 			if err := s.ApplyAction("b"); err != nil {
 				t.Fatalf("parry against Skywrath failed on try %d: %v", i, err)
@@ -121,7 +121,7 @@ func TestParryBlocksHitsCompletelyAndExpires(t *testing.T) {
 		if s.Message != "Parry charges with hits taken: 3 left." {
 			t.Fatalf("charge message %q", s.Message)
 		}
-		// Only hits landed after the parry turn charge it again.
+		// Заново заряжают парирование только удары, попавшие после хода парирования.
 		enemy.Health = 1_000_000
 		for turn := 0; s.Player.GuardCooldown > 0; turn++ {
 			if turn > 10 {
@@ -151,8 +151,8 @@ func TestAutomaticEquipmentAndScrolls(t *testing.T) {
 	if p.Weapon != weapon || len(s.Level.Items) != 0 {
 		t.Fatal("weapon not equipped")
 	}
-	// A weapon that is not stronger always sharpens the equipped one by +1,
-	// with no ceiling, and never replaces it.
+	// Оружие не сильнее текущего всегда затачивает экипированное на +1,
+	// без потолка, и никогда его не заменяет.
 	for _, tc := range []struct{ found, want int }{{34, 36}, {4, 37}, {37, 38}, {1, 39}} {
 		s.Level.Items = []*Item{{Type: ItemWeapon, Name: "Diffusal Blade", StrengthEffect: tc.found, X: p.X, Y: p.Y}}
 		s.CheckItemPickup()
@@ -165,7 +165,7 @@ func TestAutomaticEquipmentAndScrolls(t *testing.T) {
 	if weapon.StrengthEffect != 40 || weapon.Name != "Butterfly" || s.Message != "Sharpened Butterfly." {
 		t.Fatalf("sharpening: %s +%d %q", weapon.Name, weapon.StrengthEffect, s.Message)
 	}
-	// Crossing into the next price tier renames the weapon.
+	// Переход в следующий ценовой уровень переименовывает оружие.
 	blade := &Item{Type: ItemWeapon, Name: "Shadow Blade", StrengthEffect: 20}
 	p.Weapon = blade
 	s.Level.Items = []*Item{{Type: ItemWeapon, Name: "Crystalys", StrengthEffect: 3, X: p.X, Y: p.Y}}
@@ -173,7 +173,7 @@ func TestAutomaticEquipmentAndScrolls(t *testing.T) {
 	if blade.StrengthEffect != 21 || blade.Name != "Desolator" || s.Message != "Picked up: Desolator." {
 		t.Fatalf("tier change: %s +%d %q", blade.Name, blade.StrengthEffect, s.Message)
 	}
-	// Any weapon, even +1 at high strength, replaces the starter blade.
+	// Любое оружие, даже +1 при высокой силе, заменяет стартовый клинок.
 	p.Weapon = nil
 	p.Strength = 200
 	weak := &Item{Type: ItemWeapon, Name: "Yasha", StrengthEffect: 1, X: p.X, Y: p.Y}
@@ -226,10 +226,10 @@ func TestParryIgnoresHitsDuringItsOwnTurnAndWalking(t *testing.T) {
 }
 
 func TestParryStrikesBackOnlyWhenHit(t *testing.T) {
-	// Hit: blocked completely, attacker struck back for half a normal hit.
+	// Удар: заблокирован полностью, атакующий получает ответ в половину обычного удара.
 	for _, kind := range []OpponentType{Zombie, Vampire, Ogre} {
 		s, enemy := combatEventSession(kind)
-		s.Player.Agility = -1_000_000 // enemies never miss
+		s.Player.Agility = -1_000_000 // враги никогда не промахиваются
 		enemy.Health = 10_000
 		counter := WeaponDamage(s.Player, nil) * RiposteDamagePercent / 100
 		if err := s.ApplyAction("b"); err != nil {
@@ -242,21 +242,21 @@ func TestParryStrikesBackOnlyWhenHit(t *testing.T) {
 			t.Fatalf("%v: riposte counted as an attack or wrong message %q", kind, s.Message)
 		}
 	}
-	// Miss: nothing to strike back at.
+	// Промах: отвечать не на что.
 	s, enemy := combatEventSession(Zombie)
 	s.Player.Agility = 1_000_000
 	before := enemy.Health
 	if err := s.ApplyAction("b"); err != nil || enemy.Health != before {
 		t.Fatal("riposte after a miss")
 	}
-	// Resting Axe does not attack, so there is no riposte either.
+	// Отдыхающий Axe не атакует, поэтому и ответного удара нет.
 	s, enemy = combatEventSession(Ogre)
 	enemy.SetResting(true)
 	before = enemy.Health
 	if err := s.ApplyAction("b"); err != nil || enemy.Health != before {
 		t.Fatal("riposte against a resting Axe")
 	}
-	// A lethal riposte pays gold and counts the kill.
+	// Смертельный ответный удар приносит золото и засчитывает убийство.
 	s, enemy = combatEventSession(Zombie)
 	s.Player.Agility = -1_000_000
 	enemy.Health = 1
@@ -312,7 +312,7 @@ func TestAbilitiesReplayToSameResult(t *testing.T) {
 
 func TestWaitSkipsATurnAndLetsEnemiesApproach(t *testing.T) {
 	s, enemy := combatEventSession(Zombie)
-	enemy.X, enemy.Y = s.Player.X+3, s.Player.Y // chasing, not yet in contact
+	enemy.X, enemy.Y = s.Player.X+3, s.Player.Y // преследует, но ещё не вплотную
 	before := abs(enemy.X-s.Player.X) + abs(enemy.Y-s.Player.Y)
 	x, y := s.Player.X, s.Player.Y
 	if err := s.ApplyAction("z"); err != nil {
@@ -340,13 +340,13 @@ func TestWeaponLogSaysPickedUpOnlyWhenTheNameChanges(t *testing.T) {
 		bonus int
 		want  string
 	}{
-		{"Yasha", 7, "Picked up: Yasha."},           // starter blade -> first weapon
-		{"Yasha", 9, "Sharpened Yasha."},            // stronger, but the same name
-		{"Crystalys", 2, "Sharpened Yasha."},        // weaker: +1 to Yasha
-		{"Butterfly", 38, "Picked up: Butterfly."},  // stronger with a new name
-		{"Crystalys", 1, "Sharpened Butterfly."},    // +39 is still Butterfly
-		{"Crystalys", 1, "Sharpened Butterfly."},    // +40 is still Butterfly
-		{"Crystalys", 1, "Picked up: Silver Edge."}, // +41 crosses into the next name
+		{"Yasha", 7, "Picked up: Yasha."},           // стартовый клинок -> первое оружие
+		{"Yasha", 9, "Sharpened Yasha."},            // сильнее, но с тем же названием
+		{"Crystalys", 2, "Sharpened Yasha."},        // слабее: +1 к Yasha
+		{"Butterfly", 38, "Picked up: Butterfly."},  // сильнее, с новым названием
+		{"Crystalys", 1, "Sharpened Butterfly."},    // +39 всё ещё Butterfly
+		{"Crystalys", 1, "Sharpened Butterfly."},    // +40 всё ещё Butterfly
+		{"Crystalys", 1, "Picked up: Silver Edge."}, // +41 переходит к следующему названию
 	} {
 		if got := pick(tc.name, tc.bonus); got != tc.want {
 			t.Fatalf("step %d: %q, want %q", i, got, tc.want)

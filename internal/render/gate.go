@@ -7,9 +7,9 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
 
-// Only visible gameplay sprites affect cutaway: hidden enemies/items must not
-// leak their presence through holes in scenery. Recomputed outside forest cache
-// so picking up loot or moving enemies updates the gate without a player step.
+// Вырез в декорациях делают только видимые игровые спрайты: скрытые враги и предметы
+// не должны выдавать себя дырами в декорациях. Считается вне кеша леса,
+// чтобы подбор добычи или движение врагов обновляли ворота без шага игрока.
 func (r *Renderer) gateForeground(s *domain.Session, vis domain.Visibility, tick int, gate image.Rectangle) []image.Rectangle {
 	var protected []image.Rectangle
 	add := func(b image.Rectangle) {
@@ -43,8 +43,8 @@ func (r *Renderer) gateForeground(s *domain.Session, vis domain.Visibility, tick
 	return protected
 }
 
-// A soft local cutaway clears visual space around the whole pickup (including
-// transparent arch air), avoiding the illusion that loot is inside the gate.
+// Мягкий местный вырез освобождает место вокруг всей находки (включая
+// прозрачный воздух арки), чтобы не казалось, что добыча внутри ворот.
 func gateAlpha(p image.Point, protected []image.Rectangle) float32 {
 	a := float32(1)
 	for _, b := range protected {
@@ -79,7 +79,7 @@ func (r *Renderer) drawGate(dst *ebiten.Image, s *domain.Session, vis domain.Vis
 		r.drawForestProp(dst, forestProp{role: "portal", frame: tick, rect: b}, camX, camY, light)
 		return
 	}
-	// One small mesh draw, no per-frame texture allocation or GPU readback.
+	// Одна маленькая отрисовка сетки, без выделения текстур и чтения с GPU в каждом кадре.
 	const step = 2
 	cols, rows := b.Dx()/step+1, b.Dy()/step+1
 	vertices := make([]ebiten.Vertex, 0, cols*rows)

@@ -39,7 +39,7 @@ func TestDesktopResizePreservesGameAndPointerAlignment(t *testing.T) {
 			if final.source != surface || final.options.Filter != ebiten.FilterNearest || transform.Element(0, 0) != transform.Element(1, 1) {
 				t.Fatal("desktop final pass distorts or blurs the source")
 			}
-			// Match real window/device rounding rather than assuming integer DPR.
+			// Повторяем настоящее округление окна и устройства, а не считаем DPR целым.
 			rx, ry := float64(final.bounds.Dx())/float64(size.X), float64(final.bounds.Dy())/float64(size.Y)
 			for name, box := range render.HUDTargets(g.renderer.Layout) {
 				point := image.Pt(box.Min.X+box.Dx()/2, box.Min.Y+box.Dy()/2)
@@ -106,7 +106,7 @@ func TestFinalScreenUsesOriginalSurfaceAtDeviceResolution(t *testing.T) {
 		if math.Abs(x-float64(final.bounds.Dx())) > 0.001 || math.Abs(y-float64(final.bounds.Dy())) > 0.001 {
 			t.Fatalf("DPR %v: surface does not fill device screen: %v, %v", dpr, x, y)
 		}
-		// Device pixels / DPR must still map to the same logical input point.
+		// Пиксели устройства, делённые на DPR, должны давать ту же логическую точку ввода.
 		x, y = final.options.GeoM.Apply(240, float64(layout.ControlsTop()+180))
 		lx, ly := g.toLogical(int(math.Round(x/dpr)), int(math.Round(y/dpr)))
 		if math.Abs(float64(lx-240)) > 1 || math.Abs(float64(ly-layout.ControlsTop()-180)) > 1 {

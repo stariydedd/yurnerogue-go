@@ -8,10 +8,10 @@ import (
 
 var _ ebiten.FinalScreenDrawer = (*Game)(nil)
 
-// DrawFinalScreen scales the original logical surface directly to device pixels.
-// The regular offscreen uses CSS/window pixels: shrinking 480px to a phone's
-// 390px and enlarging that to 1170px loses detail even with nearest filtering.
-// Layout remains in window coordinates so pointer mapping is unchanged.
+// DrawFinalScreen масштабирует исходную логическую поверхность прямо в пиксели устройства.
+// Обычный offscreen работает в CSS-пикселях окна: сжатие 480px до 390px телефона
+// и растяжение обратно до 1170px теряют детали даже с ближайшим соседом.
+// Layout остаётся в координатах окна, поэтому соответствие указателя не меняется.
 func (g *Game) DrawFinalScreen(screen ebiten.FinalScreen, offscreen *ebiten.Image, geoM ebiten.GeoM) {
 	if g.surface == nil {
 		ebiten.DefaultDrawFinalScreen(screen, offscreen, geoM)
@@ -39,8 +39,8 @@ func (g *Game) ensureSurface() *ebiten.Image {
 	return g.surface
 }
 
-// Drawing and pointer input share this exact transform. The desktop can leave
-// a subpixel rounding margin, but never stretches sprites along a single axis.
+// Отрисовка и ввод указателем используют ровно это преобразование. На десктопе может
+// остаться поле от субпиксельного округления, но спрайты никогда не растягиваются по одной оси.
 func (g *Game) surfaceTransform(width, height int) (sx, sy, x, y float64) {
 	l := g.renderer.Layout
 	if width <= 0 || height <= 0 {

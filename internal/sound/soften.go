@@ -5,8 +5,8 @@ import (
 	"math"
 )
 
-// Apply tone shaping AFTER peak normalization: normalizing again would boost
-// the softened details back up. Music keeps its own, unchanged mastering path.
+// Тембр формируем ПОСЛЕ нормализации пиков: повторная нормализация подняла бы
+// смягчённые детали обратно. У музыки свой, неизменный путь мастеринга.
 func effectPCM(samples []float64, c Cue, echo float64) []byte {
 	data := pcmWithEcho(samples, false, echo)
 	softenEffect(data, c)
@@ -32,7 +32,7 @@ func softenEffect(data []byte, c Cue) {
 	var low, smooth [2]float64
 	frames := len(data) / 4
 	for i := 0; i < frames; i++ {
-		// Smooth edges without introducing pre-echo before delayed impacts.
+		// Сглаживаем края, не создавая предэха перед отложенными ударами.
 		fade := smoothAttack(float64(i)/SampleRate, 0.008)
 		fade *= smoothAttack(float64(frames-1-i)/SampleRate, 0.012)
 		for channel := 0; channel < 2; channel++ {

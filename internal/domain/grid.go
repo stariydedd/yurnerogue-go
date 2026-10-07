@@ -1,9 +1,9 @@
 package domain
 
-// Grid — карта уровня в символах: строки по Y, столбцы по X.
+// Grid: карта уровня в символах; строки по Y, столбцы по X.
 type Grid [][]byte
 
-// At возвращает символ клетки; за пределами карты — SymEmpty.
+// At возвращает символ клетки; за пределами карты SymEmpty.
 func (g Grid) At(x, y int) byte {
 	if !InBounds(x, y) {
 		return SymEmpty
@@ -22,7 +22,7 @@ func (g Grid) set(x, y int, sym byte) {
 // коридоры, двери, предметы, врагов, выход и игрока.
 //
 // Нужна для отрисовки и расчёта видимости. Проверять проходимость через неё
-// не стоит — для этого есть CanMoveTo, который смотрит геометрию напрямую.
+// не стоит: для этого есть CanMoveTo, который смотрит геометрию напрямую.
 func (s *Session) BuildGrid(withOpponents bool) Grid {
 	grid := make(Grid, Rows)
 	for y := range grid {

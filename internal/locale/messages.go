@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Match complete message templates, never replace words inside proper names.
+// Сопоставляем шаблоны сообщений целиком и никогда не заменяем слова внутри имён собственных.
 var messages = []struct {
 	pattern *regexp.Regexp
 	russian string
@@ -65,7 +65,7 @@ func Message(language Language, message string) string {
 
 var statSuffix = regexp.MustCompile(`\[([+-]\d+) (MAX HP|SHIELD|STR|AGI|HP)\]`)
 
-// Translate only stat suffixes, not words in item or player names.
+// Переводим только приписки характеристик, а не слова в названиях предметов и именах игроков.
 func StatSuffix(language Language, label string) string {
 	if language != Russian {
 		return label

@@ -17,7 +17,7 @@ func TestEffectFilterReducesTrebleWithoutMutingBody(t *testing.T) {
 		}
 		softenEffect(data, c)
 		energy := 0.0
-		// Measure steady-state response, not the fade at either endpoint.
+		// Меряем установившийся отклик, а не затухание на концах.
 		from, to := SampleRate/10, SampleRate*4/10
 		for i := from; i < to; i++ {
 			v := float64(int16(binary.LittleEndian.Uint16(data[i*4:])))
@@ -28,7 +28,7 @@ func TestEffectFilterReducesTrebleWithoutMutingBody(t *testing.T) {
 	for c := Cue(0); c < cueCount; c++ {
 		if Recorded(c) {
 			continue
-		} // Recordings deliberately bypass this filter.
+		} // Записи намеренно обходят этот фильтр.
 		_, gain := effectProfile(c)
 		body, treble := measure(c, 400), measure(c, 6000)
 		if body < gain*0.85 || body > gain*1.01 {
@@ -76,7 +76,7 @@ func TestEffectProfilesPreserveQuietStepsAndControls(t *testing.T) {
 		}
 		data := effect(c)
 		_, gain := effectProfile(c)
-		// Source peak is .55; ordinary effects have at most .12 echo.
+		// Пик источника .55; у обычных эффектов эхо не больше .12.
 		limit := 32767*.55*1.12*gain + 1
 		for i := 0; i < len(data); i += 2 {
 			if math.Abs(float64(int16(binary.LittleEndian.Uint16(data[i:])))) > limit {

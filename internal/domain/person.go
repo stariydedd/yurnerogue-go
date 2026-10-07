@@ -2,7 +2,7 @@ package domain
 
 import "math/rand"
 
-// Person — персонаж игрока: характеристики, оружие, рюкзак, временные эффекты.
+// Person: персонаж игрока; характеристики, оружие, рюкзак, временные эффекты.
 type Person struct {
 	rng  *rand.Rand
 	X, Y int
@@ -11,7 +11,7 @@ type Person struct {
 	Health         int
 	Agility        int
 	Strength       int
-	Weapon         *Item // Equipped upgrade; nil uses the permanent Quelling Blade.
+	Weapon         *Item // Экипированное улучшение; nil означает постоянный Quelling Blade.
 	Treasures      int
 	StrikeCooldown int
 	GuardCooldown  int
@@ -21,17 +21,17 @@ type Person struct {
 
 	Backpack []*Item
 
-	// Facing: 1 — смотрит вправо, -1 — влево (последний горизонтальный шаг).
+	// Facing: 1 смотрит вправо, -1 влево (последний горизонтальный шаг).
 	Facing int
 
-	// Sleeping и SleepTurns — эффект удара Skywrath Mage.
+	// Sleeping и SleepTurns: эффект удара Skywrath Mage.
 	Sleeping   bool
 	SleepTurns int
 
 	effects []statEffect
 }
 
-// statEffect — активный эффект эликсира, откатывается по истечении ходов.
+// statEffect: активный эффект эликсира, откатывается по истечении ходов.
 type statEffect struct {
 	sub       ItemSubType
 	amount    int
@@ -39,12 +39,12 @@ type statEffect struct {
 }
 
 // NewPerson создаёт игрока с базовыми характеристиками вне карты.
-// StrikeChargeMessage says how many ordinary attacks the Critical Strike still needs.
+// StrikeChargeMessage говорит, сколько обычных атак ещё нужно критическому удару.
 func (p *Person) StrikeChargeMessage() string {
 	return "Critical Strike charges with attacks: " + itoa(p.StrikeCooldown) + " left."
 }
 
-// GuardChargeMessage says how many enemy hits the parry still needs.
+// GuardChargeMessage говорит, сколько ударов врагов ещё нужно парированию.
 func (p *Person) GuardChargeMessage() string {
 	return "Parry charges with hits taken: " + itoa(p.GuardCooldown) + " left."
 }
@@ -61,7 +61,7 @@ func NewPerson() *Person {
 	}
 }
 
-// IsAlive — жив ли персонаж.
+// IsAlive: жив ли персонаж.
 func (p *Person) IsAlive() bool { return p.Health > 0 }
 
 // TakeDamage наносит урон: сначала его принимает щит зелий, остаток идёт в
@@ -106,7 +106,7 @@ func (p *Person) TickSleep() bool {
 	return true
 }
 
-// PickUpItem кладёт предмет в рюкзак; false — превышен лимит на тип.
+// PickUpItem кладёт предмет в рюкзак; false, если превышен лимит на тип.
 func (p *Person) PickUpItem(item *Item) bool {
 	count := 0
 	for _, it := range p.Backpack {
@@ -250,10 +250,10 @@ func (p *Person) TickEffects() {
 	p.effects = remaining
 }
 
-// ActiveEffects — сколько эффектов эликсиров действует сейчас.
+// ActiveEffects: сколько эффектов эликсиров действует сейчас.
 func (p *Person) ActiveEffects() int { return len(p.effects) }
 
-// EffectStatus is a read-only snapshot of a temporary stat bonus.
+// EffectStatus: снимок временного бонуса только для чтения.
 type EffectStatus struct {
 	Stat              ItemSubType
 	Amount, TurnsLeft int
@@ -286,7 +286,7 @@ func (p *Person) UnequipWeapon() *Item {
 	return w
 }
 
-// AttackStrength — сила с учётом экипированного оружия.
+// AttackStrength: сила с учётом экипированного оружия.
 func (p *Person) AttackStrength() int {
 	if p.Weapon == nil {
 		return p.Strength

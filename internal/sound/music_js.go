@@ -9,16 +9,16 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
-// In the browser Go runs on the main thread, and so does the Ebitengine
-// mixer. A long frame on a slow machine starved it and cut the music, which
-// never stops playing. Music is handed to Web Audio instead: the browser loops
-// it on its own audio thread, and Go only sets volumes. Short effects stay on
-// Ebitengine, where they finish before a frame can starve them.
+// В браузере Go работает в главном потоке, и микшер Ebitengine тоже.
+// Длинный кадр на медленной машине морил его голодом и обрывал музыку, которая
+// играет всегда. Поэтому музыка отдана Web Audio: браузер крутит её
+// в своём звуковом потоке, а Go только задаёт громкость. Короткие эффекты
+// остаются в Ebitengine: они заканчиваются раньше, чем кадр успеет их уморить.
 
 var webAudio js.Value
 
-// webAudioContext returns the shared context, created on first use. Browsers
-// start it suspended until the player interacts with the page.
+// webAudioContext возвращает общий контекст, созданный при первом обращении. Браузеры
+// запускают его приостановленным, пока игрок не взаимодействует со страницей.
 func webAudioContext() js.Value {
 	if !webAudio.IsUndefined() {
 		return webAudio
@@ -48,8 +48,8 @@ func webAudioContext() js.Value {
 	return webAudio
 }
 
-// webAudioPaused is set while the game is unfocused, so a click on the page
-// does not resume music the game has paused.
+// webAudioPaused выставлен, пока у игры нет фокуса, чтобы щелчок по странице
+// не возобновлял музыку, которую игра поставила на паузу.
 var webAudioPaused bool
 
 type webTrack struct {
@@ -79,7 +79,7 @@ func newMusicTrack(context *audio.Context, pcm []byte) musicTrack {
 	return &webTrack{gain: gain}
 }
 
-// float32Array copies samples into a new JavaScript Float32Array.
+// float32Array копирует отсчёты в новый JavaScript Float32Array.
 func float32Array(samples []float32) js.Value {
 	bytes := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(samples))), len(samples)*4)
 	u8 := js.Global().Get("Uint8Array").New(len(bytes))
@@ -90,7 +90,7 @@ func float32Array(samples []float32) js.Value {
 func (t *webTrack) Play() {
 	t.playing = true
 	webAudioPaused = false
-	webAudio.Call("resume") // allowed once the page had any interaction
+	webAudio.Call("resume") // разрешено после любого взаимодействия со страницей
 }
 
 func (t *webTrack) Pause() {
@@ -104,8 +104,8 @@ func (t *webTrack) Pause() {
 
 func (t *webTrack) IsPlaying() bool { return t.playing }
 
-// SetVolume runs every frame during a crossfade; it touches JavaScript only
-// when the value changes.
+// SetVolume вызывается каждый кадр во время перехода; к JavaScript обращается только
+// при изменении значения.
 func (t *webTrack) SetVolume(v float64) {
 	if v == t.volume {
 		return

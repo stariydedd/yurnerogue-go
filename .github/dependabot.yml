@@ -1,5 +1,5 @@
-# Monthly update pull requests for everything pinned to an exact version.
-# CI tests every proposal; nothing merges on its own.
+# Ежемесячные пулл-реквесты с обновлениями всего, что закреплено точной версией.
+# CI проверяет каждое предложение; само ничего не сливается.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -31,7 +31,7 @@ updates:
     schedule:
       interval: monthly
     ignore:
-      # The locked requirements are for Python 3.12; Go moves with go.mod and CI.
+      # Закреплённые зависимости рассчитаны на Python 3.12; Go обновляется вместе с go.mod и CI.
       - dependency-name: python
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: golang
@@ -42,7 +42,7 @@ updates:
     schedule:
       interval: monthly
     ignore:
-      # A new PostgreSQL major needs a dump and restore, not an image bump.
+      # Новая мажорная версия PostgreSQL требует дампа и восстановления, а не смены образа.
       - dependency-name: postgres
         update-types: ["version-update:semver-major"]
       - dependency-name: python

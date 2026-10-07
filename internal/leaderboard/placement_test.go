@@ -13,7 +13,7 @@ func TestSubmitReplayReadsPlacement(t *testing.T) {
 		name, body string
 		status     int
 		place      int
-		gold       int // -1: no top 10 yet
+		gold       int // -1: топ-10 ещё нет
 		err        error
 	}{
 		{"placed", `{"id":7,"treasures":502,"place":12,"top10_gold":900}`, 201, 12, 900, nil},

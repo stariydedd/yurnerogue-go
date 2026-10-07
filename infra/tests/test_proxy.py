@@ -1,4 +1,4 @@
-"""Run against the disposable TLS proxy in compose.yml, not production."""
+"""Запускается против одноразового TLS-прокси из compose.yml, а не против прода."""
 import json
 import ssl
 import time
@@ -46,11 +46,11 @@ class ProxyTest(unittest.TestCase):
                 self.assertIn("Accept-Encoding", headers["Vary"])
                 self.assertIn("max-age", headers["Strict-Transport-Security"])
                 self.assertEqual(data, body)
-        # A bundle without its .br file falls back to gzip.
+        # Бандл без своего .br откатывается на gzip.
         code, headers, data = self.request("/old.wasm", headers={"Accept-Encoding": "br, gzip"})
         self.assertEqual((code, headers["Content-Encoding"], data), (200, "gzip", b"old gzip body\n"))
         self.assertEqual(headers["Content-Type"], "application/wasm")
-        # Headers every reply carries, the bundle included.
+        # Заголовки, которые есть в каждом ответе, в том числе у бандла.
         for path, accept in [("/index.html", ""), ("/main.wasm", "br"), ("/main.wasm", "gzip"),
                              ("/old.wasm", "br"), ("/api/health", "")]:
             with self.subTest(path=path, accept=accept):
@@ -58,7 +58,7 @@ class ProxyTest(unittest.TestCase):
                 self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
                 self.assertIn("max-age", headers["Strict-Transport-Security"])
                 self.assertEqual(headers["Server"], "nginx")
-        # The .br file itself is not a public URL.
+        # Сам файл .br не публичный адрес.
         self.assertEqual(self.request("/main.wasm.br", headers={"Accept-Encoding": "br"})[0], 404)
         self.assertEqual(self.request("/index.html")[0], 200)
 
@@ -72,8 +72,8 @@ class ProxyTest(unittest.TestCase):
         self.assertTrue(limited, responses)
         self.assertEqual(limited[0][1]["Retry-After"], "6")
         self.assertIn("detail", json.loads(limited[0][2]))
-        # Changing forwarded headers, query strings or the trailing slash
-        # must not reset the key. Nginx uses the actual socket peer address.
+        # Смена заголовков проксирования, строки запроса или завершающего слеша
+        # не должна сбрасывать ключ. Nginx берёт настоящий адрес собеседника сокета.
         self.assertEqual(self.request("/api/runs/?retry=1", b"{}", {
             "X-Forwarded-For": "203.0.113.1", "X-Real-IP": "203.0.113.2",
         })[0], 429)

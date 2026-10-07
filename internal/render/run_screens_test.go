@@ -87,7 +87,7 @@ func TestRunScreensContentFits(t *testing.T) {
 				r.Layout.Language = language
 				face := r.secondaryFace()
 				chars := int(float64(box.Dx()) / TextWidth("M", face))
-				// The phone adds the gold still missing for the top 10.
+				// Телефон добавляет строку о золоте, которого не хватило до топ-10.
 				lines := len(wrapText(r.translateMessage(status), chars)) + len(wrapText(r.goldShort(Placement{Place: 999, GoldShort: 99999}), chars))
 				lineH := int(TextWidth("M", face)) + 6
 				top := statusTop(r.Layout, box, lines, lineH)

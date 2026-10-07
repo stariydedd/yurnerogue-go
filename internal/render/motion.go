@@ -8,14 +8,14 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
 
-const moveTicks = 8 // 133 ms at 60 TPS, independent of simulation turns.
+const moveTicks = 8 // 133 мс при 60 TPS, независимо от ходов симуляции.
 
-// HeldMoveTicks is one step of held movement: as long as a tap, but linear,
-// so consecutive steps join into one steady walk instead of easing in and out
-// on every tile. The game repeats a held direction at the same interval.
+// HeldMoveTicks: один шаг при удержании; длится как нажатие, но линейно,
+// чтобы шаги подряд сливались в ровную ходьбу, а не разгонялись и тормозили
+// на каждой клетке. Игра повторяет зажатое направление с тем же интервалом.
 const HeldMoveTicks = moveTicks
 
-// StepTicks is one tapped step; the game paces turns to it.
+// StepTicks: один шаг по нажатию; игра подстраивает под него темп ходов.
 const StepTicks = moveTicks
 
 type actorMotion struct {
@@ -45,11 +45,11 @@ func (m *actorMotion) sample(tick int) (image.Point, int) {
 		return m.along(t)
 	}
 	t := min(1., max(0., float64(tick-m.started)/moveTicks))
-	// Smoothstep keeps the short slide from starting/stopping abruptly.
+	// Smoothstep не даёт короткому скольжению резко начинаться и останавливаться.
 	return m.along(t * t * (3 - 2*t))
 }
 
-// along returns the point at fraction t of the path.
+// along возвращает точку на доле t пути.
 func (m *actorMotion) along(t float64) (image.Point, int) {
 	distance := pathLength(m.path) * t
 	for i := 1; i < len(m.path); i++ {
@@ -68,7 +68,7 @@ func (m *actorMotion) along(t float64) (image.Point, int) {
 
 func (m *actorMotion) move(to image.Point, tick int, animate, held bool) {
 	if m.to == to {
-		return // A blocked step or attack must not restart an existing slide.
+		return // Заблокированный шаг или атака не должны перезапускать идущее скольжение.
 	}
 	current, next := m.sample(tick)
 	delta := to.Sub(m.to)
@@ -76,8 +76,8 @@ func (m *actorMotion) move(to image.Point, tick int, animate, held bool) {
 		*m = stillMotion(to)
 		return
 	}
-	// Preserve corners when another direction arrives mid-slide. This is a
-	// short visual path, never a queue of delayed gameplay commands.
+	// Сохраняем углы, когда посреди скольжения приходит другое направление. Это
+	// короткий видимый путь, а не очередь отложенных игровых команд.
 	path := append([]image.Point{current}, m.path[next:]...)
 	path = append(path, to)
 	straightX, straightY := true, true
@@ -86,10 +86,10 @@ func (m *actorMotion) move(to image.Point, tick int, animate, held bool) {
 		straightY = straightY && p.Y == current.Y
 	}
 	if straightX || straightY {
-		path = []image.Point{current, to} // Reversing direction must not overshoot first.
+		path = []image.Point{current, to} // Разворот не должен сначала проскакивать дальше.
 	}
 	if len(path) > 4 || pathLength(path) > 2*TileSize {
-		*m = stillMotion(to) // Rapid input must not build up visual lag.
+		*m = stillMotion(to) // Частый ввод не должен накапливать визуальное отставание.
 		return
 	}
 	*m = actorMotion{path: path, to: to, started: tick, held: held}
@@ -119,7 +119,7 @@ func (m *actorMotion) pathVisible(vis domain.Visibility) bool {
 
 type worldMotion struct {
 	session *domain.Session
-	held    bool // the next observed step comes from a held direction
+	held    bool // следующий наблюдаемый шаг пришёл от зажатого направления
 	level   *domain.Level
 	player  actorMotion
 	enemies map[*domain.Opponent]*actorMotion
@@ -153,15 +153,15 @@ func (m *worldMotion) observe(s *domain.Session, tick int, animate bool) {
 	}
 }
 
-// SetHeldStep marks the next step as part of held movement.
+// SetHeldStep отмечает следующий шаг как часть ходьбы с удержанием.
 func (r *Renderer) SetHeldStep(held bool) {
 	if r != nil {
 		r.motion.held = held
 	}
 }
 
-// SyncMotion brackets ApplyAction. Only the second observation interpolates;
-// the simulation has already completed and input never waits for rendering.
+// SyncMotion обрамляет ApplyAction. Интерполирует только второе наблюдение;
+// симуляция к тому моменту уже закончилась, и ввод никогда не ждёт отрисовки.
 func (r *Renderer) SyncMotion(s *domain.Session, animate bool) {
 	if r != nil && s != nil {
 		r.motion.observe(s, r.tick, animate)
@@ -181,7 +181,7 @@ func (r *Renderer) actorPosition(s *domain.Session, actor worldActor, vis domain
 		return to
 	}
 	pos := track.position(r.tick)
-	// Do not animate a newly revealed enemy out of the fog into the room.
+	// Не анимируем, как только что открытый враг выходит из тумана в комнату.
 	if actor.opponent != nil && !track.pathVisible(vis) {
 		return to
 	}
@@ -214,7 +214,7 @@ func (r *Renderer) motionCamera(s *domain.Session) (int, int) {
 		clamp(pos.Y+TileSize/2-l.GridH/2, 0, max(0, domain.Rows*TileSize-l.GridH))
 }
 
-// moving reports whether the actor is still sliding at tick.
+// moving сообщает, скользит ли ещё персонаж в момент tick.
 func (m *actorMotion) moving(tick int) bool {
 	if len(m.path) < 2 {
 		return false
@@ -226,9 +226,9 @@ func (m *actorMotion) moving(tick int) bool {
 	return tick-m.started < duration
 }
 
-// Animating reports whether the gameplay picture changes on its own right
-// now: actors or the camera sliding, combat markers floating, new terrain
-// light fading in, or terrain chunks still waiting to be drawn.
+// Animating сообщает, меняется ли игровая картинка сама прямо
+// сейчас: скользят персонажи или камера, всплывают отметки боя, проявляется
+// новый свет местности или чанки местности ещё ждут отрисовки.
 func (r *Renderer) Animating() bool {
 	if len(r.combat.active) > 0 || r.motion.player.moving(r.tick) || r.forest.fading(r.tick) || r.forest.pending {
 		return true
@@ -241,8 +241,8 @@ func (r *Renderer) Animating() bool {
 	return false
 }
 
-// SceneKey changes whenever a still gameplay frame of s would look different
-// apart from animation frames: a turn, a step, the HUD or the layout.
+// SceneKey меняется всякий раз, когда неподвижный игровой кадр s выглядел бы иначе
+// помимо кадров анимации: ход, шаг, HUD или раскладка.
 func (r *Renderer) SceneKey(s *domain.Session) uint64 {
 	h := hudHash(r.hudKey(s))
 	for _, v := range []int{s.Turns, s.LevelNum, s.Player.X, s.Player.Y, len(s.Level.Items), s.Player.Facing} {

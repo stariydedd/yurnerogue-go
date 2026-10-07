@@ -1,4 +1,4 @@
-"""Isolated upstream for proxy tests; never writes scores to a real API."""
+"""Изолированный бэкенд для тестов прокси; никогда не пишет результаты в настоящий API."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 

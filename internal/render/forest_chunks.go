@@ -10,55 +10,55 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
 
-// The terrain is cached in world-aligned chunks. A chunk is redrawn only when
-// something it shows has changed: light, known ground, visibility or a nearby
-// clearing. A step along a corridor used to redraw the whole cached screen;
-// now it redraws the chunks whose light moved, and a camera slide only draws
-// the new row of chunks at the edge. World alignment also keeps every sprite
-// at the same pixel between redraws, so fractional scaling cannot shimmer.
+// Местность кешируется чанками, выровненными по миру. Чанк перерисовывается, только когда
+// изменилось то, что он показывает: свет, известная земля, видимость или соседняя
+// поляна. Раньше шаг по коридору перерисовывал весь кешированный экран;
+// теперь перерисовываются чанки, где сдвинулся свет, а сдвиг камеры рисует только
+// новый ряд чанков на краю. Выравнивание по миру к тому же держит каждый спрайт
+// на том же пикселе между перерисовками, поэтому дробный масштаб не мерцает.
 const (
 	chunkTiles = 8
 	chunkSize  = chunkTiles * TileSize
-	// chunkMargin is how far, in tiles, outside a chunk its content can come
-	// from: a tree up to 152 px tall reaching in takes its light at its foot,
-	// and the light there blends the next tile row too.
+	// chunkMargin: насколько, в клетках, за пределами чанка может лежать источник
+	// его содержимого: дерево высотой до 152 px, заходящее внутрь, берёт свет у своего корня,
+	// а свет там смешивается и со следующим рядом клеток.
 	chunkMargin = 7
-	// chunkFrameBudget bounds the time a frame spends redrawing stale chunks;
-	// until then they keep their previous picture for a few frames.
+	// chunkFrameBudget ограничивает время, которое кадр тратит на перерисовку устаревших чанков;
+	// до этого они несколько кадров показывают прежнюю картинку.
 	chunkFrameBudget = 6 * time.Millisecond
 )
 
 type forestChunk struct {
 	frame   *ebiten.Image
 	key     uint64
-	version int // terrain version the key was checked against
-	// old is the previous picture, fading out over the new one since fadeFrom.
+	version int // версия местности, с которой сверялся ключ
+	// old: прежняя картинка, которая с fadeFrom растворяется под новой.
 	old      *ebiten.Image
 	fadeFrom int
 }
 
-// chunkFadeTicks is how long a redrawn chunk takes to fade in over its old
-// picture. New light then spreads from the hero instead of popping in
-// square by square; only the chunks fading at that moment cost a second draw.
+// chunkFadeTicks: за сколько перерисованный чанк проявляется поверх старой
+// картинки. Новый свет тогда расходится от героя, а не выскакивает
+// квадрат за квадратом; второй раз рисуются только чанки, которые проявляются сейчас.
 const chunkFadeTicks = 8
 
-// forestChunks is the chunk cache and the terrain state its chunks draw.
+// forestChunks: кеш чанков и состояние местности, которое они рисуют.
 type forestChunks struct {
 	level     *domain.Level
-	content   [2]uint64 // visible cells signature, visited rooms
+	content   [2]uint64 // отпечаток видимых клеток, посещённые комнаты
 	version   int
 	view      forestView
 	vis       domain.Visibility
 	paths     map[domain.Point]bool
 	clearings []sceneClearing
 	chunks    map[image.Point]*forestChunk
-	moss      map[uint64][]float32     // moss grids by clearing shape
-	plants    map[uint64]clearingHedge // latest hedge by clearing shape
+	moss      map[uint64][]float32     // сетки мха по форме поляны
+	plants    map[uint64]clearingHedge // последняя изгородь по форме поляны
 	pool      []*ebiten.Image
-	// drawn counts chunk redraws; budget overrides chunkFrameBudget. Tests.
+	// drawn считает перерисовки чанков; budget подменяет chunkFrameBudget. Для тестов.
 	drawn int
 	last  image.Point
-	// pending is set while stale or ahead-of-camera chunks wait for a frame.
+	// pending выставлен, пока устаревшие или опережающие камеру чанки ждут кадра.
 	pending bool
 	budget  *time.Duration
 }
@@ -90,7 +90,7 @@ func (f *forestChunks) image() *ebiten.Image {
 	return ebiten.NewImage(chunkSize, chunkSize)
 }
 
-// chunkRange lists the chunks that intersect rect.
+// chunkRange перечисляет чанки, пересекающие rect.
 func chunkRange(rect image.Rectangle) (lo, hi image.Point) {
 	lo = image.Pt(floorDiv(rect.Min.X, chunkSize), floorDiv(rect.Min.Y, chunkSize))
 	hi = image.Pt(floorDiv(rect.Max.X-1, chunkSize), floorDiv(rect.Max.Y-1, chunkSize))
@@ -104,7 +104,7 @@ func floorDiv(a, b int) int {
 	return a / b
 }
 
-// key fingerprints everything that can change the pixels of chunk c.
+// key считает отпечаток всего, что может изменить пиксели чанка c.
 func (f *forestChunks) key(c image.Point) uint64 {
 	h := uint64(14695981039346656037)
 	mix := func(v uint64) {
@@ -136,7 +136,7 @@ func (f *forestChunks) key(c image.Point) uint64 {
 	return h
 }
 
-// update refreshes the terrain state when what is visible has changed.
+// update обновляет состояние местности, когда изменилось видимое.
 func (r *Renderer) updateForest(level *domain.Level, grid domain.Grid, vis domain.Visibility, visible uint64, paths map[domain.Point]bool, visited int) {
 	f := &r.forest
 	if f.level != level || f.chunks == nil {
@@ -163,13 +163,13 @@ func (r *Renderer) updateForest(level *domain.Level, grid domain.Grid, vis domai
 		hedge, ok := f.plants[key]
 		if !ok || hedge.key != pk {
 			hedge = clearingHedge{pk, c.plants(f.view)}
-			f.plants[key] = hedge // one entry per clearing: older ground is gone
+			f.plants[key] = hedge // одна запись на поляну: старая земля ушла
 		}
 		f.clearings = append(f.clearings, sceneClearing{c, hedge.plants, moss})
 	}
 }
 
-// drawChunk renders chunk c from the current terrain state.
+// drawChunk рисует чанк c по текущему состоянию местности.
 func (r *Renderer) drawChunk(c image.Point, chunk *forestChunk) {
 	f := &r.forest
 	rect := image.Rect(c.X*chunkSize, c.Y*chunkSize, (c.X+1)*chunkSize, (c.Y+1)*chunkSize)
@@ -186,15 +186,15 @@ func (r *Renderer) drawChunk(c image.Point, chunk *forestChunk) {
 	f.last = c
 }
 
-// drawCachedForest draws the terrain under viewport (world pixels) into dst.
-// visible is visibleSignature(vis.Visible), computed once per turn.
+// drawCachedForest рисует местность под областью просмотра (пиксели мира) в dst.
+// visible: это visibleSignature(vis.Visible), считается один раз за ход.
 func (r *Renderer) drawCachedForest(dst *ebiten.Image, level *domain.Level, grid domain.Grid, vis domain.Visibility, visible uint64, paths map[domain.Point]bool, visited int, viewport image.Rectangle) {
 	r.updateForest(level, grid, vis, visible, paths, visited)
 	f := &r.forest
 	lo, hi := chunkRange(viewport)
 	inView := func(c image.Point) bool { return c.X >= lo.X && c.X <= hi.X && c.Y >= lo.Y && c.Y <= hi.Y }
-	// Chunks on screen with nothing to show yet are drawn now. Stale ones,
-	// and the ring prepared ahead of the camera, wait in a queue.
+	// Чанки на экране, которым ещё нечего показать, рисуются сразу. Устаревшие
+	// и кольцо, готовящееся впереди камеры, ждут в очереди.
 	var queue []image.Point
 	for cy := lo.Y - 1; cy <= hi.Y+1; cy++ {
 		for cx := lo.X - 1; cx <= hi.X+1; cx++ {
@@ -206,20 +206,20 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, level *domain.Level, grid
 				f.chunks[c] = chunk
 				r.drawChunk(c, chunk)
 			case chunk == nil && !c.In(worldChunks):
-				// The camera never shows past the map: nothing to prepare there.
+				// Камера никогда не показывает ничего за картой: там готовить нечего.
 			case chunk == nil:
 				queue = append(queue, c)
 			case chunk.version != f.version:
 				if f.key(c) == chunk.key {
-					chunk.version = f.version // unchanged here
+					chunk.version = f.version // здесь без изменений
 				} else {
 					queue = append(queue, c)
 				}
 			}
 		}
 	}
-	// Screen first, nearest the middle of it (the hero) first, so after a
-	// run the view around the hero settles before its edges.
+	// Сначала экран, от его середины (героя) к краям, чтобы после
+	// бега вид вокруг героя устоялся раньше краёв.
 	center := viewport.Min.Add(viewport.Size().Div(2))
 	distance := func(c image.Point) int {
 		d := image.Pt(c.X*chunkSize+chunkSize/2, c.Y*chunkSize+chunkSize/2).Sub(center)
@@ -230,11 +230,11 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, level *domain.Level, grid
 		return n
 	}
 	sort.Slice(queue, func(i, j int) bool { return distance(queue[i]) < distance(queue[j]) })
-	// Redraw until this frame's time budget is spent, at least one chunk: a
-	// fast machine settles a whole new view in a frame or two, a slow one
-	// keeps its frames short and settles over a few more.
-	// After a run or a jump most of the screen is stale: then at least two
-	// chunks a frame, so a slow machine still settles in a few frames.
+	// Перерисовываем, пока не кончится бюджет времени кадра, минимум один чанк:
+	// быстрая машина устанавливает новый вид за кадр-два, медленная
+	// держит кадры короткими и успокаивается ещё за несколько.
+	// После бега или прыжка большая часть экрана устарела: тогда минимум два
+	// чанка за кадр, чтобы и медленная машина успокоилась за несколько кадров.
 	minimum, stale := 1, 0
 	for _, c := range queue {
 		if inView(c) {
@@ -248,7 +248,7 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, level *domain.Level, grid
 	f.pending = false
 	for i, c := range queue {
 		if i >= minimum && time.Since(start) >= r.chunkBudget() {
-			f.pending = true // more next frame, even if nothing else moves
+			f.pending = true // ещё в следующем кадре, даже если больше ничего не движется
 			break
 		}
 		chunk := f.chunks[c]
@@ -256,7 +256,7 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, level *domain.Level, grid
 			chunk = &forestChunk{frame: f.image()}
 			f.chunks[c] = chunk
 		} else {
-			// Keep the picture on screen and fade the new one in over it.
+			// Оставляем картинку на экране и проявляем новую поверх.
 			if chunk.old != nil {
 				f.recycle(chunk.old)
 			}
@@ -293,7 +293,7 @@ func (r *Renderer) drawCachedForest(dst *ebiten.Image, level *domain.Level, grid
 	}
 }
 
-// chunkBudget is how long a frame may spend redrawing stale chunks.
+// chunkBudget: сколько кадр может тратить на перерисовку устаревших чанков.
 func (r *Renderer) chunkBudget() time.Duration {
 	if r.forest.budget != nil {
 		return *r.forest.budget
@@ -301,7 +301,7 @@ func (r *Renderer) chunkBudget() time.Duration {
 	return chunkFrameBudget
 }
 
-// fading reports whether a redrawn chunk is still fading in.
+// fading сообщает, проявляется ли ещё перерисованный чанк.
 func (f *forestChunks) fading(tick int) bool {
 	for _, c := range f.chunks {
 		if c.old != nil && tick-c.fadeFrom < chunkFadeTicks {
@@ -311,13 +311,13 @@ func (f *forestChunks) fading(tick int) bool {
 	return false
 }
 
-// clearingHedge is a clearing's hedge and the plantsKey it was built for.
+// clearingHedge: изгородь поляны и plantsKey, для которого она построена.
 type clearingHedge struct {
 	key    uint64
 	plants []forestProp
 }
 
-// worldChunks is the range of chunks that cover the map.
+// worldChunks: диапазон чанков, покрывающих карту.
 var worldChunks = func() image.Rectangle {
 	lo, hi := chunkRange(image.Rect(0, 0, domain.Cols*TileSize, domain.Rows*TileSize))
 	return image.Rectangle{Min: lo, Max: hi.Add(image.Pt(1, 1))}

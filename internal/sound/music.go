@@ -7,8 +7,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
-// musicTrack is one looping arrangement. The browser build plays it through
-// Web Audio (music_js.go); elsewhere it is an Ebitengine player.
+// musicTrack: одна аранжировка, играющая по кругу. Браузерная сборка играет её
+// через Web Audio (music_js.go); в остальных сборках это плеер Ebitengine.
 type musicTrack interface {
 	Play()
 	Pause()
@@ -16,7 +16,7 @@ type musicTrack interface {
 	SetVolume(float64)
 }
 
-// ebitenTrack loops 16-bit stereo PCM through the Ebitengine mixer.
+// ebitenTrack играет по кругу 16-битный стерео PCM через микшер Ebitengine.
 func ebitenTrack(context *audio.Context, pcm []byte) musicTrack {
 	p, err := context.NewPlayer(audio.NewInfiniteLoop(bytes.NewReader(pcm), int64(len(pcm))))
 	if err != nil {
@@ -25,7 +25,7 @@ func ebitenTrack(context *audio.Context, pcm []byte) musicTrack {
 	return p
 }
 
-// stereoFloat32 splits 16-bit stereo PCM into one float32 slice per channel.
+// stereoFloat32 разделяет 16-битный стерео PCM на float32-срез для каждого канала.
 func stereoFloat32(pcm []byte) (left, right []float32) {
 	frames := len(pcm) / 4
 	left, right = make([]float32, frames), make([]float32, frames)

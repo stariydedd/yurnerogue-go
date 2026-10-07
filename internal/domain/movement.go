@@ -1,9 +1,9 @@
 package domain
 
-// RunLimit — предохранитель от бесконечного бега.
+// RunLimit: предохранитель от бесконечного бега.
 const RunLimit = 200
 
-// CanMoveTo — можно ли игроку встать на клетку. Проходимы пол комнат и
+// CanMoveTo: можно ли игроку встать на клетку. Проходимы пол комнат и
 // центральные линии коридоров (двери и выход лежат на них же).
 //
 // Считается по геометрии напрямую: Python-версия ради каждой такой проверки
@@ -15,7 +15,7 @@ func (s *Session) CanMoveTo(x, y int) bool {
 	return IsAnyRoomFloorCell(x, y, s.Level.Rooms) || InPassageCenter(x, y, s.Level.Passages)
 }
 
-// MoveX — шаг игрока по горизонтали; если в клетке враг, бьёт его.
+// MoveX: шаг игрока по горизонтали; если в клетке враг, бьёт его.
 // Возвращает true, если ход состоялся (шаг или атака).
 func (s *Session) MoveX(dir int) bool {
 	// Разворот происходит даже если шаг упёрся в стену или врага.
@@ -26,12 +26,12 @@ func (s *Session) MoveX(dir int) bool {
 	return s.step(s.Player.X+dir, s.Player.Y)
 }
 
-// MoveY — шаг игрока по вертикали; если в клетке враг, бьёт его.
+// MoveY: шаг игрока по вертикали; если в клетке враг, бьёт его.
 func (s *Session) MoveY(dir int) bool {
 	return s.step(s.Player.X, s.Player.Y+dir)
 }
 
-// step — общий код шага: атака врага в целевой клетке либо перемещение.
+// step: общий код шага, атака врага в целевой клетке либо перемещение.
 func (s *Session) step(nx, ny int) bool {
 	if op := s.OpponentAt(nx, ny); op != nil {
 		s.attack(op)
@@ -46,7 +46,7 @@ func (s *Session) step(nx, ny int) bool {
 	return false
 }
 
-// attack — удар игрока по врагу с записью статистики и сообщением.
+// attack: удар игрока по врагу с записью статистики и сообщением.
 // Обычный удар (в том числе промах) заряжает критический удар.
 func (s *Session) attack(op *Opponent) {
 	if !s.Player.powerStrike {
@@ -62,7 +62,7 @@ func (s *Session) attack(op *Opponent) {
 	s.SetMessage(playerAttackMessage(op, damage, s.Player.Treasures-goldBefore))
 }
 
-// playerAttackMessage — строка в HUD по результату удара игрока.
+// playerAttackMessage: строка в HUD по результату удара игрока.
 func playerAttackMessage(op *Opponent, damage, goldGained int) string {
 	name := op.Type.DisplayName()
 	if damage == Miss {
@@ -152,7 +152,7 @@ func (s *Session) DropItemNearPlayer(item *Item) bool {
 
 // --- Бег (find из оригинального Rogue) ---
 
-// corridorTurn — новое направление на повороте коридора или nil.
+// corridorTurn: новое направление на повороте коридора или nil.
 // Поворот выполняется, только если игрок стоит на тропе и ровно одно
 // направление (кроме обратного) продолжает её: развилки останавливают бег.
 func (s *Session) corridorTurn(dx, dy int) *Point {
@@ -176,7 +176,7 @@ func (s *Session) corridorTurn(dx, dy int) *Point {
 	return &options[0]
 }
 
-// doorBeside — есть ли дверь сбоку от направления движения: игрок пробегает
+// doorBeside: есть ли дверь сбоку от направления движения, то есть игрок пробегает
 // мимо проёма.
 func (s *Session) doorBeside(dx, dy int) bool {
 	x, y := s.Player.X, s.Player.Y
@@ -189,7 +189,7 @@ func (s *Session) doorBeside(dx, dy int) bool {
 	return s.Level.Doors[sides[0]] || s.Level.Doors[sides[1]]
 }
 
-// Run — бег в направлении до упора; каждый шаг является полноценным ходом.
+// Run: бег в направлении до упора; каждый шаг является полноценным ходом.
 //
 // Бег по комнате останавливается на клетке перед дверью впереди и у двери,
 // мимо которой пробегает; но если игрок уже стоит вплотную к двери, шаг в её
@@ -221,11 +221,11 @@ func (s *Session) Run(dx, dy int) {
 		enteringDoor := s.Level.Doors[Point{nx, ny}]
 		fromRoom := IsAnyRoomFloorCell(p.X, p.Y, s.Level.Rooms)
 		if enteringDoor && fromRoom && step > 0 {
-			return // разбежались по комнате — стоп перед дверью, не в ней
+			return // разбежались по комнате: стоп перед дверью, не в ней
 		}
 
 		if !s.CanMoveTo(nx, ny) {
-			// Поворот коридора — только когда уже бежим: нажатие в сторону
+			// Поворот коридора только когда уже бежим: нажатие в сторону
 			// стены не должно начинать бег вбок.
 			if step > 0 {
 				if turn := s.corridorTurn(dx, dy); turn != nil {
@@ -253,17 +253,17 @@ func (s *Session) Run(dx, dy int) {
 		}
 		s.ResolveTurn()
 
-		// Health alone misses a miss, a hit the shield took and a drain that
-		// left health below the new maximum: any attack stops the run. So
-		// does any item underfoot, read or equipped ones included.
+		// По одному здоровью не видно промаха, удара в щит и кражи, после которой
+		// здоровье и так ниже нового максимума: бег останавливает любая атака.
+		// И любой предмет под ногами, в том числе свиток или оружие.
 		if p.Health < hpBefore || p.MaxHealth < maxBefore || s.attackedPlayer() ||
 			itemHere || s.LevelNum != levelBefore {
 			return
 		}
 		if enteringDoor && !fromRoom {
-			return // прибежали по коридору в дверной проём — конец коридора
+			return // прибежали по коридору в дверной проём: конец коридора
 		}
-		// Стоп у бокового проёма — только в комнате: в коридоре дверь сбоку
+		// Стоп у бокового проёма только в комнате: в коридоре дверь сбоку
 		// от поворота это его собственное продолжение, и бег должен доехать
 		// до проёма, а не встать на углу.
 		if IsAnyRoomFloorCell(p.X, p.Y, s.Level.Rooms) && s.doorBeside(dx, dy) {
@@ -272,7 +272,7 @@ func (s *Session) Run(dx, dy int) {
 	}
 }
 
-// attackedPlayer: an enemy attacked the hero during this action.
+// attackedPlayer: враг атаковал героя за это действие.
 func (s *Session) attackedPlayer() bool {
 	for _, e := range s.CombatEvents {
 		if e.TargetPlayer {
@@ -282,13 +282,13 @@ func (s *Session) attackedPlayer() bool {
 	return false
 }
 
-// pickUpWeapon equips a weapon that hits harder (any weapon beats the starter
-// blade); any other weapon sharpens the equipped one by +1, so every weapon
-// found makes the hero stronger without runaway growth. The name follows the
-// bonus, so a sharpened blade can become a pricier item.
+// pickUpWeapon экипирует оружие, которое бьёт сильнее (любое сильнее стартового
+// клинка); любое другое затачивает экипированное на +1, так что каждая находка
+// делает героя сильнее без безудержного роста. Название следует за бонусом,
+// поэтому заточенный клинок может стать более дорогим предметом.
 //
-// The log follows what the player sees in hand: a new name reads as a new
-// weapon picked up, the same name reads as the same blade sharpened.
+// Журнал следует за тем, что игрок видит в руках: новое название читается
+// как подобранное оружие, то же название как заточка того же клинка.
 func (s *Session) pickUpWeapon(it *Item) {
 	p := s.Player
 	before := BaseWeaponName

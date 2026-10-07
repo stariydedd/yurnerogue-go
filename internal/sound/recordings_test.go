@@ -58,8 +58,8 @@ func TestEmbeddedCombatSoundsKeepRecordingTimingAndTimbre(t *testing.T) {
 			if len(source) != len(pcm) {
 				t.Fatal("playback timing changed")
 			}
-			// Outside the tiny boundary fades, every sample is just the original
-			// recording at a lower level: no synthesis, equalization or pitch shift.
+			// Вне коротких затуханий на границах каждый отсчёт это исходная
+			// запись на меньшем уровне: без синтеза, эквализации и сдвига высоты.
 			margin := (SampleRate / 100) * 4
 			for offset := margin; offset < len(source)-margin; offset += 2 {
 				original := int16(binary.LittleEndian.Uint16(source[offset:]))
@@ -129,8 +129,8 @@ func TestAbilityRecordingsLoadWithTheirLength(t *testing.T) {
 	}
 }
 
-// Loudness is raised in playback, so the stored clip must never be clipped or
-// squashed, and the extra gain must stay inside the mixer headroom budget.
+// Громкость поднимается при воспроизведении, поэтому сохранённый клип не должен
+// обрезаться или сжиматься, а дополнительное усиление должно укладываться в запас микшера.
 func TestAbilityRecordingsAreCleanAndInsideHeadroom(t *testing.T) {
 	for c, clip := range abilityRecordings {
 		if clip.gain > 0.8 || clip.gain < recordedCombatGain {

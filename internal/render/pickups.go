@@ -19,9 +19,9 @@ func isPickupRole(role string) bool {
 	return false
 }
 
-// outlineSprite builds a world-only silhouette once during asset loading.
-// Ignore faint extraction glow, and expand actual edges (including diagonals)
-// rather than drawing a rectangle around the tile. Keep the original interior.
+// outlineSprite один раз при загрузке ассетов строит силуэт только для мира.
+// Игнорируем слабое свечение от вырезки и расширяем настоящие края (включая диагонали),
+// а не рисуем прямоугольник вокруг клетки. Исходная внутренность сохраняется.
 func outlineSprite(src image.Image, bounds image.Rectangle) *image.NRGBA {
 	const pad = worldOutlineRadius
 	dst := image.NewNRGBA(image.Rect(0, 0, bounds.Dx()+2*pad, bounds.Dy()+2*pad))
@@ -58,8 +58,8 @@ func (r *Renderer) drawPickup(dst *ebiten.Image, role string, x, y, camX, camY, 
 	img := frames[((tick%len(frames))+len(frames))%len(frames)]
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(x*TileSize-camX-worldOutlineRadius), float64(y*TileSize-camY-worldOutlineRadius))
-	// A modest boost separates the pickup from similarly coloured foliage.
-	// Black outline and source alpha remain unchanged.
+	// Небольшое усиление отделяет находку от листвы похожего цвета.
+	// Чёрная обводка и исходная альфа не меняются.
 	op.ColorScale.Scale(worldSpriteBrightness, worldSpriteBrightness, worldSpriteBrightness, 1)
 	dst.DrawImage(img, op)
 }

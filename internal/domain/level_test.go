@@ -56,7 +56,7 @@ func TestLevelIsConnected(t *testing.T) {
 	}
 }
 
-// reachableCells — обход в ширину по проходимым клеткам уровня.
+// reachableCells: обход в ширину по проходимым клеткам уровня.
 func reachableCells(l *Level, from Point) map[Point]bool {
 	walkable := func(x, y int) bool {
 		return InBounds(x, y) &&

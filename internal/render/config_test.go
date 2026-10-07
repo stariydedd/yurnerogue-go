@@ -127,7 +127,7 @@ func TestTouchLayoutClampsProportions(t *testing.T) {
 	// раскладка не должна вырождаться.
 	wide := TouchLayout(1000, 500)   // соотношение 0.5
 	tall := TouchLayout(300, 1500)   // соотношение 5.0
-	square := TouchLayout(500, 1000) // соотношение 2.0 — внутри диапазона
+	square := TouchLayout(500, 1000) // соотношение 2.0 внутри диапазона
 
 	if wide.ScreenH != int(float64(wide.ScreenW)*1.6) {
 		t.Fatalf("широкое окно должно упираться в нижнюю границу 1.6, получено %d/%d",

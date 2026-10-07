@@ -107,7 +107,7 @@ def test_submission_reports_place_and_top10_gold(client):
         client.seed_run(player_name="legacy", treasures=gold, level=level)
     client.seed_run(player_name="legacy", treasures=600, level=level + 1)
     body = submit(client, start(client)).json()
-    # 900, 800, the deeper 600 and the earlier equal 600 all rank ahead.
+    # 900, 800, более глубокий 600 и более ранний равный 600 стоят выше.
     assert body["place"] == 5 and body["top10_gold"] is None
     for _ in range(4):
         client.seed_run(player_name="legacy", treasures=1000, level=1)
@@ -161,8 +161,8 @@ def test_start_drops_abandoned_expired_tickets(client):
     with next(dependency) as db:
         left = {ticket for ticket in (played, abandoned, late, fresh) if db.get(RankedTicket, ticket)}
     dependency.close()
-    # A played run keeps its ticket and name; a just expired one still
-    # answers "expired" for a while.
+    # Сыгранный забег сохраняет билет и имя; только что истёкший ещё какое-то
+    # время отвечает «истёк».
     assert left == {played, late, fresh}
     assert submit(client, late).status_code == 410
     assert client.get("/api/leaderboard").json()[0]["player_name"] == "tester"

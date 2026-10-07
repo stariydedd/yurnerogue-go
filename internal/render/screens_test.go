@@ -187,7 +187,7 @@ func TestReferenceScreensFitWithoutDroppingContent(t *testing.T) {
 				entries++
 				rowNameWidth := nameWidth
 				if row.entry.role == "" {
-					rowNameWidth = width // key bindings have no icon column
+					rowNameWidth = width // у привязок клавиш нет столбца значков
 				}
 				if TextWidth(strings.ToUpper(row.entry.name), nameFace) > float64(rowNameWidth) {
 					t.Fatal("help name clipped")

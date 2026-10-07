@@ -23,10 +23,10 @@ const (
 	MenuGlossary
 )
 
-// IsHelpPage reports whether a menu page is one of the paged help screens.
+// IsHelpPage сообщает, является ли страница меню одной из листаемых страниц справки.
 func IsHelpPage(page MenuPage) bool { return page == MenuHelp || page == MenuGlossary }
 
-// OtherHelpPage is the help page the switch button leads to.
+// OtherHelpPage: страница справки, на которую ведёт кнопка переключения.
 func OtherHelpPage(page MenuPage) MenuPage {
 	if page == MenuGlossary {
 		return MenuHelp
@@ -39,7 +39,7 @@ type MenuButton struct {
 	Bounds        image.Rectangle
 }
 
-// Shared by drawing and hit testing; no invisible gameplay targets on menu pages.
+// Общее для отрисовки и проверки попадания; на страницах меню нет невидимых игровых целей.
 func MenuButtons(l Layout, page MenuPage) []MenuButton {
 	width := min(360, l.ScreenW-48)
 	left := (l.ScreenW - width) / 2
@@ -74,7 +74,7 @@ func MenuButtons(l Layout, page MenuPage) []MenuButton {
 	}
 	back := MenuButton{"BACK", "back", image.Rect(left, l.ScreenH-88, right, l.ScreenH-24)}
 	if IsHelpPage(page) {
-		// Page switch and BACK share one row, so the panel keeps its height.
+		// Переключатель страниц и НАЗАД делят один ряд, поэтому высота панели не меняется.
 		width := min(560, l.ScreenW-48)
 		left, top := (l.ScreenW-width)/2, l.ScreenH-88
 		if !l.Touch {
@@ -119,7 +119,7 @@ func MenuActionAt(l Layout, page MenuPage, x, y int) string {
 func (r *Renderer) DrawMenuButtons(screen *ebiten.Image, page MenuPage, selected int) {
 	for i, button := range MenuButtons(r.Layout, page) {
 		if page == MenuHome && (button.Action == "music" || button.Action == "effects") {
-			continue // DrawAudioControls supplies the current percentage.
+			continue // Текущий процент подставляет DrawAudioControls.
 		}
 		r.drawMenuButton(screen, button, menuButtonActive(page, button, i, selected))
 	}

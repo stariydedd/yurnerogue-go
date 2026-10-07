@@ -10,7 +10,7 @@ Counter = Annotated[int, Field(ge=0, le=2**31 - 1)]
 
 
 class RunFields(BaseModel):
-    """Score fields bounded by the PostgreSQL INTEGER storage type."""
+    """Поля счёта в пределах типа INTEGER в PostgreSQL."""
 
     player_name: str = Field(default="anonymous", min_length=1, max_length=32)
     treasures: Counter
@@ -24,14 +24,14 @@ class RunFields(BaseModel):
     tiles_moved: Counter = 0
 
 
-# As many characters as the game lets you type and shows.
+# Столько символов, сколько игра даёт набрать и показывает.
 PLAYER_NAME_LENGTH = 16
 
 
 def clean_player_name(name: str) -> str:
-    """Drop control and invisible characters (zero-width, text direction),
-    trim, keep at most PLAYER_NAME_LENGTH characters; nothing left is
-    "anonymous", as in the game."""
+    """Убирает управляющие и невидимые символы (нулевой ширины, смены направления),
+    обрезает пробелы по краям и оставляет не больше PLAYER_NAME_LENGTH символов;
+    если ничего не осталось, имя "anonymous", как в игре."""
     kept = "".join(ch for ch in name if not unicodedata.category(ch).startswith("C"))
     return kept.strip()[:PLAYER_NAME_LENGTH].strip() or "anonymous"
 
@@ -64,16 +64,16 @@ class RunOut(RunFields):
 
     id: int
     created_at: datetime
-    # Legacy records are grandfathered as trusted by the project owner.
-    # New records still require server replay; this is not a write permission.
+    # Старые записи владелец проекта признал доверенными.
+    # Новые записи по-прежнему требуют повтора на сервере; это не разрешение на запись.
     verified: bool = True
 
     model_config = {"from_attributes": True}
 
 
 class RunSubmitted(RunOut):
-    """A submitted run with its place on the leaderboard."""
+    """Отправленный забег с его местом в таблице рекордов."""
 
     place: int = Field(ge=1)
-    # Gold of the 10th place, or None while fewer than ten runs exist.
+    # Золото 10-го места или None, пока забегов меньше десяти.
     top10_gold: int | None = None

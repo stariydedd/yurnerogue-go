@@ -10,17 +10,17 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
 
-// Scenery uses only revealed terrain. Unknown rooms must look exactly like
-// ordinary forest: their geometry must not influence tree placement or light.
+// Декорации опираются только на открытую местность. Неизвестные комнаты должны выглядеть
+// ровно как обычный лес: их геометрия не должна влиять на расстановку деревьев и свет.
 type forestView struct {
 	ground   map[domain.Point]bool
 	distance map[domain.Point]int
-	// lights holds each tile's brightness row by row, filled once per view:
-	// the light field is sampled thousands of times per rebuild, and map
-	// lookups made that the slowest part of it.
+	// lights хранит яркость каждой клетки по строкам, заполняется один раз на вид:
+	// световое поле опрашивается тысячи раз за перестройку, и поиск по map
+	// делал это самой медленной её частью.
 	lights []float32
-	// cells mirrors ground row by row for the hot loops, filled with lights;
-	// seen does the same for the visible cells.
+	// cells повторяет ground по строкам для горячих циклов, заполняется вместе с lights;
+	// seen делает то же для видимых клеток.
 	cells []bool
 	seen  []bool
 }
@@ -34,14 +34,14 @@ func (v forestView) isGround(x, y int) bool {
 
 var forestDirs = []domain.Point{{X: 1}, {X: -1}, {Y: 1}, {Y: -1}}
 
-// visibleSignature fingerprints a visible set regardless of map order.
+// visibleSignature считает отпечаток видимого множества независимо от порядка в map.
 func visibleSignature(visible map[domain.Point]bool) uint64 {
 	sum := uint64(len(visible))
 	for p, seen := range visible {
 		if !seen {
 			continue
 		}
-		// splitmix64 finalizer spreads neighbouring cells apart.
+		// Финализатор splitmix64 разносит соседние клетки подальше друг от друга.
 		h := uint64(uint32(p.X))<<32 | uint64(uint32(p.Y))
 		h ^= h >> 30
 		h *= 0xbf58476d1ce4e5b9
@@ -53,8 +53,8 @@ func visibleSignature(visible map[domain.Point]bool) uint64 {
 	return sum
 }
 
-// Remember only revealed floor, including corridors, for this level. This is
-// rendering state: it must not reveal items or change gameplay visibility.
+// Запоминаем только открытый пол, включая коридоры, для этого уровня. Это
+// состояние отрисовки: оно не должно раскрывать предметы или менять видимость в игре.
 type forestMemory struct {
 	level  *domain.Level
 	ground map[domain.Point]bool
@@ -128,8 +128,8 @@ func newForestView(grid domain.Grid, vis domain.Visibility) forestView {
 	return v
 }
 
-// A few leaf/root pixels may cross the edge, never the centre of a walkable
-// cell. This also keeps a one-cell corridor open along its full length.
+// Несколько пикселей листьев или корней могут заходить за край, но не в центр
+// проходимой клетки. Так однорядный коридор остаётся открытым по всей длине.
 func (v forestView) fits(rect image.Rectangle, fringe int) bool {
 	for y := max(0, rect.Min.Y/TileSize-1); y <= min(domain.Rows-1, rect.Max.Y/TileSize); y++ {
 		for x := max(0, rect.Min.X/TileSize-1); x <= min(domain.Cols-1, rect.Max.X/TileSize); x++ {
@@ -141,7 +141,7 @@ func (v forestView) fits(rect image.Rectangle, fringe int) bool {
 	return true
 }
 
-// forestLightLevels is the brightness by tile distance from what is visible.
+// forestLightLevels: яркость по расстоянию в клетках от видимого.
 var forestLightLevels = [...]float32{1, .98, .9, .76, .58, .43, .32, .25, .2}
 
 func (v forestView) tileLight(x, y int) float32 {
@@ -156,9 +156,9 @@ func (v forestView) tileLight(x, y int) float32 {
 	return forestLightLevels[d]
 }
 
-// lightAt is a continuous light field: tile brightness sits at tile centres
-// and is blended between them. Stepped per-tile light drew hard straight
-// edges along the tile grid around a lit room.
+// lightAt: непрерывное световое поле; яркость клетки стоит в её центре
+// и смешивается между центрами. Ступенчатый свет по клеткам рисовал жёсткие
+// прямые края по сетке клеток вокруг освещённой комнаты.
 func (v forestView) lightAt(px, py float64) float32 {
 	fx, fy := px/TileSize-.5, py/TileSize-.5
 	x0, y0 := int(math.Floor(fx)), int(math.Floor(fy))
@@ -168,8 +168,8 @@ func (v forestView) lightAt(px, py float64) float32 {
 	return top*(1-ty) + bottom*ty
 }
 
-// light is the brightest point of a prop's area on the continuous field, so
-// a bush reaching into the light is lit, and neighbours shade smoothly.
+// light: самая яркая точка области предмета на непрерывном поле, поэтому
+// куст, заходящий в свет, освещён, а соседи затеняются плавно.
 func (v forestView) light(rect image.Rectangle) float32 {
 	if rect.Dx() <= 1 && rect.Dy() <= 1 {
 		return v.lightAt(float64(rect.Min.X), float64(rect.Min.Y))
@@ -194,8 +194,8 @@ type forestProp struct {
 	lightAnchor image.Rectangle
 }
 
-// A rooted object and its moss share light sampled at their contact with the
-// ground, not at whichever crown pixel happens to be closest to the clearing.
+// Укоренённый предмет и его мох берут свет в точке касания с землёй,
+// а не у того пикселя кроны, который оказался ближе к поляне.
 func forestFoot(p forestProp) image.Rectangle {
 	x, y := (p.rect.Min.X+p.rect.Max.X)/2, p.rect.Max.Y-4
 	return image.Rect(x-p.rect.Dx()/4, y-6, x+p.rect.Dx()/4, y+6)
@@ -224,10 +224,10 @@ func (p forestProp) lightingBounds() image.Rectangle {
 	return p.rect
 }
 
-// Crown and trunk bounds omit transparent sprite margins, allowing interlocking
-// groves without hiding trunks behind foreground crowns.
+// Границы кроны и ствола не включают прозрачные поля спрайта, поэтому рощи
+// могут переплетаться, не пряча стволы за кронами переднего плана.
 func forestTreeSilhouette(p forestProp) (image.Rectangle, image.Rectangle) {
-	// The four packed trees share a root baseline but have different crown tops.
+	// Четыре упакованных дерева стоят на общей линии корней, но верх кроны у них разный.
 	tops := [...]int{8, 4, 22, 34}
 	frame := ((p.frame % 4) + 4) % 4
 	crown := image.Rect(p.rect.Min.X+5, p.rect.Min.Y+p.rect.Dy()*tops[frame]/128,
@@ -237,8 +237,8 @@ func forestTreeSilhouette(p forestProp) (image.Rectangle, image.Rectangle) {
 	return crown, trunk
 }
 
-// Select the complete woodland before filtering revealed floor. Removed trees
-// still reserve their space, so discovering a path cannot reshuffle neighbours.
+// Сначала выбираем весь лес, потом отбрасываем открытый пол. Убранные деревья
+// всё равно занимают своё место, чтобы открытие тропы не перетасовывало соседей.
 func forestTrees(v forestView) []forestProp {
 	type candidate struct {
 		prop     forestProp
@@ -277,8 +277,8 @@ func forestTrees(v forestView) []forestProp {
 	return trees
 }
 
-// Spatial buckets keep full-world selection cheap even on large viewports.
-// Buckets are only queried, never iterated as a map: ordering is deterministic.
+// Пространственные корзины делают выбор по всему миру дешёвым даже на больших экранах.
+// Корзины только опрашиваются, а не обходятся как map, поэтому порядок детерминирован.
 type forestSpace map[image.Point][]image.Rectangle
 
 func (s forestSpace) free(rect image.Rectangle) bool {
@@ -303,24 +303,24 @@ func (s forestSpace) occupy(rect image.Rectangle) {
 	}
 }
 
-// Low foliage may surround the narrow trunk but must stay below the crown.
-// The protected silhouette keeps plants from reading as trees piled together.
+// Низкая листва может окружать тонкий ствол, но должна оставаться ниже кроны.
+// Защищённый силуэт не даёт растениям выглядеть как сваленные в кучу деревья.
 func (s forestSpace) protectTree(p forestProp) {
 	crown, trunk := forestTreeSilhouette(p)
 	s.occupy(crown)
 	s.occupy(trunk)
 }
 
-// worldTrees is the tree layout of an unrevealed world. It depends on nothing,
-// so it is computed once instead of on every terrain redraw.
+// worldTrees: расстановка деревьев неоткрытого мира. Она ни от чего не зависит,
+// поэтому считается один раз, а не при каждой перерисовке местности.
 var worldTrees = sync.OnceValue(func() []forestProp { return forestTrees(forestView{}) })
 
-// worldScenery is every tall or solid prop of an unrevealed world: trees,
-// masonry and planted groups. Their spacing depends only on world position,
-// so the layout is computed once; revealed ground merely filters it. It used
-// to be rebuilt on every terrain rebuild, once per corridor step.
+// worldScenery: все высокие или твёрдые предметы неоткрытого мира, то есть деревья,
+// кладка и группы растений. Расстояния между ними зависят только от позиции в мире,
+// поэтому расстановка считается один раз, а открытая земля её только фильтрует.
+// Раньше она строилась заново при каждой перестройке местности, на каждом шаге по коридору.
 var worldScenery = sync.OnceValue(func() []forestProp {
-	// All tall/solid props participate in spacing even outside the viewport.
+	// Все высокие и твёрдые предметы участвуют в расстояниях даже за пределами экрана.
 	scenery := append([]forestProp(nil), worldTrees()...)
 	space := forestSpace{}
 	for _, tree := range scenery {
@@ -338,8 +338,8 @@ var worldScenery = sync.OnceValue(func() []forestProp {
 		}
 		return false
 	}
-	// Reserve gaps for masonry before large bushes consume them. Broken blocks
-	// and occasional smaller rubble form loose clusters, never continuous walls.
+	// Оставляем промежутки под кладку, пока их не заняли большие кусты. Обломки
+	// и изредка мелкий щебень образуют рыхлые группы, а не сплошные стены.
 	for gy := 0; gy <= (domain.Rows*TileSize+96)/72; gy++ {
 		for gx := 0; gx <= (domain.Cols*TileSize+96)/80; gx++ {
 			h := cellHash(gx+419, gy+827)
@@ -351,7 +351,7 @@ var worldScenery = sync.OnceValue(func() []forestProp {
 			frame := 0
 			if h%3 == 0 {
 				frame = 2
-				height += 12 // Fallen-block art includes headroom above the rubble.
+				height += 12 // У картинки упавшего блока есть запас места над обломками.
 			}
 			if h%13 == 0 {
 				frame = 1
@@ -367,8 +367,8 @@ var worldScenery = sync.OnceValue(func() []forestProp {
 			}
 		}
 	}
-	// Compose clusters around existing anchors: broad leaves, then smaller
-	// companion ferns. Roots and masonry stay readable between the plants.
+	// Собираем группы вокруг существующих опор: сначала широкие листья, потом мелкие
+	// папоротники-спутники. Корни и кладка остаются различимыми между растениями.
 	anchors := append([]forestProp(nil), scenery...)
 	for _, anchor := range anchors {
 		if anchor.role != "tree" && anchor.role != "ruins" {
@@ -386,8 +386,8 @@ var worldScenery = sync.OnceValue(func() []forestProp {
 			add("bush", frame, image.Rect(cx-w/2, cy-height, cx+w/2, cy))
 		}
 	}
-	// Low, asymmetric groups occupy gaps between trees, not just the clearing
-	// border. Stone clusters interrupt the green without becoming a new wall.
+	// Низкие несимметричные группы занимают промежутки между деревьями, а не только край
+	// поляны. Каменные группы прерывают зелень, не становясь новой стеной.
 	for gy := 0; gy <= (domain.Rows*TileSize+96)/28; gy++ {
 		for gx := 0; gx <= (domain.Cols*TileSize+96)/32; gx++ {
 			h := cellHash(gx+701, gy+239)
@@ -407,9 +407,9 @@ var worldScenery = sync.OnceValue(func() []forestProp {
 			add(role, frame, image.Rect(x-w/2, y-height, x+w/2, y))
 		}
 	}
-	// A separate small-plant pass fills the remaining pockets without enlarging
-	// the background leaf carpet. Ferns and occasional cyan shoots stay readable
-	// beside masonry and below trees, with the same trunk and corridor guards.
+	// Отдельный проход мелких растений заполняет оставшиеся карманы, не увеличивая
+	// фоновый ковёр листвы. Папоротники и редкие голубые побеги остаются различимыми
+	// у кладки и под деревьями, с той же защитой стволов и коридоров.
 	for gy := 0; gy <= (domain.Rows*TileSize+48)/24; gy++ {
 		for gx := 0; gx <= (domain.Cols*TileSize+48)/28; gx++ {
 			h := cellHash(gx+1019, gy+367)
@@ -429,12 +429,12 @@ var worldScenery = sync.OnceValue(func() []forestProp {
 })
 
 func forestProps(v forestView, viewport image.Rectangle) []forestProp {
-	// Verge is ground cover and intentionally overlaps roots and other fringes.
+	// Обочина: это почвопокровные растения, они намеренно перекрывают корни и другие края.
 	var props []forestProp
-	// Boundary props are generated in coordinate order, never map iteration
-	// order, so depth ties and variants remain stable between frames. A fringe
-	// piece reaches less than three tiles from its cell, so only cells that
-	// close to the area can add one; a chunk no longer walks the whole map.
+	// Предметы на границе создаются в порядке координат, а не обхода map,
+	// поэтому равные глубины и варианты стабильны между кадрами. Кусок края
+	// уходит меньше чем на три клетки от своей клетки, так что добавить его могут
+	// только клетки рядом с областью; чанку больше не нужно обходить всю карту.
 	for y := max(0, viewport.Min.Y/TileSize-3); y <= min(domain.Rows-1, viewport.Max.Y/TileSize+3); y++ {
 		for x := max(0, viewport.Min.X/TileSize-3); x <= min(domain.Cols-1, viewport.Max.X/TileSize+3); x++ {
 			if !v.isGround(x, y) {
@@ -446,10 +446,10 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 				}
 				h := cellHash(x*5+i, y)
 				ex, ey := x*TileSize+16+d.X*16, y*TileSize+16+d.Y*16
-				// A low continuous fringe joins isolated bushes and roots to
-				// the floor. Its rotated bounds obey the same corridor guard.
-				// Each piece has its own length, depth, reach and slide along the
-				// edge, so the fringe does not trace the tile grid in one line.
+				// Низкая непрерывная кайма связывает отдельные кусты и корни
+				// с полом. Её повёрнутые границы подчиняются той же защите коридоров.
+				// У каждого куска своя длина, глубина, вылет и сдвиг вдоль
+				// края, поэтому кайма не повторяет сетку клеток одной линией.
 				length, depth := 58+(h/13)%15, 24+h%17
 				reach, slide := (h/37)%10, (h/191)%13-6
 				vw, vh, rotation := length, depth, 0
@@ -461,8 +461,8 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 				case d.Y == 1:
 					rotation = 2
 				}
-				// Let the foliage follow the same uneven bank as the ground,
-				// instead of rebuilding a perfectly straight border over it.
+				// Листва следует за тем же неровным берегом, что и земля,
+				// а не строит поверх него идеально прямую границу.
 				along, boundary := ex, ey
 				if d.X != 0 {
 					along, boundary = ey, ex
@@ -482,12 +482,12 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 		}
 	}
 	for _, p := range worldScenery() {
-		// Most of the world is off this area: skip it before the ground check.
+		// Большая часть мира вне этой области: отбрасываем её до проверки земли.
 		if !p.rect.Inset(-propReach).Overlaps(viewport) {
 			continue
 		}
-		// Filter only after every solid prop has reserved its permanent space.
-		// No replacement is spawned into gaps left by newly revealed ground.
+		// Фильтруем только после того, как каждый твёрдый предмет занял своё постоянное место.
+		// В промежутки, оставленные новой открытой землёй, замена не появляется.
 		if !v.fits(p.rect, 5) {
 			continue
 		}
@@ -502,8 +502,8 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 			props = append(props, p)
 		}
 	}
-	// A shaded low understory connects the separated silhouettes. It is drawn
-	// BEHIND trunks and stones, never on top of them like another row of crowns.
+	// Затенённый низкий подлесок связывает отдельные силуэты. Он рисуется
+	// ПОЗАДИ стволов и камней, а не поверх них, как ещё один ряд крон.
 	area := viewport.Inset(-96)
 	for gy := max(0, area.Min.Y/24); gy <= area.Max.Y/24; gy++ {
 		for gx := max(0, area.Min.X/28); gx <= area.Max.X/28; gx++ {
@@ -538,9 +538,9 @@ func forestProps(v forestView, viewport image.Rectangle) []forestProp {
 	return props
 }
 
-// forestScene is what a terrain render computes before drawing: the view,
-// the props and the clearings of the whole cached area. Strips of one rebuild
-// share it, so each strip only draws.
+// forestScene: то, что считает отрисовка местности перед рисованием: вид,
+// предметы и поляны всей кешированной области. Полосы одной перестройки
+// делят её, поэтому каждая полоса только рисует.
 type forestScene struct {
 	level     *domain.Level
 	vis       domain.Visibility
@@ -553,33 +553,33 @@ type forestScene struct {
 type sceneClearing struct {
 	clearing
 	plants []forestProp
-	moss   []float32 // mossGrid of the clearing
+	moss   []float32 // mossGrid поляны
 }
 
-// propReach is how far a prop's pixels may extend past its rectangle
-// (rotation, root grass, contact shadow), so strips never clip one away.
+// propReach: насколько пиксели предмета могут выходить за его прямоугольник
+// (поворот, трава у корней, тень касания), чтобы полосы никогда его не обрезали.
 const propReach = 64
 
 func propNear(p forestProp, region image.Rectangle) bool {
 	return p.rect.Union(p.lightAnchor).Inset(-propReach).Overlaps(region)
 }
 
-// drawForestRegion draws the terrain of one world region into dst, whose
-// origin is at world (camX, camY). Every layer keeps the full-render order,
-// so strips of one scene join without seams.
+// drawForestRegion рисует местность одной области мира в dst, у которого
+// начало координат в мире стоит в (camX, camY). Каждый слой сохраняет порядок полной отрисовки,
+// поэтому полосы одной сцены стыкуются без швов.
 func (r *Renderer) drawForestRegion(dst *ebiten.Image, s *forestScene, region image.Rectangle, camX, camY int) {
 	v, vis, paths := s.view, s.vis, s.paths
-	// Continuous shaded grass/soil below the forest. This is decorative ground,
-	// unrelated to hidden rooms, rather than a second layer of floating crowns.
+	// Сплошная затенённая трава и почва под лесом. Это декоративная земля,
+	// не связанная со скрытыми комнатами, а не второй слой парящих крон.
 	for y := region.Min.Y / TileSize; y <= region.Max.Y/TileSize; y++ {
 		for x := region.Min.X / TileSize; x <= region.Max.X/TileSize; x++ {
 			rect := image.Rect(x*TileSize, y*TileSize, (x+1)*TileSize, (y+1)*TileSize)
 			r.drawForestSoil(dst, v, rect, camX, camY, cellHash(x, y))
 		}
 	}
-	// Dense low foliage goes below root beds, not around large exclusion halos.
-	// Moss then restores the grounded contact point without clearing a gap in
-	// the surrounding vegetation. Both remain below opaque walkable tiles.
+	// Густая низкая листва идёт под корнями, а не вокруг больших ореолов исключения.
+	// Мох затем возвращает точку касания с землёй, не вырезая промежуток
+	// в окружающей растительности. Оба слоя ниже непрозрачных проходимых клеток.
 	for _, prop := range s.props {
 		if prop.groundCover && prop.role == "bush" && propNear(prop, region) {
 			r.drawForestProp(dst, prop, camX, camY, v.light(prop.lightingBounds())*.66)
@@ -591,7 +591,7 @@ func (r *Renderer) drawForestRegion(dst *ebiten.Image, s *forestScene, region im
 			r.drawForestContact(dst, prop.lightAnchor, camX, camY)
 		}
 	}
-	// Include cells just outside the region whose decorative bank reaches in.
+	// Включаем клетки сразу за областью, чей декоративный берег заходит внутрь.
 	for y := max(0, (region.Min.Y-TileSize)/TileSize); y <= min(domain.Rows-1, (region.Max.Y+TileSize)/TileSize); y++ {
 		for x := max(0, (region.Min.X-TileSize)/TileSize); x <= min(domain.Cols-1, (region.Max.X+TileSize)/TileSize); x++ {
 			p := domain.Point{X: x, Y: y}
@@ -604,7 +604,7 @@ func (r *Renderer) drawForestRegion(dst *ebiten.Image, s *forestScene, region im
 			}
 			h := cellHash(x, y)
 			r.drawCachedGround(dst, s.level, v, paths, p, camX, camY, vis.Visible[p])
-			// Sparse low plants in the clearing, never a second obstacle grid.
+			// Редкие низкие растения на поляне, а не вторая сетка препятствий.
 			if role == "floor" && h%31 == 0 && vis.Visible[p] {
 				r.drawTile(dst, "decor", x, y, camX, camY, h/31)
 			}
@@ -620,8 +620,8 @@ func (r *Renderer) drawForestRegion(dst *ebiten.Image, s *forestScene, region im
 	}
 }
 
-// Interpolate light between shared tile corners. Uniform per-tile brightness
-// would expose a checkerboard on the quiet soil between plants.
+// Интерполируем свет между общими углами клеток. Одинаковая яркость на клетку
+// выдавала бы шахматку на спокойной почве между растениями.
 func (r *Renderer) drawForestSoil(dst *ebiten.Image, v forestView, rect image.Rectangle, camX, camY, frame int) {
 	img := r.sprites.Frame("floor", frame)
 	if img == nil {
@@ -640,8 +640,8 @@ func (r *Renderer) drawForestSoil(dst *ebiten.Image, v forestView, rect image.Re
 	dst.DrawTriangles(vertices[:], []uint16{0, 1, 2, 1, 3, 2}, img, nil)
 }
 
-// A small soft contact shadow sits on the ground immediately beneath roots,
-// not offset like a floating object's shadow. It is rendered before paths.
+// Маленькая мягкая тень касания лежит на земле прямо под корнями,
+// без смещения, как у парящего предмета. Она рисуется до троп.
 func (r *Renderer) drawForestContact(dst *ebiten.Image, foot image.Rectangle, camX, camY int) {
 	const segments = 24
 	var vertices [segments + 1]ebiten.Vertex
@@ -677,8 +677,8 @@ func (r *Renderer) drawForestProp(dst *ebiten.Image, p forestProp, camX, camY in
 	}
 	dst.DrawImage(img, op)
 	if p.role == "tree" {
-		// A few foreground blades cover the bottom root pixels; the rest of
-		// the trunk stays clear. This fringe fits entirely inside the tree.
+		// Несколько травинок переднего плана закрывают нижние пиксели корней; остальной
+		// ствол остаётся открытым. Эта кайма целиком помещается внутри дерева.
 		r.drawForestProp(dst, forestRootGrass(p), camX, camY, light*.86)
 	}
 }

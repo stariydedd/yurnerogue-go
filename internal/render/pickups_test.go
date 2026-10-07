@@ -10,7 +10,7 @@ func TestPickupOutlineFollowsSilhouetteAndPreservesInterior(t *testing.T) {
 	src := image.NewNRGBA(image.Rect(10, 20, 17, 27))
 	inside := color.NRGBA{R: 30, G: 160, B: 90, A: 240}
 	src.SetNRGBA(13, 23, inside)
-	// Isolated faint glow must not acquire its own outline.
+	// Отдельное слабое свечение не должно получать собственную обводку.
 	src.SetNRGBA(10, 20, color.NRGBA{R: 80, G: 150, A: 30})
 	dst := outlineSprite(src, src.Bounds())
 	if dst.Bounds() != image.Rect(0, 0, 9, 9) {

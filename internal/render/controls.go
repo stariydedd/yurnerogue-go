@@ -27,7 +27,7 @@ var DPadControls = map[string]bool{CtrlUp: true, CtrlDown: true, CtrlLeft: true,
 var itemButtonRole = map[string]string{CtrlFood: "food", CtrlElixir: "elixir"}
 var abilityButtonRole = map[string]string{CtrlStrike: "special-strike", CtrlGuard: "defense"}
 
-// Controls shares the exact, non-overlapping geometry between drawing and input.
+// Controls даёт отрисовке и вводу одну и ту же неперекрывающуюся геометрию.
 type Controls struct {
 	Panel   image.Rectangle
 	targets map[string]image.Rectangle
@@ -45,7 +45,7 @@ func NewControls(l Layout) *Controls {
 	c.targets[CtrlDown] = image.Rect(74, top+144, 134, top+204)
 	c.targets[CtrlLeft] = image.Rect(14, top+84, 74, top+144)
 	c.targets[CtrlRight] = image.Rect(134, top+84, 194, top+144)
-	c.targets[CtrlWait] = c.hub.Inset(8) // leave a dead zone around the wait button
+	c.targets[CtrlWait] = c.hub.Inset(8) // оставляем мёртвую зону вокруг кнопки ожидания
 	c.targets[CtrlRun] = image.Rect(216, top+22, 280, top+82)
 	c.targets[CtrlMenu] = image.Rect(212, top+100, 284, top+146)
 	c.targets[CtrlSelect] = image.Rect(212, top+160, 284, top+206)
@@ -69,7 +69,7 @@ func (c *Controls) ControlAt(x, y int) string {
 	return controlAt(c.targets, x, y)
 }
 
-// HUDTargets are clickable desktop slots; touch controls live below the HUD.
+// HUDTargets: кликабельные слоты на десктопе; тач-контролы живут под HUD.
 func HUDTargets(l Layout) map[string]image.Rectangle {
 	if l.Touch {
 		return nil

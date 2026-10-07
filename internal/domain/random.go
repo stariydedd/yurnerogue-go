@@ -2,8 +2,8 @@ package domain
 
 import "math/rand"
 
-// Each seeded session owns its generator. Rendering and other sessions must
-// never advance it; the server replays exactly the same random decisions.
+// У каждой сессии с seed свой генератор. Отрисовка и другие сессии не должны
+// его продвигать: сервер повторяет ровно те же случайные решения.
 type randomizer interface {
 	Intn(int) int
 	Float64() float64

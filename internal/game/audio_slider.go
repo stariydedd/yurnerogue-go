@@ -50,7 +50,7 @@ func (g *Game) moveAudioSlider(x int) {
 	}
 }
 
-// Capture the initiating finger/mouse until release, even outside the slider.
+// Захватываем палец или мышь, начавшие жест, до отпускания, даже за пределами ползунка.
 func (g *Game) updateAudioSlider() bool {
 	page, ok := g.audioSliderPage()
 	if !ok || !ebiten.IsFocused() {

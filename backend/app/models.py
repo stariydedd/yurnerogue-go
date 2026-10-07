@@ -10,7 +10,7 @@ class Run(Base):
     """Результат одного забега, присланный игрой после смерти или победы."""
 
     __tablename__ = "runs"
-    # The leaderboard and a run's place both read runs in this order.
+    # Таблица рекордов и место забега читают runs в этом порядке.
     __table_args__ = (Index("runs_leaderboard_order", desc("treasures"), desc("level"), "id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -30,7 +30,7 @@ class Run(Base):
 
 
 class RunSubmission(Base):
-    """Idempotency keys in a new table: existing runs need no schema changes."""
+    """Ключи идемпотентности в отдельной таблице: старым забегам не нужна смена схемы."""
 
     __tablename__ = "run_submissions"
 
@@ -39,7 +39,7 @@ class RunSubmission(Base):
 
 
 class RankedTicket(Base):
-    """Server-issued capability for one run, never exposed in the leaderboard."""
+    """Выданное сервером право на один забег; в таблице рекордов никогда не показывается."""
     __tablename__ = "ranked_tickets"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)

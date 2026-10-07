@@ -107,7 +107,7 @@ func TestClearingProtectsEntrancesInEveryDirection(t *testing.T) {
 	for _, d := range forestDirs {
 		v, _ := clearingFixture()
 		paths := map[domain.Point]bool{}
-		// Remove the fixture's existing corridor, then expose only one door.
+		// Убираем коридор тестовой сцены и открываем только одну дверь.
 		for x := 24; x < 30; x++ {
 			delete(v.ground, domain.Point{X: x, Y: 10})
 		}
@@ -152,8 +152,8 @@ func BenchmarkClearingComposition(b *testing.B) {
 
 func TestClearingBankLightDoesNotFollowRoomRectangle(t *testing.T) {
 	v, paths := clearingFixture()
-	// The corridor is lit; the adjoining room is remembered. Low vegetation
-	// on either side of its border must share the same forest light field.
+	// Коридор освещён, соседняя комната запомнена. Низкая растительность
+	// по обе стороны её границы должна делить одно световое поле леса.
 	v.distance = map[domain.Point]int{}
 	for y := 0; y < domain.Rows; y++ {
 		for x := 0; x < domain.Cols; x++ {
@@ -180,12 +180,12 @@ func TestClearingBankLightDoesNotFollowRoomRectangle(t *testing.T) {
 func TestMossBedFadesInsteadOfCuttingAtTheFloorEdge(t *testing.T) {
 	v, paths := clearingFixture()
 	c := knownClearings(v, paths)[0]
-	// Floor rows 6..14 and columns 8..23: cross the bottom and left edges.
-	// The bed ramps up over about 45 px by design; the old cut at the tile
-	// edge dropped by about .4 in one sample.
+	// Строки пола 6..14 и столбцы 8..23: пересекаем нижний и левый края.
+	// Подушка по задумке нарастает примерно на 45 px; старый обрыв у края
+	// клетки падал примерно на .4 за один отсчёт.
 	for _, line := range []struct{ x0, y0, dx, dy int }{
-		{16 * 32, 11 * 32, 0, 4},  // down through the bottom edge
-		{12 * 32, 10 * 32, -4, 0}, // left through the left edge
+		{16 * 32, 11 * 32, 0, 4},  // вниз через нижний край
+		{12 * 32, 10 * 32, -4, 0}, // влево через левый край
 	} {
 		var prev float32
 		for i := 0; i < 48; i++ {
@@ -197,11 +197,11 @@ func TestMossBedFadesInsteadOfCuttingAtTheFloorEdge(t *testing.T) {
 			prev = got
 		}
 	}
-	// The last samples on the floor tiles are nearly clear, so no tile line shows.
+	// Последние отсчёты на клетках пола почти прозрачны, поэтому линия клеток не видна.
 	if a := c.mossAlpha(16*32, 15*32-4); a > .05 {
 		t.Fatalf("moss bed still dark at the floor edge: %.3f", a)
 	}
-	// The bed itself still frames the meadow.
+	// Сама подушка по-прежнему обрамляет луг.
 	var darkest float32
 	for y := 11 * 32; y < 15*32; y += 4 {
 		darkest = max(darkest, c.mossAlpha(16*32, y))
@@ -214,7 +214,7 @@ func TestMossBedFadesInsteadOfCuttingAtTheFloorEdge(t *testing.T) {
 func TestHedgeEndsInARaggedLineNotTheRoomRectangle(t *testing.T) {
 	v, paths := clearingFixture()
 	c := knownClearings(v, paths)[0]
-	// Lowest hedge pixel in each 32 px stretch along the bottom wall.
+	// Самый нижний пиксель изгороди на каждом отрезке 32 px вдоль нижней стены.
 	lowest := map[int]int{}
 	for _, p := range c.plants(v) {
 		if p.rect.Min.Y < c.bounds.Max.Y-48 {
@@ -254,14 +254,14 @@ func TestCachedMossMatchesTheDirectValue(t *testing.T) {
 }
 
 func TestHedgeCacheFollowsNearbyGroundOnly(t *testing.T) {
-	v, paths := clearingFixture() // floor x 8..23, y 6..14
+	v, paths := clearingFixture() // пол x 8..23, y 6..14
 	c := knownClearings(v, paths)[0]
 	key := c.plantsKey(v)
-	v.ground[domain.Point{X: 90, Y: 40}] = true // far away
+	v.ground[domain.Point{X: 90, Y: 40}] = true // далеко
 	if c.plantsKey(v) != key {
 		t.Fatal("far ground invalidated the hedge")
 	}
-	v.ground[domain.Point{X: 12, Y: 4}] = true // a corridor cell just above the room
+	v.ground[domain.Point{X: 12, Y: 4}] = true // клетка коридора прямо над комнатой
 	if c.plantsKey(v) == key {
 		t.Fatal("ground next to the hedge was ignored")
 	}

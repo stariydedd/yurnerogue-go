@@ -10,7 +10,7 @@ import (
 func TestStepBagsNeverRepeatAndUseEveryVariant(t *testing.T) {
 	var bags [2]variantBag
 	last := [2]int{-1, -1}
-	// Interleave surfaces, including returning after a long stretch elsewhere.
+	// Чередуем поверхности, включая возврат после долгого участка на другой.
 	for round := 0; round < 1000; round++ {
 		for _, surface := range []int{0, 1, 0, 0, 1} {
 			seen := map[int]bool{}
@@ -54,9 +54,9 @@ func TestStepVariantsAreDistinctQuietAndShort(t *testing.T) {
 
 func TestSkippedStepsDoNotAdvanceVariantBags(t *testing.T) {
 	for _, e := range []*Engine{
-		{bank: &bank{}},        // Muted.
-		{settings: Defaults()}, // Still generating.
-		{bank: &bank{}, settings: Defaults(), stepPlayed: true, tick: 3}, // Cadence gate.
+		{bank: &bank{}},        // Без звука.
+		{settings: Defaults()}, // Ещё генерируется.
+		{bank: &bank{}, settings: Defaults(), stepPlayed: true, tick: 3}, // Ограничитель темпа.
 	} {
 		for _, cue := range []Cue{StepGrass, StepTrail} {
 			e.Play(cue)

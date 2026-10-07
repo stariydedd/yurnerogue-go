@@ -2,12 +2,12 @@ package game
 
 import "github.com/hajimehoshi/ebiten/v2"
 
-// Only the most recently pressed direction repeats; keys held across a menu
-// or focus change must be released and pressed again before moving.
+// Повторяется только последнее нажатое направление; клавиши, зажатые через меню
+// или смену фокуса, нужно отпустить и нажать снова, чтобы идти.
 type keyboardInput struct {
 	held []ebiten.Key
 	next int
-	// repeated — последняя выданная клавиша пришла из автоповтора.
+	// repeated: последняя выданная клавиша пришла из автоповтора.
 	repeated bool
 }
 

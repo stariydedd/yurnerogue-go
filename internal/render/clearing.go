@@ -20,8 +20,8 @@ type clearing struct {
 	entrances []clearingEntrance
 }
 
-// Build composition from revealed ground only, not Level.Rooms. A decorative
-// clearing is a connected patch of room floor, excluding known corridor cells.
+// Строим композицию только по открытой земле, а не по Level.Rooms. Декоративная
+// поляна: связный участок пола комнаты без известных клеток коридора.
 func knownClearings(v forestView, paths map[domain.Point]bool) []clearing {
 	seen := map[domain.Point]bool{}
 	var result []clearing
@@ -61,8 +61,8 @@ func knownClearings(v forestView, paths map[domain.Point]bool) []clearing {
 	return result
 }
 
-// Positive distance is quiet meadow; negative distance is walkable low moss
-// and foliage. The composition changes at ROOM scale, not every 32px tile.
+// Положительное расстояние: спокойный луг; отрицательное: проходимый низкий мох
+// и листва. Композиция меняется в масштабе КОМНАТЫ, а не каждой клетки в 32px.
 func (c clearing) distance(x, y int) float64 {
 	b := c.bounds
 	scale := math.Min(1, float64(min(b.Dx(), b.Dy()))/256)
@@ -73,7 +73,7 @@ func (c clearing) distance(x, y int) float64 {
 	hx, hy := float64(b.Dx())/2-inset, float64(b.Dy())/2-inset
 	dx, dy := math.Abs(fx-cx)-hx+radius, math.Abs(fy-cy)-hy+radius
 	d := radius - math.Hypot(math.Max(dx, 0), math.Max(dy, 0)) - math.Min(math.Max(dx, dy), 0)
-	// Broad asymmetric lobes, with a finer broken leaf edge.
+	// Широкие несимметричные доли с более мелким рваным краем листьев.
 	wave := math.Sin(fx/57+float64(b.Min.Y))*18 + math.Sin(fy/43+float64(b.Min.X))*14 + math.Sin((fx+fy)/29)*6
 	d += wave * scale
 	for _, e := range c.entrances {
@@ -128,9 +128,9 @@ func (c clearing) plantFits(v forestView, rect image.Rectangle) bool {
 
 func (c clearing) plants(v forestView) []forestProp {
 	var props []forestProp
-	// The candidates reach well past the floor, and each stops at its own depth
-	// outside the meadow: the hedge ends in a ragged line instead of filling the
-	// room rectangle and stopping at one straight edge.
+	// Кандидаты заходят далеко за пол, и каждый останавливается на своей глубине
+	// за лугом: изгородь кончается рваной линией, а не заполняет
+	// прямоугольник комнаты и не обрывается одним прямым краем.
 	for gy := (c.bounds.Min.Y - 40) / 12; gy <= (c.bounds.Max.Y+40)/12; gy++ {
 		for gx := (c.bounds.Min.X - 40) / 12; gx <= (c.bounds.Max.X+40)/12; gx++ {
 			h := cellHash(gx+173, gy+391)
@@ -162,8 +162,8 @@ func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain
 		if !c.reach().Overlaps(viewport) {
 			continue
 		}
-		// A textured, low moss bed defines the organic clearing silhouette.
-		// It is NOT a wall: all original floor remains opaque and walkable.
+		// Фактурная низкая подушка мха задаёт естественный силуэт поляны.
+		// Это НЕ стена: весь исходный пол остаётся непрозрачным и проходимым.
 		area := c.bounds.Intersect(viewport)
 		for y := area.Min.Y / 4 * 4; y < area.Max.Y; y += 4 {
 			for x := area.Min.X / 4 * 4; x < area.Max.X; x += 4 {
@@ -178,8 +178,8 @@ func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain
 				dst.DrawImage(r.dim, op)
 			}
 		}
-		// A known entrance tapers into the meadow, instead of stopping at a
-		// square door tile. Unknown passages cannot create these approach marks.
+		// Известный вход сужается в луг, а не обрывается на квадратной
+		// клетке двери. Неизвестные проходы таких следов подхода не создают.
 		for _, e := range c.entrances {
 			for along := 0; along < e.length; along += 2 {
 				width := int(14 * math.Pow(1-float64(along)/float64(e.length), .65))
@@ -192,8 +192,8 @@ func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain
 						continue
 					}
 					fade := float32(1 - math.Pow(float64(along)/float64(e.length), 1.4))
-					// Fade both texture and its remembered-state dim together.
-					// Blending an undimmed trail over dark grass would make it glow.
+					// Гасим текстуру и её затемнение для запомненного состояния вместе.
+					// Незатемнённая тропа поверх тёмной травы светилась бы.
 					r.drawEntranceSample(dst, rect, camX, camY, fade, vis.Visible[domain.Point{X: x / 32, Y: y / 32}])
 				}
 			}
@@ -207,8 +207,8 @@ func (r *Renderer) drawClearingBanks(dst *ebiten.Image, v forestView, vis domain
 	}
 }
 
-// Low banks are part of the forest, including the portion over walkable room
-// floor. A cell-visible boolean would imprint the rectangular room boundary.
+// Низкие берега часть леса, в том числе над проходимым полом комнаты.
+// Флаг видимости клетки отпечатал бы прямоугольную границу комнаты.
 func clearingPlantLight(v forestView, rect image.Rectangle) float32 {
 	return .86 * v.light(rect)
 }
@@ -238,10 +238,10 @@ func (r *Renderer) drawEntranceSample(dst *ebiten.Image, rect image.Rectangle, c
 	}
 }
 
-// mossAlpha is the darkness of the moss bed sample at (x, y), a 4x4 px
-// square. It deepens past the meadow edge and fades out again towards the
-// outer edge of the floor tiles. The bed used to be darkest right at that
-// edge and stop there, which drew a hard rectangle around every room.
+// mossAlpha: темнота подушки мха в отсчёте (x, y), квадрате 4x4 px.
+// Она густеет за краем луга и снова сходит на нет к внешнему
+// краю клеток пола. Раньше подушка была темнее всего прямо у этого
+// края и там обрывалась, рисуя жёсткий прямоугольник вокруг каждой комнаты.
 func (c clearing) mossAlpha(x, y int) float32 {
 	if !c.contains(image.Rect(x, y, x+4, y+4)) {
 		return 0
@@ -255,8 +255,8 @@ func (c clearing) mossAlpha(x, y int) float32 {
 	return float32(depth * edge)
 }
 
-// floorEdgeDistance is how far (x, y) is from the outer edge of the
-// clearing's floor tiles, in pixels.
+// floorEdgeDistance: насколько (x, y) далеко от внешнего края
+// клеток пола поляны, в пикселях.
 func (c clearing) floorEdgeDistance(x, y int) float64 {
 	cx, cy := int(math.Floor(float64(x)/32)), int(math.Floor(float64(y)/32))
 	fx, fy := float64(x-cx*32), float64(y-cy*32)
@@ -266,7 +266,7 @@ func (c clearing) floorEdgeDistance(x, y int) float64 {
 			if (dx == 0 && dy == 0) || c.cells[domain.Point{X: cx + dx, Y: cy + dy}] {
 				continue
 			}
-			// Distance to that missing neighbour's tile.
+			// Расстояние до клетки этого отсутствующего соседа.
 			nx := math.Max(0, math.Max(float64(dx*32)-fx, fx-float64(dx*32+32)))
 			ny := math.Max(0, math.Max(float64(dy*32)-fy, fy-float64(dy*32+32)))
 			best = math.Min(best, math.Hypot(nx, ny))
@@ -275,14 +275,14 @@ func (c clearing) floorEdgeDistance(x, y int) float64 {
 	return best
 }
 
-// reach bounds everything a clearing draws: its hedge grows past the floor.
+// reach ограничивает всё, что рисует поляна: её изгородь растёт за пол.
 func (c clearing) reach() image.Rectangle {
 	return c.bounds.Inset(-40 - propReach)
 }
 
-// mossGrid holds mossAlpha for every 4 px sample of the clearing's bounds,
-// row by row. It depends only on the clearing's shape, so it is computed once
-// per shape instead of for every sample of every chunk redraw.
+// mossGrid хранит mossAlpha для каждого отсчёта 4 px в границах поляны,
+// строка за строкой. Она зависит только от формы поляны, поэтому считается
+// один раз на форму, а не для каждого отсчёта при каждой перерисовке чанка.
 func (c clearing) mossGrid() []float32 {
 	w, h := c.bounds.Dx()/4, c.bounds.Dy()/4
 	grid := make([]float32, w*h)
@@ -294,7 +294,7 @@ func (c clearing) mossGrid() []float32 {
 	return grid
 }
 
-// shapeKey identifies a clearing's shape: its cells, bounds and entrances.
+// shapeKey задаёт форму поляны: её клетки, границы и входы.
 func (c clearing) shapeKey() uint64 {
 	h := uint64(14695981039346656037)
 	mix := func(v int) {
@@ -312,7 +312,7 @@ func (c clearing) shapeKey() uint64 {
 	return h
 }
 
-// mossAt reads the cached moss darkness of the sample at (x, y).
+// mossAt читает закешированную темноту мха в отсчёте (x, y).
 func (c sceneClearing) mossAt(x, y int) float32 {
 	b := c.bounds
 	if c.moss == nil || x < b.Min.X || y < b.Min.Y || x >= b.Max.X || y >= b.Max.Y {
@@ -321,8 +321,8 @@ func (c sceneClearing) mossAt(x, y int) float32 {
 	return c.moss[(y-b.Min.Y)/4*(b.Dx()/4)+(x-b.Min.X)/4]
 }
 
-// plantsKey identifies what a clearing's hedge depends on: its shape and the
-// known ground its plants must keep clear of, within their reach.
+// plantsKey задаёт, от чего зависит изгородь поляны: её форма и
+// известная земля, от которой растения держатся в пределах своего вылета.
 func (c clearing) plantsKey(v forestView) uint64 {
 	h := c.shapeKey()
 	area := c.bounds.Inset(-96)

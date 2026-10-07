@@ -17,7 +17,7 @@ func TestStillPlayIsNotRedrawnButAnythingThatMovesIs(t *testing.T) {
 	g.state = StatePlaying
 	room := g.session.Level.Rooms[0]
 	g.session.Player.X, g.session.Player.Y = room.X+1, room.Y+1
-	tick := func() int { // one Update and Draw, returns frames drawn so far
+	tick := func() int { // один Update и Draw; возвращает число нарисованных кадров
 		g.ticks++
 		r.Tick()
 		surface := g.ensureSurface()
@@ -28,12 +28,12 @@ func TestStillPlayIsNotRedrawnButAnythingThatMovesIs(t *testing.T) {
 	}
 	for tick() < 1 {
 	}
-	for r.Animating() { // the ring of chunks ahead of the camera fills first
+	for r.Animating() { // кольцо чанков впереди камеры заполняется первым
 		tick()
 	}
-	tick() // the frame after the work settles
+	tick() // кадр после того, как работа улеглась
 	for g.ticks%render.AnimFrameTicks != 0 {
-		tick() // start counting right after an animation frame
+		tick() // начинаем счёт сразу после кадра анимации
 	}
 	tick()
 	start := g.frames
@@ -53,7 +53,7 @@ func TestStillPlayIsNotRedrawnButAnythingThatMovesIs(t *testing.T) {
 		t.Fatalf("idle redrew %d frames in %d ticks; only animation frames are needed", g.frames-start, 2*render.AnimFrameTicks)
 	}
 
-	// A step: every frame of the slide, one more for the final position.
+	// Шаг: каждый кадр скольжения и ещё один для конечной позиции.
 	g.performAction("d")
 	before := g.frames
 	for i := 0; i < render.StepTicks; i++ {
@@ -74,7 +74,7 @@ func TestStillPlayIsNotRedrawnButAnythingThatMovesIs(t *testing.T) {
 		t.Fatal("frames kept redrawing after the step settled")
 	}
 
-	// A HUD change alone is drawn at once, within the same animation frame.
+	// Изменение одного HUD рисуется сразу, в том же кадре анимации.
 	surface := g.ensureSurface()
 	g.reuseFrame(surface)
 	if !g.reuseFrame(surface) {

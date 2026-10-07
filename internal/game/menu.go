@@ -88,7 +88,7 @@ func (g *Game) handleMenuPointer(x, y int) {
 	}
 }
 
-// switchHelpPage flips between CONTROLS and GLOSSARY; each page starts at its top.
+// switchHelpPage переключает УПРАВЛЕНИЕ и СПРАВОЧНИК; каждая страница открывается сверху.
 func (g *Game) switchHelpPage() {
 	g.helpScroll = 0
 	if g.state == StateGlossary {
@@ -125,7 +125,7 @@ func (g *Game) activateRunAction(action string) {
 		g.nameInput = g.playerName
 		g.state = StateNameEntry
 	case "again":
-		// Keep the summary for a failed start, but detach the old submission.
+		// Итоги остаются при неудачном старте, но старая отправка отвязывается.
 		g.submitResults = nil
 		g.runTicket = ""
 		g.requestRankedGame()
@@ -164,7 +164,7 @@ func (g *Game) activatePauseAction(action string) {
 		g.audio.Adjust(action == "music")
 		g.audio.Play(sound.Click)
 	case "quit":
-		g.quitSelected = 1 // Cancel is selected until leaving is explicitly confirmed.
+		g.quitSelected = 1 // Отмена выбрана, пока выход не подтверждён явно.
 		g.state = StateQuitDialog
 	}
 }

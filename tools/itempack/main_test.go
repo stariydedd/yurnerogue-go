@@ -42,7 +42,7 @@ func TestFitSpritePreservesAspectAlphaAndCentres(t *testing.T) {
 
 func TestFitSpriteRejectsMissingAlphaOrSilhouette(t *testing.T) {
 	for _, src := range []image.Image{image.NewUniform(color.White), image.NewNRGBA(image.Rect(0, 0, 8, 8))} {
-		// Restrict Uniform's otherwise enormous bounds.
+		// Ограничиваем иначе огромные границы Uniform.
 		bounded := image.NewNRGBA(image.Rect(0, 0, 8, 8))
 		for y := 0; y < 8; y++ {
 			for x := 0; x < 8; x++ {

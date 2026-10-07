@@ -68,7 +68,7 @@ func TestCombatEventsDistinguishRestDrainAndZeroDamage(t *testing.T) {
 	}
 	s, o = combatEventSession(Vampire)
 	o.Agility = 1_000_000
-	s.Player.Health = 1 // max-HP drain need not change current HP.
+	s.Player.Health = 1 // кража максимума не обязана менять текущее здоровье.
 	before := s.Player.MaxHealth
 	s.ProcessEnemyTurns()
 	if len(s.CombatEvents) != 1 || !s.CombatEvents[0].MaxHP || s.CombatEvents[0].Damage != before-s.Player.MaxHealth {

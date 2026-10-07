@@ -10,11 +10,11 @@ import (
 )
 
 // chooseLayout в браузере: на тач-устройствах включается портретная
-// «консоль», на десктопе — обычная широкая раскладка.
+// «консоль», на десктопе обычная широкая раскладка.
 func chooseLayout() render.Layout {
 	window := js.Global().Get("window")
 
-	// ?touch=1 форсит портретную раскладку на десктопе — так её можно
+	// ?touch=1 форсит портретную раскладку на десктопе, так её можно
 	// смотреть и снимать, не доставая телефон.
 	forced := false
 	if loc := window.Get("location"); loc.Truthy() {
@@ -35,10 +35,10 @@ func chooseLayout() render.Layout {
 	return render.TouchLayout(w, h)
 }
 
-// isTouchDevice — основной способ ввода тач-экран.
+// isTouchDevice: основной способ ввода тач-экран.
 //
 // pointer: coarse не срабатывает на ноутбуках с сенсорным экраном, где
-// основной ввод всё равно мышь; maxTouchPoints — запасной вариант.
+// основной ввод всё равно мышь; maxTouchPoints служит запасным вариантом.
 func isTouchDevice(window js.Value) bool {
 	if mm := window.Get("matchMedia"); mm.Truthy() {
 		if m := window.Call("matchMedia", "(pointer: coarse)"); m.Truthy() {

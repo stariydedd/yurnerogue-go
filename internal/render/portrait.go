@@ -6,8 +6,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// Keep the full animation cell at an integer scale and position. Using opaque
-// bounds per frame would turn the character's idle motion into portrait jitter.
+// Держим целую клетку анимации в целом масштабе и позиции. Непрозрачные
+// границы по кадрам превратили бы движение персонажа на месте в дрожание портрета.
 func portraitPlacement(frame image.Point, slot image.Rectangle) (int, image.Point) {
 	inner := slot.Inset(6)
 	if frame.X <= 0 || frame.Y <= 0 || inner.Empty() {
@@ -23,7 +23,7 @@ func portraitPlacement(frame image.Point, slot image.Rectangle) (int, image.Poin
 
 func (r *Renderer) drawHUDPortrait(dst *ebiten.Image, slot image.Rectangle) {
 	if r.hud != nil && r.hud.caching {
-		r.hud.portrait = slot // animated: drawn over the cached HUD every frame
+		r.hud.portrait = slot // анимирован: рисуется поверх закешированного HUD каждый кадр
 		return
 	}
 	frame := r.sprites.Frame("player", r.AnimTick())

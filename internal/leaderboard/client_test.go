@@ -66,7 +66,7 @@ func TestRunUnmarshalsServerResponse(t *testing.T) {
 }
 
 func TestUnknownFieldsDoNotBreakParsing(t *testing.T) {
-	// Бэкенд может добавить поле (например, дату) — игра не должна падать.
+	// Бэкенд может добавить поле (например, дату), и игра не должна падать.
 	var runs []Run
 	err := json.Unmarshal([]byte(`[{"player_name":"a","treasures":1,"created_at":"2026-07-31"}]`), &runs)
 	if err != nil {

@@ -14,11 +14,11 @@ func helpAvailableBounds(l Layout) image.Rectangle {
 	return image.Rect((l.ScreenW-w)/2, 104, (l.ScreenW+w)/2, l.ScreenH-108)
 }
 
-// HelpPages are the help screens in paging order.
+// HelpPages: экраны справки в порядке листания.
 var HelpPages = []MenuPage{MenuHelp, MenuGlossary}
 
-// HelpViewBounds is shared by both help pages, so switching pages never moves
-// the panel or its buttons.
+// HelpViewBounds общий для обеих страниц справки, поэтому при переключении
+// панель и её кнопки не сдвигаются.
 func HelpViewBounds(l Layout) image.Rectangle {
 	box := helpAvailableBounds(l)
 	if !l.Touch {
@@ -47,7 +47,7 @@ func mobileHelpRowGap(size int) int {
 	return 2
 }
 
-// helpGroup is one help section; on wide screens column picks its column.
+// helpGroup: один раздел справки; на широких экранах column выбирает его столбец.
 type helpGroup struct {
 	section string
 	entries []helpEntry
@@ -154,7 +154,7 @@ func helpContent(l Layout, page MenuPage) ([]helpContentRow, int) {
 	return rows, total
 }
 
-// Help keycaps match the HUD key badges.
+// Клавиши в справке совпадают со значками клавиш в HUD.
 const (
 	helpKeyW, helpKeyH, helpKeyGap = 34, 30, 3
 	helpSlotSize                   = 56
@@ -162,7 +162,7 @@ const (
 
 func helpKeyWidth(key string) int { return max(helpKeyW, 16*len(key)+14) }
 
-// helpGraphicWidth is how wide the icon or keys of an entry are drawn.
+// helpGraphicWidth: ширина, с которой рисуются значок или клавиши записи.
 func helpGraphicWidth(entry helpEntry) int {
 	switch {
 	case entry.keys == "":
@@ -181,8 +181,8 @@ func helpGraphicWidth(entry helpEntry) int {
 	return width
 }
 
-// helpIconWidth is the icon column of one help column: wide enough for its
-// widest icon or key cluster, so a WASD cluster widens only its own column.
+// helpIconWidth: столбец значков одного столбца справки; достаточно широкий для
+// самого широкого значка или группы клавиш, так что группа WASD расширяет только свой столбец.
 func helpIconWidth(groups []helpGroup, column, columns int) int {
 	width := 36
 	for _, group := range groups {
@@ -203,8 +203,8 @@ func helpKeyRows(keys string) [][]string {
 	return rows
 }
 
-// helpGraphicHeight is how tall the keys column of an entry is drawn, so a
-// short description never lets the next row overlap it.
+// helpGraphicHeight: высота, с которой рисуется столбец клавиш записи, чтобы
+// короткое описание никогда не давало следующей строке на него наехать.
 func helpGraphicHeight(entry helpEntry) int {
 	switch {
 	case entry.keys == "":
@@ -217,8 +217,8 @@ func helpGraphicHeight(entry helpEntry) int {
 	}
 }
 
-// drawHelpKeys draws the keys of an entry centred on cx: an icon in a HUD slot
-// with its key badge underneath, or a cluster of keycaps.
+// drawHelpKeys рисует клавиши записи по центру cx: значок в слоте HUD
+// со значком клавиши под ним или группу клавиш.
 func (r *Renderer) drawHelpKeys(dst *ebiten.Image, entry helpEntry, cx, y int) {
 	top := y + 4
 	if entry.role != "" {
@@ -250,7 +250,7 @@ func HelpScrollLimit(l Layout, page MenuPage) int {
 	return max(0, height-HelpViewBounds(l).Inset(16).Dy())
 }
 
-// HelpTitle names a help page; it is also the label of the button leading to it.
+// HelpTitle называет страницу справки; это же подпись кнопки, ведущей на неё.
 func HelpTitle(page MenuPage) string {
 	if page == MenuGlossary {
 		return "GLOSSARY"
@@ -299,7 +299,7 @@ func (r *Renderer) DrawHelp(screen *ebiten.Image, page MenuPage, scrollArg ...in
 		case row.entry.keys != "" && !r.Layout.Touch:
 			r.drawHelpKeys(clip, row.entry, x+(iconW-16)/2, y)
 		case row.entry.role == "":
-			// Key bindings have no icon: the key itself is the heading.
+			// У привязок клавиш нет значка: заголовком служит сама клавиша.
 			nameX = x
 			if r.Layout.Touch {
 				descX = x
@@ -341,7 +341,7 @@ func leaderboardColumns(l Layout) []leaderboardColumn {
 	box := LeaderboardViewBounds(l).Inset(16)
 	if leaderboardDetailed(l) {
 		labels := []string{"#", "NAME", "GOLD", "LVL", "KILLS", "ATK", "HIT", "STEPS", "FOOD", "CLARITY", "SCROLL"}
-		// Leave a full character of space between even the longest headings.
+		// Оставляем полный символ пробела даже между самыми длинными заголовками.
 		const gap = 15
 		chars := []int{2, 16, 6, 3, 5, 5, 5, 5, 4, 7, 6}
 		used := (len(labels) - 1) * gap

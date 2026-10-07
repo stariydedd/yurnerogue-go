@@ -2,7 +2,7 @@ package domain
 
 import "math/rand"
 
-// Stats — статистика забега, уходит в лидерборд по его завершении.
+// Stats: статистика забега, уходит в лидерборд по его завершении.
 type Stats struct {
 	EnemiesKilled int
 	FoodUsed      int
@@ -13,7 +13,7 @@ type Stats struct {
 	TilesMoved    int
 }
 
-// Session — игровая сессия: текущий уровень, персонаж и статистика.
+// Session: игровая сессия; текущий уровень, персонаж и статистика.
 type Session struct {
 	actions        []byte
 	Turns          int
@@ -26,7 +26,7 @@ type Session struct {
 	Stats          Stats
 	CombatEvents   []CombatEvent `json:"-"`
 
-	// VisitedRooms — индексы комнат, которые игрок уже видел (для тумана войны).
+	// VisitedRooms: индексы комнат, которые игрок уже видел (для тумана войны).
 	VisitedRooms map[int]bool
 }
 
@@ -73,13 +73,13 @@ func (s *Session) SetMessage(msg string) {
 	s.EventLog = append(s.EventLog, msg)
 }
 
-// Exit — координаты выхода текущего уровня.
+// Exit: координаты выхода текущего уровня.
 func (s *Session) Exit() Point { return s.Level.Exit }
 
-// Opponents — все враги текущего уровня.
+// Opponents: все враги текущего уровня.
 func (s *Session) Opponents() []*Opponent { return s.Level.AllOpponents() }
 
-// OpponentAt — живой враг в клетке или nil.
+// OpponentAt: живой враг в клетке или nil.
 func (s *Session) OpponentAt(x, y int) *Opponent {
 	for _, o := range s.Level.AllOpponents() {
 		if o.IsAlive() && o.X == x && o.Y == y {
@@ -99,5 +99,5 @@ func (s *Session) UpdateLevel() {
 	s.VisitedRooms = map[int]bool{}
 }
 
-// Won — забег завершён победой: спуск после последнего уровня.
+// Won: забег завершён победой, то есть спуском после последнего уровня.
 func (s *Session) Won() bool { return s.LevelNum > MaxLevels }

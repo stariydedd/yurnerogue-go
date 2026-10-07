@@ -8,17 +8,17 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
 
-// AnimFrameTicks — сколько тиков держится кадр idle-анимации (60 TPS).
+// AnimFrameTicks: сколько тиков держится кадр idle-анимации (60 TPS).
 const AnimFrameTicks = 10
 
-// Architecture is anchored at the foot of the exit tile, like forest ruins.
-// drawGate protects overlapping gameplay sprites instead of shrinking scenery.
+// Постройка стоит на нижнем крае клетки выхода, как руины в лесу.
+// drawGate защищает перекрывающиеся игровые спрайты, а не уменьшает декорации.
 func portalBounds(p domain.Point) image.Rectangle {
 	x, y := p.X*TileSize+TileSize/2, (p.Y+1)*TileSize
 	return image.Rect(x-28, y-64, x+28, y)
 }
 
-// cellHash — детерминированный, но хорошо перемешанный хеш клетки.
+// cellHash: детерминированный, но хорошо перемешанный хеш клетки.
 //
 // Линейная формула вида x*7+y*13 даёт периодичные узоры вдоль рядов («дерево
 // каждые N клеток»); битовое перемешивание убирает периодичность, сохраняя
@@ -29,7 +29,7 @@ func cellHash(x, y int) int {
 	return (h ^ (h >> 16)) & 0x7FFFFFFF
 }
 
-// cameraOffset — смещение камеры в пикселях: центр на игроке, с прижатием
+// cameraOffset: смещение камеры в пикселях; центр на игроке, с прижатием
 // к краям карты.
 func cameraOffset(l Layout, px, py int) (int, int) {
 	mapW, mapH := domain.Cols*TileSize, domain.Rows*TileSize
@@ -66,7 +66,7 @@ func (r *Renderer) DrawWorld(screen *ebiten.Image, s *domain.Session) {
 	r.drawCombat(field, s, vis, camX, camY)
 }
 
-// isFloor — клетки, под которыми рисуется пол. Сетка помечает предметы и
+// isFloor: клетки, под которыми рисуется пол. Сетка помечает предметы и
 // игрока своими символами, но визуально это тот же пол.
 func isFloor(cell byte) bool {
 	switch cell {
@@ -77,7 +77,7 @@ func isFloor(cell byte) bool {
 	return false
 }
 
-// itemRole — роль спрайта для категории предмета.
+// itemRole: роль спрайта для категории предмета.
 func itemRole(t domain.ItemType) string {
 	switch t {
 	case domain.ItemFood:
@@ -126,8 +126,8 @@ type pathCache struct {
 	cells map[domain.Point]bool
 }
 
-// levelPaths caches the trail cells of a level: rooms and passages are fixed
-// once the level is generated, and the map was rebuilt on every frame.
+// levelPaths кеширует клетки троп уровня: комнаты и проходы неизменны
+// после генерации уровня, а карта перестраивалась каждый кадр.
 func (r *Renderer) levelPaths(level *domain.Level) map[domain.Point]bool {
 	if r.paths.level != level {
 		r.paths.level, r.paths.cells = level, domain.PathCells(level.Rooms, level.Passages)
@@ -135,9 +135,9 @@ func (r *Renderer) levelPaths(level *domain.Level) map[domain.Point]bool {
 	return r.paths.cells
 }
 
-// worldCache holds the map grid and visibility of one turn. Both change only
-// when a turn is taken, and rebuilding them, with field-of-view rays, on every
-// frame was a steady cost on slow machines.
+// worldCache хранит сетку карты и видимость одного хода. Обе меняются только
+// когда сделан ход, а их перестройка с лучами поля зрения в каждом
+// кадре постоянно нагружала медленные машины.
 type worldCache struct {
 	session *domain.Session
 	level   *domain.Level

@@ -12,7 +12,7 @@ function load(window = {}) {
     return window;
 }
 
-// Runs a worklet script and returns one processor with a fake message port.
+// Запускает скрипт worklet и возвращает один процессор с поддельным портом сообщений.
 function processor(source) {
     let Processor;
     const sent = [];
@@ -31,11 +31,11 @@ test("buffer doubles once per underrun, only after sound started, up to 8192 fra
     const patched = load().yurnePatchOtoWorklet(oto);
     assert.ok(patched);
     const w = processor(patched);
-    w.play(10); // empty before the first data: startup, not an underrun
+    w.play(10); // пусто до первых данных: это запуск, а не нехватка
     assert.equal(w.p.bufferSize_, 2048);
     for (const want of [4096, 8192, 8192]) {
         w.receive(2048);
-        w.play(16 + 40); // drain 2048 frames, then starve for a while
+        w.play(16 + 40); // сливаем 2048 кадров, потом какое-то время голодаем
         assert.equal(w.p.bufferSize_, want);
     }
     assert.ok(w.sent.length > 0, "the worklet keeps requesting data");

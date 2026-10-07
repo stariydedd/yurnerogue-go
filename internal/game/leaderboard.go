@@ -39,7 +39,7 @@ func (g *Game) pollNetwork() {
 		g.startResults = nil
 		seed, err := strconv.ParseInt(result.ticket.Seed, 10, 64)
 		if result.err != nil || err != nil || result.ticket.Version != domain.RulesVersion || result.ticket.Ticket == "" {
-			// Never silently turn a failed server start into an unsubmitable run.
+			// Неудачный старт на сервере никогда не превращается молча в забег, который нельзя отправить.
 			g.runTicket = ""
 			g.submitStatus = startFailureStatus(result.err)
 			if g.startReturn == StateDeath || g.startReturn == StateWin {
@@ -141,7 +141,7 @@ func (g *Game) requestRankedGame() {
 	}()
 }
 
-// submitRun sends only the ticket and legal input log, never trusted scores.
+// submitRun отправляет только билет и журнал разрешённого ввода, никогда не доверенный счёт.
 func (g *Game) submitRun() {
 	s := g.session
 	if s == nil || g.submitResults != nil {
@@ -171,9 +171,9 @@ type submitResult struct {
 	err       error
 }
 
-// runPlacement turns the server's answer into what the results screen shows.
-// Outside the top 10 it counts the gold that would surely have beaten 10th
-// place: equal gold is not always enough.
+// runPlacement превращает ответ сервера в то, что показывает экран итогов.
+// За пределами топ-10 считает золото, которого точно хватило бы, чтобы обойти
+// 10-е место: равного количества золота хватает не всегда.
 func runPlacement(p leaderboard.Placement, s *domain.Session) render.Placement {
 	shown := render.Placement{Place: p.Place}
 	if p.Place > 10 && p.Top10Gold != nil && s != nil && s.Player != nil {

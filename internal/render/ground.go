@@ -13,9 +13,9 @@ type groundSpan struct {
 	shade int
 }
 
-// Shared world-space waves avoid a fresh notch at every tile boundary.
-// The floor may extend slightly into the forest, but never hides the central
-// 22x22px of a walkable cell. No collision or hidden map data is consulted.
+// Общие волны в координатах мира не дают свежей выемки на каждой границе клеток.
+// Пол может немного заходить в лес, но никогда не прячет центральные
+// 22x22px проходимой клетки. Столкновения и скрытые данные карты не используются.
 func groundWave(along, boundary, side int) float64 {
 	a := int(math.Floor(float64(along) / 48))
 	t := float64(along-a*48) / 48
@@ -34,7 +34,7 @@ func groundContour(v forestView, p domain.Point) []groundSpan {
 	if edge == [4]bool{} {
 		return []groundSpan{{rect: image.Rect(0, 0, TileSize, TileSize).Add(origin)}}
 	}
-	// Quantised two-pixel contour matches the art, with rounded convex corners.
+	// Квантованный двухпиксельный контур повторяет арт, с закруглёнными выпуклыми углами.
 	state := func(x, y int) int {
 		if x < 0 && !edge[1] || x >= TileSize && !edge[0] || y < 0 && !edge[3] || y >= TileSize && !edge[2] {
 			return -1
@@ -93,8 +93,8 @@ func groundContour(v forestView, p domain.Point) []groundSpan {
 				dist = math.Min(dist, 16-math.Hypot(dx, dy))
 			}
 		}
-		// Preserve the same core guarantee as solid forest props, including
-		// the entire 2px sample when it touches the protected centre.
+		// Сохраняем ту же гарантию центра, что у твёрдых предметов леса, включая
+		// весь отсчёт 2px, если он касается защищённого центра.
 		if x < 27 && x+2 > 5 && y < 27 && y+2 > 5 {
 			dist = math.Max(dist, 1)
 		}
@@ -134,9 +134,9 @@ func (r *Renderer) drawGroundRect(dst *ebiten.Image, role string, rect image.Rec
 	}
 }
 
-// A 256px continuous surface is stored as four 128px quadrants. Sampling,
-// rather than shrinking a complete picture into each tile, preserves details
-// and continuity across cells, turns, viewport edges and camera movement.
+// Сплошная поверхность 256px хранится как четыре квадранта по 128px. Выборка
+// вместо сжатия целой картинки в каждую клетку сохраняет детали
+// и непрерывность между клетками, поворотами, краями экрана и движением камеры.
 func groundSample(x, y int) (int, image.Rectangle) {
 	x, y = (x%8+8)%8, (y%8+8)%8
 	frame := (y/4)*2 + x/4
@@ -156,8 +156,8 @@ func (r *Renderer) drawGroundSample(dst *ebiten.Image, role string, p domain.Poi
 	dst.DrawImage(img.SubImage(sample).(*ebiten.Image), op)
 }
 
-// Narrow, irregular grass strips soften exposed path edges while retaining
-// at least the central 22x22 pixels of every corridor cell as visible trail.
+// Узкие неровные полосы травы смягчают открытые края троп, оставляя
+// как видимую тропу хотя бы центральные 22x22 пикселя каждой клетки коридора.
 func trailFringe(p domain.Point, side int) []image.Rectangle {
 	var strips []image.Rectangle
 	for offset := 0; offset < TileSize; offset += 4 {
@@ -189,8 +189,8 @@ func trailFringes(v forestView, paths map[domain.Point]bool, p domain.Point) []i
 	var strips []image.Rectangle
 	for side, d := range forestDirs {
 		q := domain.Point{X: p.X + d.X, Y: p.Y + d.Y}
-		// Only revealed neighbours can affect edge treatment; hidden passage
-		// geometry must not change how the visible end of a trail looks.
+		// На обработку края влияют только открытые соседи; скрытая геометрия
+		// проходов не должна менять вид видимого конца тропы.
 		if v.ground[q] && paths[q] {
 			continue
 		}
@@ -199,8 +199,8 @@ func trailFringes(v forestView, paths map[domain.Point]bool, p domain.Point) []i
 	return strips
 }
 
-// r.dim already contains ExploredDim alpha. Compose the contact shadow with
-// that existing opacity, rather than multiplying the fog alpha a second time.
+// r.dim уже содержит альфу ExploredDim. Тень касания складываем
+// с этой непрозрачностью, а не умножаем альфу тумана второй раз.
 func groundDimScale(shade int, visible bool) float32 {
 	shadowScale := float32(shade) * .075
 	if visible {
@@ -232,16 +232,16 @@ func (r *Renderer) drawWalkableGround(dst *ebiten.Image, v forestView, paths map
 	}
 }
 
-// groundPad is how far a cell's ground contour reaches past the cell.
+// groundPad: насколько контур земли клетки выходит за саму клетку.
 const groundPad = 10
 
-// groundCache keeps each walkable cell's ground, contour and edge shadow as
-// small images. The contour is drawn as a hundred 2 px strips per edge cell;
-// drawing those for every chunk redraw was the costliest part of it. A cell
-// has one slot for its visible look and one for its remembered look, so
-// stepping in and out of view reuses both, and a slot is redrawn in place
-// only when newly known neighbours change the contour. Memory stays at two
-// images per known cell instead of growing with every variant.
+// groundCache хранит землю, контур и тень края каждой проходимой клетки
+// маленькими картинками. Контур рисуется сотней полосок по 2 px на клетку края;
+// рисовать их при каждой перерисовке чанка было самой дорогой её частью. У клетки
+// один слот для видимого вида и один для запомненного, поэтому
+// вход в поле зрения и выход из него используют оба, а слот перерисовывается на месте
+// только когда новые известные соседи меняют контур. Памяти уходит две
+// картинки на известную клетку, а не больше с каждым вариантом.
 type groundCache struct {
 	level *domain.Level
 	cells map[groundSlot]*groundCell
@@ -253,7 +253,7 @@ type groundSlot struct {
 }
 
 type groundCell struct {
-	neighbors uint16 // known ground in the 3x3 block around the cell
+	neighbors uint16 // известная земля в блоке 3x3 вокруг клетки
 	img       *ebiten.Image
 }
 
@@ -267,7 +267,7 @@ func groundNeighbors(v forestView, p domain.Point) uint16 {
 	return mask
 }
 
-// drawCachedGround draws the walkable ground of p like drawWalkableGround.
+// drawCachedGround рисует проходимую землю p так же, как drawWalkableGround.
 func (r *Renderer) drawCachedGround(dst *ebiten.Image, level *domain.Level, v forestView, paths map[domain.Point]bool, p domain.Point, camX, camY int, visible bool) {
 	c := &r.ground
 	if c.level != level || c.cells == nil {

@@ -47,8 +47,8 @@ func (c *combatMarkers) expire(tick int) {
 	c.active = kept
 }
 
-// ShowCombat is called once per input action, never once per Draw. Repainting
-// cannot restart an effect or duplicate events. A nil renderer is safe in tests.
+// ShowCombat вызывается один раз на действие ввода, а не на каждый Draw. Перерисовка
+// не может перезапустить эффект или задвоить события. В тестах renderer может быть nil.
 func (r *Renderer) ShowCombat(s *domain.Session, events []domain.CombatEvent) {
 	if r == nil || s == nil {
 		return
@@ -134,13 +134,13 @@ func (r *Renderer) drawCombat(dst *ebiten.Image, s *domain.Session, vis domain.V
 		}
 		x := pos.X + TileSize/2 - camX
 		feetY := pos.Y + TileSize - camY
-		// Do not pin markers for offscreen actors to the edge of the viewport.
+		// Отметки персонажей за экраном не прижимаем к краю области просмотра.
 		if x < 0 || x >= r.Layout.GridW || feetY < 0 || feetY > r.Layout.GridH+TileSize {
 			continue
 		}
 		label, ink := combatLabel(event)
 		if event.Damage == domain.Miss || event.Parried {
-			label = r.tr(label) // MISS and PARRY are words, not numbers
+			label = r.tr(label) // ПРОМАХ и БЛОК это слова, а не числа
 		} else if event.MaxHP {
 			label = strings.TrimSuffix(label, "MAX HP") + r.tr("MAX HP")
 		}
@@ -152,8 +152,8 @@ func (r *Renderer) drawCombat(dst *ebiten.Image, s *domain.Session, vis domain.V
 		}
 		face := r.Fonts.Small
 		width := int(TextWidth(label, face))
-		// Four vertical lanes keep simultaneous counterattacks readable. Fade
-		// and drift use render ticks only, independent of turn count and RNG.
+		// Четыре вертикальные дорожки делают одновременные контратаки читаемыми. Затухание
+		// и сдвиг идут только по тикам отрисовки, независимо от числа ходов и RNG.
 		left := clamp(x-width/2, 2, max(2, r.Layout.GridW-width-2))
 		top := clamp(feetY-52-age/3-marker.lane*14, 2, max(2, r.Layout.GridH-14))
 		bounds, ok := placeCombatLabel(image.Rect(left, top, left+width, top+12), dst.Bounds(), labels)
@@ -174,8 +174,8 @@ func (r *Renderer) drawCombat(dst *ebiten.Image, s *domain.Session, vis domain.V
 	}
 }
 
-// Adjacent actors can have overlapping captions even with separate per-tile
-// lanes. Pack labels vertically inside the field, keeping them out of the HUD.
+// У соседних персонажей подписи могут перекрываться даже на отдельных дорожках клеток.
+// Укладываем подписи по вертикали внутри поля, не пуская их в HUD.
 func placeCombatLabel(want, field image.Rectangle, occupied []image.Rectangle) (image.Rectangle, bool) {
 	for distance := 0; distance < field.Dy(); distance += 14 {
 		for _, direction := range []int{-1, 1} {

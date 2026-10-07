@@ -1,5 +1,5 @@
 // Package domain содержит правила и состояние игры: генерацию уровней, бой,
-// движение, предметы. Не зависит ни от отрисовки, ни от способа хранения —
+// движение, предметы. Не зависит ни от отрисовки, ни от способа хранения,
 // ровно как domain/ в Python-версии.
 package domain
 
@@ -77,24 +77,24 @@ const (
 	StandardStrength = 50
 	StrengthFactor   = 0.3
 	StrengthAddition = 65
-	// Critical Strike recharges with ordinary attacks, not with turns, so walking
-	// between fights does not make every fight start with it.
+	// Критический удар заряжается обычными атаками, а не ходами, чтобы ходьба
+	// между боями не давала начинать с него каждый бой.
 	StrikeRechargeAttacks = 3
-	// Parry needs an enemy in contact. It recharges with enemy hits
-	// taken outside the parry turn, blocks incoming hits completely and strikes back
-	// every attacker for this share of a hit.
+	// Парированию нужен враг вплотную. Оно заряжается ударами врагов, полученными
+	// вне хода парирования, полностью блокирует входящие удары и отвечает
+	// каждому атакующему этой долей удара.
 	GuardRechargeHits    = 3
 	RiposteDamagePercent = 50
 
-	// Bloodseeker drains max HP: base + per-level amount, fully blocked by a parry.
+	// Bloodseeker крадёт максимум здоровья: база плюс прибавка за уровень; парирование блокирует кражу целиком.
 	BloodseekerDrainBase     = 10
 	BloodseekerDrainPerLevel = 2
 	SleepChance              = 15
 	ChanceGhostVisible       = 20
 	OgreStep                 = 2
 
-	// Enemy stats grow per level by these percents. Health and strength grow
-	// fastest; agility changes hit chances directly, so it grows slowly.
+	// Характеристики врагов растут с уровнем на эти проценты. Здоровье и сила
+	// растут быстрее всего; ловкость прямо меняет шанс попадания, поэтому растёт медленно.
 	EnemyHealthGrowthPercent   = 8.0
 	EnemyStrengthGrowthPercent = 4.0
 	EnemyAgilityGrowthPercent  = 1.5
@@ -107,5 +107,5 @@ const (
 	HighHostilityRadius    = 6
 )
 
-// PlayerName — имя героя в HUD и сообщениях.
+// PlayerName: имя героя в HUD и сообщениях.
 const PlayerName = "Juggernaut"

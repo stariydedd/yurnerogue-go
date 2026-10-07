@@ -15,31 +15,31 @@ const attackVariants = 3
 const missVariants = 2
 const recordedCombatGain = 0.35
 
-// The attack and miss files keep headroom (their source MP3 peaks reach above
-// full scale); playback restores the same amount, so loudness is unchanged.
+// Файлы ударов и промахов хранятся с запасом (пики исходных MP3 выходят
+// за полную шкалу); воспроизведение возвращает тот же уровень, громкость не меняется.
 const (
-	attackGain = recordedCombatGain * 1.19 // file lowered by 1.5 dB
-	missGain   = recordedCombatGain * 1.06 // file lowered by 0.5 dB
+	attackGain = recordedCombatGain * 1.19 // файл ослаблен на 1,5 дБ
+	missGain   = recordedCombatGain * 1.06 // файл ослаблен на 0,5 дБ
 )
 
-// Supplied Juggernaut recordings, converted to 44.1 kHz stereo PCM WAV for embedding.
-// No runtime network requests or external decoder executable are required.
+// Записи Juggernaut, переведённые в WAV PCM 44,1 кГц стерео для встраивания.
+// Во время игры не нужны ни сетевые запросы, ни внешний декодер.
 //
 //go:embed clips/attack-*.wav clips/miss-*.wav clips/blade-*.wav
 var combatRecordings embed.FS
 
-// Single recordings for ability cues: Blade Dance, layered at 80% over a
-// regular attack recording on a Critical Strike, and a large blade ring for a
-// parried hit. The files are clean conversions with headroom; their gain lifts
-// them to the attack recordings' loudness here, in playback, instead of
-// limiting the file (which made them sound dirty).
+// Отдельные записи для способностей: Blade Dance, наложенный на 80% поверх
+// обычной записи атаки при критическом ударе, и громкий звон клинка
+// при парировании. Файлы конвертированы чисто и с запасом; усиление поднимает
+// их до громкости записей атаки здесь, при воспроизведении, а не ограничением
+// файла (от него они звучали грязно).
 type abilityClip struct {
 	name string
 	gain float64
 }
 
 var abilityRecordings = map[Cue]abilityClip{
-	Critical: {"clips/blade-dance.wav", recordedCombatGain * 1.61 * 0.8}, // +4.1 dB, then 80% under the attack
+	Critical: {"clips/blade-dance.wav", recordedCombatGain * 1.61 * 0.8}, // +4,1 дБ, затем 80% под атакой
 	Parry:    {"clips/blade-ring.wav", recordedCombatGain * 1.92},        // +5.7 dB
 }
 
@@ -86,8 +86,8 @@ func loadRecording(name string, gain float64) ([]byte, error) {
 func prepareRecording(data []byte, gain float64) {
 	frames := len(data) / 4
 	for i := 0; i < frames; i++ {
-		// Preserve the recording's pitch, timing and spectrum. Only lower the
-		// level and taper 3ms at file boundaries to prevent playback clicks.
+		// Сохраняем высоту, тайминг и спектр записи. Только снижаем уровень
+		// и сглаживаем 3 мс на границах файла, чтобы не было щелчков.
 		fade := math.Min(1, float64(i)/(SampleRate*0.003))
 		fade *= math.Min(1, float64(frames-1-i)/(SampleRate*0.003))
 		for ch := 0; ch < 2; ch++ {

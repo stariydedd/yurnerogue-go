@@ -175,7 +175,7 @@ func TestPauseMenuVolumeAndResumePreserveRun(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", config)
 	for _, l := range []render.Layout{render.DesktopLayout(), render.TouchLayout(390, 600)} {
 		g := New(&render.Renderer{Layout: l})
-		// No audio device is needed to exercise settings and input routing.
+		// Для проверки настроек и маршрутизации ввода звуковое устройство не нужно.
 		g.audio = &sound.Engine{}
 		g.startNewGame()
 		g.runTicket = "ticket-to-preserve"
@@ -211,7 +211,7 @@ func TestPauseMenuVolumeAndResumePreserveRun(t *testing.T) {
 		if g.state != StateQuitDialog || g.session != session {
 			t.Fatal("exit skipped confirmation")
 		}
-		g.HandleKey(ebiten.KeyEnter) // Safe default: cancel.
+		g.HandleKey(ebiten.KeyEnter) // Безопасный выбор по умолчанию: отмена.
 		if g.state != StatePlaying || g.session != session {
 			t.Fatal("default confirmation discarded run")
 		}

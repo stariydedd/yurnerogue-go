@@ -198,7 +198,7 @@ func TestGroundCacheReusesVisibleAndRememberedLooks(t *testing.T) {
 	r.drawCachedGround(dst, s.Level, v, nil, p, 0, 0, true)
 	r.drawCachedGround(dst, s.Level, v, nil, p, 0, 0, false)
 	lit, dim := r.ground.cells[groundSlot{p, true}], r.ground.cells[groundSlot{p, false}]
-	for i := 0; i < 6; i++ { // stepping in and out of view
+	for i := 0; i < 6; i++ { // вход в поле зрения и выход из него
 		r.drawCachedGround(dst, s.Level, v, nil, p, 0, 0, i%2 == 0)
 	}
 	if len(r.ground.cells) != 2 {

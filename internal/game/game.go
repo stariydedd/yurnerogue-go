@@ -14,7 +14,7 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/sound"
 )
 
-// State — экран, на котором сейчас находится игрок.
+// State: экран, на котором сейчас находится игрок.
 type State int
 
 const (
@@ -30,39 +30,39 @@ const (
 	StateStarting
 	StatePauseMenu
 	StateWelcome
-	// StateGlossary is the second help page: enemies and items.
+	// StateGlossary: вторая страница справки, враги и предметы.
 	StateGlossary
 )
 
-// MaxNameLength — предел длины имени для лидерборда.
+// MaxNameLength: предел длины имени для лидерборда.
 const MaxNameLength = 16
 
-// Game — конечный автомат игры, он же ebiten.Game.
+// Game: конечный автомат игры, он же ebiten.Game.
 type Game struct {
 	audio    *sound.Engine
 	renderer *render.Renderer
 	session  *domain.Session
-	// heldStep — текущая клавиша пришла из автоповтора зажатого направления.
+	// heldStep: текущая клавиша пришла из автоповтора зажатого направления.
 	heldStep bool
-	// ticks считает кадры Update; turnReady — тик, с которого разрешён
-	// следующий ход, queuedAction — последний ход, нажатый раньше, и был ли
+	// ticks считает кадры Update; turnReady: тик, с которого разрешён
+	// следующий ход; queuedAction: последний ход, нажатый раньше, и был ли
 	// он ударом.
 	ticks        int
 	turnReady    int
 	queuedAction string
 	queuedAttack bool
-	// frame is what the last drawn frame showed; frames counts drawn frames.
+	// frame: что показал последний нарисованный кадр; frames считает нарисованные кадры.
 	frame  frameMemo
 	frames int
-	// shownMark is the pixel a new frame puts on the offscreen (see Draw).
+	// shownMark: пиксель, которым новый кадр отмечается на offscreen (см. Draw).
 	shownMark *ebiten.Image
-	// shownSize is the device screen size the last shown frame was for.
+	// shownSize: размер экрана устройства, для которого показан последний кадр.
 	shownSize image.Point
 	// paced включает темп ходов под анимацию; тесты правил ходят без него.
 	paced bool
 
 	state State
-	// helpReturn — экран, на который возвращает справка.
+	// helpReturn: экран, на который возвращает справка.
 	helpReturn        State
 	helpScroll        int
 	referenceDragging bool
@@ -80,7 +80,7 @@ type Game struct {
 	playerName string
 	nameInput  string
 
-	// pendingRun — нажата F, ждём направление.
+	// pendingRun: нажата F, ждём направление.
 	pendingRun bool
 
 	itemMenuType     domain.ItemType
@@ -91,7 +91,7 @@ type Game struct {
 	controls *render.Controls
 	keyboard keyboardInput
 
-	// surface is resized with the desktop viewport, independently of game state.
+	// surface меняет размер вместе с областью просмотра на десктопе, независимо от состояния игры.
 	surface    *ebiten.Image
 	outW, outH int
 
@@ -118,8 +118,8 @@ func New(r *render.Renderer) *Game {
 	return g
 }
 
-// Layout uses window coordinates for input; desktop content follows its aspect
-// ratio while touch keeps its existing logical surface and scaling.
+// Layout работает в координатах окна для ввода; на десктопе содержимое следует
+// за пропорциями окна, а тач сохраняет свою логическую поверхность и масштаб.
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	if outsideWidth <= 0 || outsideHeight <= 0 {
 		return max(1, g.outW), max(1, g.outH)
@@ -140,9 +140,9 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return outsideWidth, outsideHeight
 }
 
-// settleStateChange drops input carried over from the screen the game left.
-// A turn queued on the way back into play stays: an item picked from its menu
-// right after a step waits for that step and must not be lost.
+// settleStateChange сбрасывает ввод, оставшийся с экрана, который игра покинула.
+// Ход, поставленный в очередь при возврате в игру, остаётся: предмет, выбранный
+// в меню сразу после шага, ждёт этот шаг и не должен потеряться.
 func (g *Game) settleStateChange(before State) {
 	if g.state == before {
 		return
@@ -176,14 +176,14 @@ func (g *Game) Update() error {
 	}
 	// Касания экранных кнопок приходят сюда же, переведённые в клавиши.
 	if g.updateReferenceScroll() {
-		// A scroll gesture cannot activate BACK or another control.
+		// Жест прокрутки не может нажать НАЗАД или другой контрол.
 	} else if g.updateAudioSlider() {
-		// A captured slider pointer cannot activate another control.
+		// Захваченный ползунком указатель не может нажать другой контрол.
 	} else if g.touch != nil {
 		controls := g.touch.update(g)
 		for i, control := range controls {
 			if key := keyForControl(control, g.state); key != ebiten.KeyMax {
-				// The auto-repeat, if any, is the last control of the frame.
+				// Автоповтор, если он есть, это последний контрол кадра.
 				g.heldStep = g.touch.repeated && i == len(controls)-1
 				g.HandleKey(key)
 				g.heldStep = false
@@ -204,7 +204,7 @@ func (g *Game) Update() error {
 	return nil
 }
 
-// Desktop slots use the same command path as the keyboard, including replay recording.
+// Слоты на десктопе идут тем же путём команд, что и клавиатура, вместе с записью повтора.
 func (g *Game) handleHUDPointer(x, y int) {
 	if g.state != StatePlaying {
 		return
@@ -215,11 +215,11 @@ func (g *Game) handleHUDPointer(x, y int) {
 	}
 }
 
-// HandleKey — единая точка входа для клавиш: сюда же приходят нажатия
+// HandleKey: единая точка входа для клавиш; сюда же приходят нажатия
 // экранных кнопок, транслированные в клавиши.
 func (g *Game) HandleKey(key ebiten.Key) {
-	// In the browser the page toggles fullscreen on F11 (web/index.html):
-	// Ebitengine cancels the key there, and the page must stay whole.
+	// В браузере полноэкранный режим по F11 переключает страница (web/index.html):
+	// Ebitengine там отменяет клавишу, а страница должна оставаться целой.
 	if runtime.GOOS != "js" && key == ebiten.KeyF11 && g.renderer != nil && !g.renderer.Layout.Touch {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
 		return
@@ -328,7 +328,7 @@ func (g *Game) appendTypedRunes() {
 	}
 }
 
-// directionKeys — раскладка движения: WASD и стрелки.
+// directionKeys: раскладка движения, WASD и стрелки.
 var directionKeys = map[ebiten.Key]domain.Point{
 	ebiten.KeyW: {X: 0, Y: -1}, ebiten.KeyUp: {X: 0, Y: -1},
 	ebiten.KeyS: {X: 0, Y: 1}, ebiten.KeyDown: {X: 0, Y: 1},
@@ -436,7 +436,7 @@ const (
 	attackInterval = render.HeldMoveTicks
 )
 
-// isAttack — действие бьёт врага: шаг в его клетку или критический удар.
+// isAttack: действие бьёт врага, то есть шаг в его клетку или критический удар.
 func (g *Game) isAttack(action string) bool {
 	if len(action) == 2 && action[0] == 't' {
 		return true
@@ -463,7 +463,7 @@ func (g *Game) releaseQueuedAction() {
 func (g *Game) performAction(action string) {
 	attack := g.isAttack(action)
 	if g.paced && g.ticks < g.turnReady {
-		g.queuedAction, g.queuedAttack = action, attack // only the latest press waits
+		g.queuedAction, g.queuedAttack = action, attack // ждёт только последнее нажатие
 		return
 	}
 	g.queuedAction, g.queuedAttack = "", false

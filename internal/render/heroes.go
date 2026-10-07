@@ -14,7 +14,7 @@ func isHeroRole(role string) bool {
 	return false
 }
 
-// heroFrame preserves the animation index and leaves UI frames untouched.
+// heroFrame сохраняет индекс анимации и не трогает кадры интерфейса.
 func (s *Sprites) heroFrame(role string, tick int) (*ebiten.Image, bool) {
 	frames := s.worldHeroes[role]
 	if len(frames) == 0 {
@@ -23,8 +23,8 @@ func (s *Sprites) heroFrame(role string, tick int) (*ebiten.Image, bool) {
 	return frames[((tick%len(frames))+len(frames))%len(frames)], true
 }
 
-// Mirror the padded frame as a whole. Compensating for bottom padding keeps
-// the original feet and horizontal centre anchored even for odd-width frames.
+// Зеркалим кадр с полями целиком. Поправка на нижнее поле держит
+// исходные ноги и горизонтальный центр на месте даже у кадров нечётной ширины.
 func heroDrawOptions(size image.Point, x, y, camX, camY, facing int, outlined bool) *ebiten.DrawImageOptions {
 	op := &ebiten.DrawImageOptions{}
 	pad := 0

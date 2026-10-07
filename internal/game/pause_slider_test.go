@@ -19,7 +19,7 @@ func TestPauseSlidersKeyboardPointerAndDrag(t *testing.T) {
 		session, stats, actions := g.session, g.session.Stats, g.session.Actions()
 		g.runTicket = "preserved"
 		g.HandleKey(ebiten.KeyQ)
-		g.HandleKey(ebiten.KeyRight) // RESUME is not a slider.
+		g.HandleKey(ebiten.KeyRight) // ПРОДОЛЖИТЬ не ползунок.
 		if g.audio.Settings() != (sound.Settings{}) {
 			t.Fatal("non-slider selection changed volume")
 		}

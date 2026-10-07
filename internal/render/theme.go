@@ -19,10 +19,10 @@ var (
 	uiSecondary = color.RGBA{224, 207, 185, 255}
 	uiAccent    = color.RGBA{255, 112, 24, 255}
 	uiDanger    = color.RGBA{220, 48, 48, 255}
-	uiDebuff    = color.RGBA{163, 92, 255, 255} // sleep: bright violet, apart from PARRY blue and Bloodseeker lilac
+	uiDebuff    = color.RGBA{163, 92, 255, 255} // сон: ярко-фиолетовый, отдельно от синего БЛОКА и сиреневого Bloodseeker
 	uiRecess    = color.RGBA{18, 17, 16, 255}
 	uiPressed   = color.RGBA{65, 33, 17, 255}
-	// The Clarity shield: a cool grey, like a shield on a Dota 2 health bar.
+	// Щит Clarity: холодный серый, как щит на полосе здоровья в Dota 2.
 	uiShield      = color.RGBA{148, 155, 164, 255}
 	uiShieldLight = color.RGBA{204, 209, 216, 255}
 )
@@ -34,7 +34,7 @@ func (r *Renderer) secondaryFace() text.Face {
 	return r.Fonts.UI
 }
 
-// Secondary captions share readable type and warm contrast with the menu theme.
+// Второстепенные подписи используют читаемый шрифт и тёплый контраст темы меню.
 func (r *Renderer) secondaryCaption(dst *ebiten.Image, label string, y float64) {
 	face := r.secondaryFace()
 	lineH := TextWidth("M", face) + 6
@@ -46,7 +46,7 @@ func (r *Renderer) secondaryCaption(dst *ebiten.Image, label string, y float64) 
 	}
 }
 
-// The small stone tile is generated once; panels reuse it without per-frame uploads.
+// Маленькая каменная плитка генерируется один раз; панели переиспользуют её без загрузок в каждом кадре.
 func (r *Renderer) stonePanel(dst *ebiten.Image, box image.Rectangle) {
 	if r.uiStone == nil {
 		tile := image.NewRGBA(image.Rect(0, 0, 96, 96))
@@ -55,7 +55,7 @@ func (r *Renderer) stonePanel(dst *ebiten.Image, box image.Rectangle) {
 				h := uint32(x/2+1)*374761393 + uint32(y/2+1)*668265263
 				h = (h ^ (h >> 13)) * 1274126177
 				n := uint8(h % 4)
-				// Subtle diagonal stone seams, periodic across tile boundaries.
+				// Тонкие диагональные швы камня, периодичные через границы плиток.
 				if (x+y)%32 == 0 {
 					n += 5
 				}
@@ -125,7 +125,7 @@ func strokeBox(dst *ebiten.Image, box image.Rectangle, width float32, clr color.
 
 func boxCenter(box image.Rectangle) image.Point { return box.Min.Add(image.Pt(box.Dx()/2, box.Dy()/2)) }
 
-// fitLabel truncates at rune boundaries, keeping every HUD field inside its own area.
+// fitLabel обрезает по границам рун, удерживая каждое поле HUD в его области.
 func fitLabel(s string, face text.Face, width float64) string {
 	if TextWidth(s, face) <= width {
 		return s

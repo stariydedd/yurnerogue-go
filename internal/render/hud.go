@@ -14,10 +14,10 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/domain"
 )
 
-// hudCache keeps the HUD drawn for one game state. Its panels are vector
-// strokes and shaped text, too slow to rebuild every frame on a weak machine:
-// the long frames starved the browser audio buffer. Only the portrait is
-// animated, so it is drawn on top every frame.
+// hudCache хранит HUD, нарисованный для одного состояния игры. Его панели из векторных
+// линий и сформированного текста слишком медленно перестраивать каждый кадр на слабой машине:
+// длинные кадры морили голодом звуковой буфер браузера. Анимирован только
+// портрет, поэтому он рисуется поверх каждый кадр.
 type hudCache struct {
 	key      uint64
 	drawn    bool
@@ -26,8 +26,8 @@ type hudCache struct {
 	caching  bool
 }
 
-// hudHash is an FNV-1a hash that takes the HUD's fields without formatting
-// them into a string every frame.
+// hudHash: хеш FNV-1a, который принимает поля HUD, не форматируя их
+// в строку каждый кадр.
 type hudHash uint64
 
 func (h *hudHash) int(v int) {
@@ -51,8 +51,8 @@ func (h *hudHash) str(s string) {
 	}
 }
 
-// hudKey hashes everything the HUD shows. A state that changes the HUD must
-// change this key, or the HUD would stay stale.
+// hudKey хеширует всё, что показывает HUD. Состояние, меняющее HUD, должно
+// менять этот ключ, иначе HUD останется устаревшим.
 func (r *Renderer) hudKey(s *domain.Session) uint64 {
 	p, l := s.Player, r.Layout
 	h := hudHash(14695981039346656037)
@@ -240,9 +240,9 @@ func healthBarColors(p *domain.Person) (fill, highlight, edge color.RGBA) {
 	return uiAccent, uiHighlight, uiEdge
 }
 
-// drawHPBar fills the bar with health and, after it, the Clarity shield in
-// grey. When health and shield together pass the maximum, the bar spans
-// them both, so the shield always shows.
+// drawHPBar заполняет полосу здоровьем, а после него серым щитом Clarity.
+// Если здоровье и щит вместе больше максимума, полоса растягивается
+// на оба, чтобы щит был виден всегда.
 func (r *Renderer) drawHPBar(dst *ebiten.Image, p *domain.Person, box image.Rectangle) {
 	fillBox(dst, box, uiInk)
 	inner := box.Inset(3)
@@ -306,7 +306,7 @@ func (r *Renderer) itemSlot(dst *ebiten.Image, box image.Rectangle, control stri
 	}
 }
 
-// Stack bonuses by stat. The timer is the next expiry, when that total changes.
+// Складываем бонусы по характеристике. Таймер показывает ближайшее истечение, когда сумма меняется.
 func statusBonuses(p *domain.Person) []domain.EffectStatus {
 	var bonuses []domain.EffectStatus
 	effects := p.EffectStatuses()
@@ -355,7 +355,7 @@ type hudEffect struct {
 
 func (r *Renderer) hudEffects(p *domain.Person) []hudEffect {
 	var effects []hudEffect
-	// Sleep comes first so it remains visible even when the status row is crowded.
+	// Сон идёт первым, чтобы оставаться видимым даже в переполненной строке статуса.
 	if p.Sleeping && p.SleepTurns > 0 {
 		effects = append(effects, hudEffect{r.tr("SLEEP"), fmt.Sprintf(r.tr("%dT"), p.SleepTurns), uiDebuff})
 	}
@@ -366,22 +366,22 @@ func (r *Renderer) hudEffects(p *domain.Person) []hudEffect {
 	return effects
 }
 
-// bonusParts splits a bonus into the stat and amount ("STR +3") and the
-// remaining turns ("20T"), translated for the current language.
+// bonusParts делит бонус на характеристику с величиной ("STR +3") и
+// оставшиеся ходы ("20T"), переведённые на текущий язык.
 func (r *Renderer) bonusParts(bonus domain.EffectStatus) (string, string) {
 	return fmt.Sprintf("%s %+d", r.tr(bonusStatLabel(bonus.Stat, true)), bonus.Amount),
 		fmt.Sprintf(r.tr("%dT"), bonus.TurnsLeft)
 }
 
-// drawBonus is the single bonus style of both HUDs: stat and amount in the
-// bonus colour, turns in the text colour. Returns the drawn width.
+// drawBonus: единый стиль бонуса в обоих HUD; характеристика и величина
+// цветом бонуса, ходы цветом текста. Возвращает нарисованную ширину.
 func (r *Renderer) drawBonus(dst *ebiten.Image, bonus domain.EffectStatus, x, y, width float64) float64 {
 	head, turns := r.bonusParts(bonus)
 	return r.drawEffect(dst, head, turns, x, y, width, bonusTint(bonus.Stat))
 }
 
-// bonusTint colours a bonus: the shield in its bar grey, stat buffs in the
-// accent colour.
+// bonusTint красит бонус: щит серым, как его часть полосы, баффы характеристик
+// цветом акцента.
 func bonusTint(stat domain.ItemSubType) color.RGBA {
 	if stat == domain.SubHealth {
 		return uiShield
@@ -405,7 +405,7 @@ func weaponLabel(p *domain.Person) string {
 	if p.Weapon == nil {
 		return domain.BaseWeaponName
 	}
-	return p.Weapon.Name // the name already shows how strong it is
+	return p.Weapon.Name // название уже показывает, насколько оно сильное
 }
 
 func wrapText(s string, maxChars int) []string {

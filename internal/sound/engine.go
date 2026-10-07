@@ -11,16 +11,16 @@ import (
 
 type Settings struct{ Music, Effects int }
 
-// Reserve mixer headroom even with every voice at full volume.
+// Оставляем запас микшеру даже при всех голосах на полной громкости.
 const masterGain = 0.85
 const musicGain, effectsGain = 0.30 * masterGain, 0.20 * masterGain
 const maxVoices = 4
 
-// Player.Play fills the whole player buffer on the game thread before it
-// returns, 0.5 s by default. The browser audio worklet keeps only about 46 ms
-// at 44.1 kHz, so on a slow machine that fill starved the mix and cut the
-// music at every effect. Effects start with a short buffer instead; the mixer
-// tops it up in the background.
+// Player.Play заполняет весь буфер плеера в игровом потоке, прежде чем вернуться,
+// по умолчанию 0,5 с. Звуковой worklet браузера держит лишь около 46 мс
+// при 44,1 кГц, поэтому на медленной машине это заполнение морило микс голодом
+// и обрывало музыку на каждом эффекте. Эффекты стартуют с коротким буфером;
+// микшер доливает его в фоне.
 const voiceBuffer = 100 * time.Millisecond
 
 func Defaults() Settings { return Settings{Music: 25, Effects: 75} }
@@ -37,9 +37,9 @@ type bank struct {
 	misses      [missVariants][]byte
 }
 
-// toFloat32 converts every effect clip once at load, so starting a voice
-// copies ready float32 samples instead of converting 16-bit PCM on the game
-// thread. Music keeps 16-bit: it loops from the start and is twice as large.
+// toFloat32 один раз при загрузке переводит каждый клип эффекта, чтобы запуск голоса
+// копировал готовые float32-отсчёты, а не переводил 16-битный PCM в игровом
+// потоке. Музыка остаётся 16-битной: она играет по кругу и вдвое больше.
 func (b *bank) toFloat32() {
 	convert := func(clip *[]byte) { *clip = float32PCM(*clip) }
 	for c := range b.cues {
@@ -58,7 +58,7 @@ func (b *bank) toFloat32() {
 	}
 }
 
-// float32PCM turns 16-bit little-endian PCM into float32 little-endian PCM.
+// float32PCM превращает 16-битный little-endian PCM в float32 little-endian PCM.
 func float32PCM(pcm []byte) []byte {
 	out := make([]byte, len(pcm)/2*4)
 	for i := 0; i+1 < len(pcm); i += 2 {
@@ -84,13 +84,13 @@ type Engine struct {
 	lastStepTick int
 	stepPlayed   bool
 	silent       bool
-	// quietUntil keeps the music out until the victory fanfare or the death
-	// dirge ends, even if the player leaves the results screen before that.
+	// quietUntil не пускает музыку, пока не закончится фанфара победы или мелодия
+	// смерти, даже если игрок раньше ушёл с экрана итогов.
 	quietUntil int
 }
 
-// SilenceMusic fades the music out quickly and keeps it out, for the results
-// of a run; false lets it fade back in at the usual pace.
+// SilenceMusic быстро убирает музыку и держит её выключенной на экране итогов
+// забега; false даёт ей вернуться с обычной скоростью.
 func (e *Engine) SilenceMusic(on bool) {
 	if e != nil {
 		e.silent = on
@@ -167,7 +167,7 @@ func (e *Engine) SetVolume(music bool, value int) {
 	}
 }
 
-// Update runs on the game thread; generation does not touch players or settings.
+// Update выполняется в игровом потоке; генерация не трогает плееры и настройки.
 func (e *Engine) Update(exploring, focused bool) {
 	if e == nil {
 		return
@@ -183,15 +183,15 @@ func (e *Engine) Update(exploring, focused bool) {
 					p.SetVolume(0)
 				}
 			}
-			// The tracks own their samples now; the bank copy would only weigh
-			// on the garbage collector.
+			// Теперь сэмплы принадлежат трекам; копия в банке только нагружала бы
+			// сборщик мусора.
 			e.bank.menu, e.bank.world = nil, nil
 		default:
 			return
 		}
 	}
 	if !focused {
-		e.quietUntil = 0 // unfocused voices are closed: the fanfare is gone
+		e.quietUntil = 0 // без фокуса голоса закрыты: фанфары больше нет
 	}
 	for i, p := range e.tracks {
 		if p == nil {
@@ -209,7 +209,7 @@ func (e *Engine) Update(exploring, focused bool) {
 			target = float64(e.settings.Music) / 100
 		}
 		if e.silent || e.tick < e.quietUntil {
-			target, step = 0, 0.05 // out in about a third of a second
+			target, step = 0, 0.05 // затихает примерно за треть секунды
 		}
 		e.mix[i] += math.Max(-step, math.Min(step, target-e.mix[i]))
 		if e.settings.Music == 0 {
@@ -236,12 +236,12 @@ func (e *Engine) Play(c Cue) {
 		return
 	}
 	if (c == Victory || c == Death) && len(e.bank.cues[c]) > 0 {
-		e.quietFor(c) // only for a cue that actually starts
+		e.quietFor(c) // только для звука, который действительно запускается
 	}
 	data := e.bank.cues[c]
 	if c == Critical {
-		// A Critical Strike is a regular attack recording (same no-repeat bag
-		// as ordinary hits) with Blade Dance layered on top.
+		// Критический удар: обычная запись атаки (тот же мешок без повторов,
+		// что у обычных ударов) с наложенным Blade Dance.
 		e.last[c] = e.tick
 		e.startVoice(e.bank.attacks[e.attackBag.next(attackVariants)])
 		e.startVoice(data)
@@ -254,7 +254,7 @@ func (e *Engine) Play(c Cue) {
 		data = e.bank.misses[e.missBag.next(missVariants)]
 	}
 	if c == StepGrass || c == StepTrail {
-		// One cadence gate for both surfaces; skipped sounds don't consume a variant.
+		// Один ограничитель темпа для обеих поверхностей; пропущенные звуки не тратят вариант.
 		if e.stepPlayed && e.tick-e.lastStepTick < 6 {
 			return
 		}
@@ -284,8 +284,8 @@ func (e *Engine) startVoice(data []byte) {
 	e.voices = append(e.voices, p)
 }
 
-// quietFor keeps the music out for as long as the cue plays (float32 stereo
-// samples, 60 ticks a second).
+// quietFor не пускает музыку, пока звучит звук (стерео float32,
+// 60 тиков в секунду).
 func (e *Engine) quietFor(c Cue) {
 	frames := len(e.bank.cues[c]) / 8
 	e.quietUntil = e.tick + frames*60/SampleRate + 1

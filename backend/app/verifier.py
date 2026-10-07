@@ -1,4 +1,4 @@
-"""Fail-closed bridge to the same Go simulation compiled into the browser."""
+"""Мост к той же симуляции на Go, что собрана для браузера; при любой ошибке отказывает."""
 import json
 import os
 import subprocess
@@ -33,7 +33,7 @@ def verify(seed: str, actions: str) -> dict:
             raise HTTPException(422, "Invalid or unfinished replay")
         if result.returncode != 0:
             raise HTTPException(503, "Verification unavailable")
-        # Validate even trusted subprocess output before writing SQL INTEGERs.
+        # Проверяем даже доверенный вывод подпроцесса, прежде чем писать SQL INTEGER.
         return RunFields(**json.loads(result.stdout)).model_dump(exclude={"player_name"})
     except subprocess.TimeoutExpired:
         raise HTTPException(422, "Replay exceeded the verification time limit") from None

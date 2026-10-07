@@ -123,7 +123,7 @@ func TestStartFailuresKeepNameAndExplainRetry(t *testing.T) {
 		if g.state != StateNameEntry || g.session != nil || g.runTicket != "" || g.nameInput != "tester" || g.submitStatus == "" {
 			t.Fatalf("unsafe failed start: %+v", result)
 		}
-		// A subsequent successful attempt must clear the error and preserve its ticket.
+		// Следующая успешная попытка должна стереть ошибку и сохранить свой билет.
 		g.state = StateStarting
 		g.startResults = make(chan startResult, 1)
 		g.startResults <- startResult{ticket: leaderboard.Ticket{Ticket: "retry-ticket", Seed: "21", Version: domain.RulesVersion}}

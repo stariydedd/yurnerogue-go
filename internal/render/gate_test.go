@@ -34,7 +34,7 @@ func TestGateAlphaSoftLocalCutaway(t *testing.T) {
 
 func TestGateUnrevealedExitDoesNotDraw(t *testing.T) {
 	s := domain.NewSessionSeed(21)
-	// No sprites or destination: a hidden exit must return before using either.
+	// Ни спрайтов, ни назначения: скрытый выход должен вернуться раньше, чем использует их.
 	(&Renderer{}).drawGate(nil, s, domain.Visibility{}, 0, 0, 0)
 }
 

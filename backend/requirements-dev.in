@@ -1,5 +1,5 @@
-# Test tools on top of the runtime dependencies, at the same versions as
-# requirements.txt. See requirements.in for regenerating the lock.
+# Инструменты тестов поверх рабочих зависимостей, в тех же версиях, что и
+# requirements.txt. Как пересобрать списки, написано в requirements.in.
 -r requirements.in
 -c requirements.txt
 pytest>=8.0

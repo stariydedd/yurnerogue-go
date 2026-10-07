@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Walk towards the nearest enemy using only legal cardinal actions.
+// Идёт к ближайшему врагу только разрешёнными шагами по четырём направлениям.
 func testAction(s *Session) string {
 	if s.Player.Sleeping {
 		return "z"
@@ -48,7 +48,7 @@ func TestSeededSessionsReplayIndependently(t *testing.T) {
 			if err := s.ApplyAction(a); err != nil {
 				t.Fatal(err)
 			}
-			// Advance an unrelated generator between matching actions.
+			// Между одинаковыми действиями крутим посторонний генератор.
 			if i%100 == 0 {
 				NewSession()
 			}
@@ -103,7 +103,7 @@ func TestGoldenReplayMatchesServerOnEveryPlatform(t *testing.T) {
 func TestSeededFloorsAndInventoryAreDeterministic(t *testing.T) {
 	a, b := NewSessionSeed(777), NewSessionSeed(777)
 	for floor := 1; floor <= MaxLevels; floor++ {
-		// Include item rolls derived from stats and weapon replacement/drop.
+		// Включаем броски предметов, зависящие от характеристик, и замену или выброс оружия.
 		for _, s := range []*Session{a, b} {
 			s.Player.Backpack = append(s.Player.Backpack, NewFood(s.Player, 1), NewElixir(s.Player, 1), NewScroll(s.Player, 1), NewWeapon(1, s.Player.rng), NewWeapon(1, s.Player.rng))
 			for _, action := range []string{"j0", "k0", "e0", "h1", "h1", "h0", "W", "D", "S", "A"} {
@@ -112,8 +112,8 @@ func TestSeededFloorsAndInventoryAreDeterministic(t *testing.T) {
 				}
 			}
 		}
-		// JSON intentionally excludes RNG internals; compare generated geometry,
-		// monsters and items instead of pointer identity.
+		// JSON намеренно не содержит внутренностей RNG; сравниваем сгенерированную
+		// геометрию, врагов и предметы, а не идентичность указателей.
 		snapshot := func(s *Session) string {
 			data, err := json.Marshal([]any{s.Player, s.Stats, s.Level.Rooms, s.Level.Passages, s.Level.Items, s.Level.Exit})
 			if err != nil {

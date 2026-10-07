@@ -1,5 +1,5 @@
-// verifier replays one bounded request in an isolated process. It has no
-// database, HTTP listener or client-supplied code, only the shared game rules.
+// verifier повторяет один ограниченный запрос в отдельном процессе. У него нет
+// базы, HTTP-сервера и кода от клиента, только общие правила игры.
 package main
 
 import (

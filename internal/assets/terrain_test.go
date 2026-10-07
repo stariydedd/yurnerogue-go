@@ -44,8 +44,8 @@ func TestRadiantTerrainSheets(t *testing.T) {
 						if a == 0 {
 							transparent++
 						}
-						// Generated cutouts retain slightly translucent edge/interior
-						// pixels; terrain itself must remain fully opaque.
+						// Сгенерированные вырезки сохраняют слегка прозрачные пиксели по краям
+						// и внутри; сама местность должна оставаться полностью непрозрачной.
 						if a == 65535 || (plant && a >= 240*257) {
 							solid++
 						}

@@ -16,13 +16,13 @@ from app.verifier import rules_version, verify
 router = APIRouter(prefix="/api", tags=["leaderboard"])
 
 TICKET_LIFETIME = timedelta(hours=24)
-# Kept a while after expiry, so a late submission still hears "expired".
+# Хранится какое-то время после истечения, чтобы поздняя отправка всё ещё получала «истёк».
 EXPIRED_TICKET_GRACE = timedelta(hours=1)
 
 
 def drop_expired_tickets(db: Session, now: datetime) -> None:
-    """Every start adds a ticket, and abandoned runs never use theirs. Tickets
-    of submitted runs stay: they hold the name the run was played under."""
+    """Каждый старт добавляет билет, а брошенные забеги свои не используют. Билеты
+    отправленных забегов остаются: в них имя, под которым забег сыгран."""
     db.execute(delete(RankedTicket).where(
         RankedTicket.expires_at < now - EXPIRED_TICKET_GRACE,
         ~exists().where(RankedResult.ticket_id == RankedTicket.id),
@@ -48,12 +48,12 @@ def result_out(run: Run) -> RunOut:
     return RunOut.model_validate(run)
 
 
-# The one leaderboard order: gold, then depth, then whoever finished first.
+# Единый порядок таблицы рекордов: золото, затем глубина, затем кто закончил раньше.
 LEADERBOARD_ORDER = (desc(Run.treasures), desc(Run.level), Run.id)
 
 
 def submitted_out(db: Session, run: Run) -> RunSubmitted:
-    """The run with its place in LEADERBOARD_ORDER and the gold of 10th place."""
+    """Забег с его местом в LEADERBOARD_ORDER и золотом 10-го места."""
     ahead = db.scalar(select(func.count()).select_from(Run).where(or_(
         Run.treasures > run.treasures,
         and_(Run.treasures == run.treasures, Run.level > run.level),
@@ -65,7 +65,7 @@ def submitted_out(db: Session, run: Run) -> RunSubmitted:
 
 @router.post("/runs", response_model=RunSubmitted, status_code=201)
 def submit_run(payload: RunSubmit, response: Response, db: Session = Depends(get_db)):
-    """Only server-recomputed terminal runs may create leaderboard records."""
+    """Записи в таблице рекордов создают только завершённые забеги, пересчитанные сервером."""
     key = str(payload.ticket)
     digest = sha256(payload.actions.encode("ascii")).hexdigest()
 
@@ -84,7 +84,7 @@ def submit_run(payload: RunSubmit, response: Response, db: Session = Depends(get
     ticket = db.get(RankedTicket, key)
     if ticket is None:
         raise HTTPException(404, "Unknown run ticket")
-    # SQLite returns naive datetimes; PostgreSQL preserves the UTC timezone.
+    # SQLite возвращает даты без часового пояса; PostgreSQL сохраняет UTC.
     expires = ticket.expires_at.replace(tzinfo=UTC)
     if expires <= datetime.now(UTC):
         raise HTTPException(410, "Run ticket expired")
@@ -99,8 +99,8 @@ def submit_run(payload: RunSubmit, response: Response, db: Session = Depends(get
         db.add(RankedResult(ticket_id=key, run_id=run.id, actions_hash=digest))
         db.commit()
     except IntegrityError:
-        # A racing request may have claimed the ticket. Roll back its extra
-        # score as well, and return only the already committed result.
+        # Параллельный запрос мог уже занять билет. Откатываем и его лишний
+        # результат и возвращаем только уже сохранённый.
         db.rollback()
         existing = replay()
         if existing is not None:
@@ -112,6 +112,6 @@ def submit_run(payload: RunSubmit, response: Response, db: Session = Depends(get
 
 @router.get("/leaderboard", response_model=list[RunOut])
 def get_leaderboard(limit: int = Query(default=10, ge=1, le=100), db: Session = Depends(get_db)):
-    """Legacy scores are trusted by owner decision; new writes require replay."""
+    """Старые результаты доверенные по решению владельца; новые записи требуют повтора."""
     stmt = select(Run).order_by(*LEADERBOARD_ORDER).limit(limit)
     return [result_out(run) for run in db.scalars(stmt)]

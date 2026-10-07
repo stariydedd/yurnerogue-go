@@ -66,13 +66,13 @@ func TestMusicWaitsForTheFanfareEvenIfTheScreenIsLeft(t *testing.T) {
 	setupTestSettingsStorage(t)
 	menu, world := &fakeTrack{}, &fakeTrack{}
 	b := &bank{}
-	b.cues[Victory] = make([]byte, 4*SampleRate*8) // four seconds of float32 stereo
+	b.cues[Victory] = make([]byte, 4*SampleRate*8) // четыре секунды стерео float32
 	e := &Engine{bank: b, tracks: [2]musicTrack{menu, world}, settings: Settings{Music: 100, Effects: 100}}
 	for i := 0; i < 300; i++ {
 		e.Update(true, true)
 	}
 	e.quietFor(Victory)
-	e.SilenceMusic(false) // straight back to the menu
+	e.SilenceMusic(false) // сразу обратно в меню
 	for i := 0; i < 3*60; i++ {
 		e.Update(false, true)
 	}
@@ -94,7 +94,7 @@ func TestLosingFocusDuringTheFanfareDoesNotLeaveSilence(t *testing.T) {
 	b.cues[Victory] = make([]byte, 4*SampleRate*8)
 	e := &Engine{bank: b, tracks: [2]musicTrack{menu, world}, settings: Settings{Music: 100, Effects: 100}}
 	e.quietFor(Victory)
-	e.Update(false, false) // alt-tab away: the fanfare voice closes
+	e.Update(false, false) // переключились на другое окно: голос фанфары закрывается
 	for i := 0; i < 60; i++ {
 		e.Update(false, true)
 	}

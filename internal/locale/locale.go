@@ -1,4 +1,4 @@
-// Package locale translates presentation text without changing simulation data.
+// Package locale переводит текст интерфейса, не меняя данных симуляции.
 package locale
 
 type Language string

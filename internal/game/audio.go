@@ -6,7 +6,7 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/sound"
 )
 
-// Only the interactive entry point enables audio; replay verification stays silent.
+// Звук включает только интерактивная точка входа; проверка повторов остаётся беззвучной.
 func (g *Game) EnableAudio() {
 	if g.audio == nil {
 		g.audio = sound.New()
@@ -51,8 +51,8 @@ func captureActionAudio(s *domain.Session) actionAudioSnapshot {
 		health += max(0, enemy.Health)
 	}
 	step := sound.StepGrass
-	// Same geometry as the renderer's PathCells, independent of items/enemies
-	// drawn over the floor and of which adjacent cells have been revealed.
+	// Та же геометрия, что у PathCells в рендерере, независимо от предметов и врагов
+	// поверх пола и от того, какие соседние клетки уже открыты.
 	if domain.IsCorridorCell(s.Player.X, s.Player.Y, s.Level.Rooms, s.Level.Passages) {
 		step = sound.StepTrail
 	}
@@ -69,8 +69,8 @@ func captureActionAudio(s *domain.Session) actionAudioSnapshot {
 
 func actionCues(before, after actionAudioSnapshot, action string) []sound.Cue {
 	var cues []sound.Cue
-	// RUN resolves multiple tiles instantly: emit one landing step, not a queued
-	// trail of sounds after the player has stopped. Teleports aren't footsteps.
+	// Бег проходит несколько клеток мгновенно: один звук приземления, а не очередь
+	// шагов после того, как игрок уже встал. Телепорты не шаги.
 	if after.level == before.level && after.stats.TilesMoved > before.stats.TilesMoved && after.position != before.position {
 		cues = append(cues, after.stepCue)
 	}
@@ -87,7 +87,7 @@ func actionCues(before, after actionAudioSnapshot, action string) []sound.Cue {
 		}
 		switch {
 		case hit && len(action) == 2 && action[0] == 't':
-			cues = append(cues, sound.Critical) // Blade Dance instead of an ordinary hit
+			cues = append(cues, sound.Critical) // Blade Dance вместо обычного удара
 		case hit:
 			cues = append(cues, sound.Hit)
 		default:
@@ -109,15 +109,15 @@ func actionCues(before, after actionAudioSnapshot, action string) []sound.Cue {
 	if after.stats.ScrollsRead > before.stats.ScrollsRead {
 		cues = append(cues, sound.Scroll)
 	}
-	// A parried hit clangs once per action, however many enemies were blocked.
+	// Парированный удар звенит один раз за действие, сколько бы врагов ни было заблокировано.
 	for _, event := range after.combat {
 		if event.Parried {
 			cues = append(cues, sound.Parry)
 			break
 		}
 	}
-	// Sound follows the log: a new name is a new weapon, the same name with a
-	// higher bonus is the same blade sharpened (even if a stronger copy replaced it).
+	// Звук следует за журналом: новое название означает новое оружие, то же название
+	// с большим бонусом означает заточку того же клинка (даже если его заменила более сильная копия).
 	if after.weaponName != before.weaponName {
 		cues = append(cues, sound.Equip)
 	} else if after.weaponBonus > before.weaponBonus {

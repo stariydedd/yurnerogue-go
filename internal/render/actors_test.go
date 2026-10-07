@@ -58,7 +58,7 @@ func TestWorldActorsSortAllEnemiesWithoutChangingSimulation(t *testing.T) {
 			t.Fatal("unstable render order")
 		}
 	}
-	// Rebuild after movement: the old draw order must not be cached.
+	// Перестраиваем после движения: старый порядок отрисовки не должен кешироваться.
 	enemies[0].Y = 7
 	vis.Visible[domain.Point{X: enemies[0].X, Y: 7}] = true
 	if worldActors(s, vis)[0].role != "pudge" {

@@ -1,4 +1,4 @@
-// Package sound mixes synthesized fantasy audio with embedded attack recordings.
+// Package sound смешивает синтезированный фэнтезийный звук со встроенными записями ударов.
 package sound
 
 import (
@@ -8,7 +8,7 @@ import (
 
 const SampleRate = 44100
 
-// Recorded reports whether a cue plays an embedded recording, not synthesis.
+// Recorded сообщает, играет ли звук встроенную запись, а не синтез.
 func Recorded(c Cue) bool {
 	return c == Hit || c == Swing || c == Parry || c == Critical
 }
@@ -38,17 +38,17 @@ const (
 	cueCount
 )
 
-// toneResync is how often, in samples, tone sets its oscillators and decays
-// exactly again.
+// toneResync: раз во сколько отсчётов tone заново точно выставляет осцилляторы
+// и затухания.
 const toneResync = 1024
 
-// tone adds one note to dst: a sine with two overtones under an envelope.
-// Every oscillator turns by a fixed rotation and every decay shrinks by a
-// fixed factor per sample, instead of calling math.Sin and math.Exp for each
-// one; they are set exactly again every toneResync samples, so rounding never
-// builds up. This is what lets the music be synthesized at the full rate.
+// tone добавляет в dst одну ноту: синус с двумя обертонами под огибающей.
+// Каждый осциллятор поворачивается на фиксированный угол, а каждое затухание
+// уменьшается на фиксированный множитель за отсчёт вместо вызовов math.Sin
+// и math.Exp для каждого; каждые toneResync отсчётов они выставляются точно,
+// и округление не копится. Это позволяет синтезировать музыку на полной частоте.
 //
-// All synthesis uses local deterministic state, never the game's random stream.
+// Весь синтез использует локальное детерминированное состояние, а не случайный поток игры.
 func tone(dst []float64, at, duration, hz, gain, attack float64, bell bool) {
 	ratios, weights, decays := [3]float64{1, 2, 3}, [3]float64{1, 0.22, 0.08}, [3]float64{}
 	if bell {
@@ -85,8 +85,8 @@ func tone(dst []float64, at, duration, hz, gain, attack float64, bell bool) {
 	}
 }
 
-// Music is a 32-second seamless bed of warm drones, harp-like notes and echoes.
-// The two related arrangements crossfade without an abrupt change of key.
+// Музыка: 32-секундная бесшовная подложка из тёплых гудящих тонов, арфовых нот и эха.
+// Две родственные аранжировки сменяют друг друга без резкой смены тональности.
 func music(exploring bool) []byte {
 	dst := make([]float64, 32*SampleRate)
 	roots := []float64{146.8324, 130.8128, 116.5409, 130.8128}
@@ -116,7 +116,7 @@ func effect(c Cue) []byte {
 		return footstep(c, 0)
 	}
 	if Recorded(c) {
-		return nil // The engine plays an embedded recording instead.
+		return nil // Движок вместо этого играет встроенную запись.
 	}
 	duration := 0.7
 	if c == Victory {
@@ -203,8 +203,8 @@ func pcmWithEcho(samples []float64, loop bool, echo float64) []byte {
 	return result
 }
 
-// whetstone: two quick scrapes of a blade on stone, then a rising metallic
-// ring, so sharpening never sounds like equipping or reading a scroll.
+// whetstone: два быстрых шарканья клинка по камню, затем поднимающийся металлический
+// звон, чтобы заточка не звучала как экипировка или чтение свитка.
 func whetstone(dst []float64) {
 	seed := uint32(4217)
 	for _, at := range []float64{0, 0.13} {
@@ -213,7 +213,7 @@ func whetstone(dst []float64) {
 		for i := 0; i < SampleRate*9/100 && start+i < len(dst); i++ {
 			seed = seed*1664525 + 1013904223
 			n := float64(seed>>8)/8388608 - 1
-			last = n - 0.55*last // brighter, hissing noise for the scrape
+			last = n - 0.55*last // более яркий шипящий шум для шарканья
 			t := float64(i) / SampleRate
 			env := smoothAttack(t, 0.012) * math.Exp(-26*t)
 			dst[start+i] += last * env * 0.32
@@ -223,10 +223,10 @@ func whetstone(dst []float64) {
 	tone(dst, 0.31, 0.38, 1318.51, 0.13, 0.006, true)
 }
 
-// victoryFanfare is the finale of a won run, about four seconds in D major,
-// the key of the forest music: a three-note call, a leap to the fifth, a
-// rising answer and a long high tonic over a brass chord, bass and a few
-// bell sparkles.
+// victoryFanfare: финал выигранного забега, около четырёх секунд в ре мажоре,
+// тональности лесной музыки: зов из трёх нот, скачок на квинту,
+// восходящий ответ и долгая высокая тоника над медным аккордом, басом и
+// несколькими искрами колокольчиков.
 func victoryFanfare() []float64 {
 	const (
 		d3, d4, fs4, a4 = 146.83, 293.66, 369.99, 440.0
@@ -235,20 +235,20 @@ func victoryFanfare() []float64 {
 		final           = 1.45
 	)
 	dst := make([]float64, int(4.4*SampleRate))
-	// Call and answer, with a brass tone rather than a bell.
+	// Зов и ответ медным тоном, а не колокольчиком.
 	for _, n := range []struct{ at, dur, hz float64 }{
 		{0, .12, d5}, {.14, .12, d5}, {.28, .12, d5}, {.42, .6, a5},
 		{1.05, .18, fs5}, {1.25, .18, a5}, {final, 2.8, d6},
 	} {
 		tone(dst, n.at, n.dur, n.hz, .15, .012, false)
 	}
-	// The chord and bass hold the final note.
+	// Аккорд и бас держат последнюю ноту.
 	tone(dst, 0, .9, d3, .10, .02, false)
 	for _, hz := range []float64{d4, fs4, a4} {
 		tone(dst, final, 2.8, hz, .06, .03, false)
 	}
 	tone(dst, final, 2.8, d3, .10, .03, false)
-	// Sparkles over the last chord.
+	// Искры над последним аккордом.
 	for i, hz := range []float64{d6, fs6, a6} {
 		tone(dst, final+.08+float64(i)*.09, 1.2, hz, .04, .004, true)
 	}

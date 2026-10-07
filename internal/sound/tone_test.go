@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// referenceTone is tone written out directly, one math.Sin and math.Exp per
-// partial per sample: the formula tone must keep matching.
+// referenceTone: tone, записанный напрямую, по одному math.Sin и math.Exp на обертон
+// на отсчёт; tone должен совпадать с этой формулой.
 func referenceTone(dst []float64, at, duration, hz, gain, attack float64, bell bool) {
 	for i := 0; i < int(duration*SampleRate); i++ {
 		t := float64(i) / SampleRate
@@ -28,10 +28,10 @@ func TestToneMatchesItsFormula(t *testing.T) {
 		at, duration, hz, gain, attack float64
 		bell                           bool
 	}{
-		{0, 12, 73.4162, 0.10, 2, false},  // a long music drone
-		{30.5, 4, 440, 0.11, 0.025, true}, // a harp note wrapping round the loop
+		{0, 12, 73.4162, 0.10, 2, false},  // долгий гудящий тон музыки
+		{30.5, 4, 440, 0.11, 0.025, true}, // арфовая нота, переходящая через конец петли
 		{0.24, 0.42, 987.77, 0.16, 0.006, true},
-		{1.45, 2.8, 1760, 0.06, 0.03, false}, // the fanfare's top note
+		{1.45, 2.8, 1760, 0.06, 0.03, false}, // верхняя нота фанфары
 	} {
 		got, want := make([]float64, 32*SampleRate), make([]float64, 32*SampleRate)
 		tone(got, n.at, n.duration, n.hz, n.gain, n.attack, n.bell)
@@ -40,7 +40,7 @@ func TestToneMatchesItsFormula(t *testing.T) {
 		for i := range got {
 			worst = max(worst, math.Abs(got[i]-want[i]))
 		}
-		// 1e-9 of full scale is far below a 16-bit sample step (3e-5).
+		// 1e-9 полной шкалы намного меньше шага 16-битного отсчёта (3e-5).
 		if worst > 1e-9 {
 			t.Errorf("%.2f Hz from %.2f s: off the formula by %g", n.hz, n.at, worst)
 		}

@@ -1,5 +1,5 @@
-// itempack mechanically trims and scales generated transparent item cutouts.
-// It preserves colours/alpha; it does not draw or remove backgrounds.
+// itempack механически обрезает и масштабирует сгенерированные прозрачные вырезки предметов.
+// Цвета и альфа сохраняются; фон он не рисует и не удаляет.
 package main
 
 import (
@@ -39,8 +39,8 @@ func fitSprite(src image.Image, width, height, padding int) (*image.NRGBA, error
 			if a == 0 {
 				transparent++
 			}
-			// Ignore faint outer glow when measuring the sprite, but do not
-			// change alpha values within the retained source rectangle.
+			// При измерении спрайта игнорируем слабое внешнее свечение, но не
+			// меняем альфу внутри сохраняемого прямоугольника исходника.
 			if a >= 128*257 {
 				silhouette = silhouette.Union(image.Rect(x, y, x+1, y+1))
 			}

@@ -1,17 +1,17 @@
 package domain
 
-// FogRadius — дальность обзора игрока в коридоре.
+// FogRadius: дальность обзора игрока в коридоре.
 const FogRadius = 8
 
-// Visibility — что игрок видит сейчас и что помнит.
+// Visibility: что игрок видит сейчас и что помнит.
 type Visibility struct {
-	// Visible — клетки, видимые целиком (пол, предметы, враги).
+	// Visible: клетки, видимые целиком (пол, предметы, враги).
 	Visible map[Point]bool
-	// Explored — клетки уже посещённых комнат: помнятся только стены.
+	// Explored: клетки уже посещённых комнат, от которых помнятся только стены.
 	Explored map[Point]bool
 }
 
-// bresenhamLine — клетки прямой между двумя точками.
+// bresenhamLine: клетки прямой между двумя точками.
 func bresenhamLine(x0, y0, x1, y1 int) []Point {
 	var cells []Point
 	dx, dy := abs(x1-x0), abs(y1-y0)
@@ -40,7 +40,7 @@ func bresenhamLine(x0, y0, x1, y1 int) []Point {
 	}
 }
 
-// fieldOfView — клетки в радиусе, до которых доходит луч: стены обзор
+// fieldOfView: клетки в радиусе, до которых доходит луч; стены обзор
 // останавливают, пустота обрывает луч.
 func fieldOfView(px, py int, grid Grid, radius int) map[Point]bool {
 	visible := map[Point]bool{}
@@ -69,7 +69,7 @@ func fieldOfView(px, py int, grid Grid, radius int) map[Point]bool {
 
 // ComputeVisibility обновляет список посещённых комнат и возвращает видимость.
 //
-// В комнате игрок видит её целиком вместе со стенами; в коридоре — только свой
+// В комнате игрок видит её целиком вместе со стенами; в коридоре только свой
 // коридор в пределах радиуса и двери рядом. Посещённые комнаты запоминаются
 // стенами, поэтому карта постепенно раскрывается.
 func (s *Session) ComputeVisibility(grid Grid) Visibility {
@@ -153,7 +153,7 @@ func (s *Session) ComputeVisibility(grid Grid) Visibility {
 	return vis
 }
 
-// playerCorridorCells — все клетки коридоров, в которых сейчас стоит игрок
+// playerCorridorCells: все клетки коридоров, в которых сейчас стоит игрок
 // (или к которым примыкает, стоя в проёме).
 func (s *Session) playerCorridorCells(px, py int) map[Point]bool {
 	cells := map[Point]bool{}

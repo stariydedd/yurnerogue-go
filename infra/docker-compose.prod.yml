@@ -32,7 +32,7 @@ services:
       PGUSER: rogue
       PGDATABASE: rogue
       PGPASSWORD: ${POSTGRES_PASSWORD}
-      # Password of the backend's role rogue_app (scripts/db-guard.sh).
+      # Пароль роли бэкенда rogue_app (scripts/db-guard.sh).
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:-}
     volumes:
       - ./scripts/:/scripts/:ro

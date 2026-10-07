@@ -17,8 +17,8 @@ import (
 // tileRoles масштабируются ровно в клетку, чтобы в сетке не было щелей.
 var tileRoles = map[string]bool{"floor": true}
 
-// Sprites — кадры по ролям. Имя файла задаёт роль: `<роль>.png` — статичный
-// спрайт, `<роль>.N.png` — N кадров анимации по горизонтали.
+// Sprites: кадры по ролям. Имя файла задаёт роль: `<роль>.png` означает статичный
+// спрайт, `<роль>.N.png` означает N кадров анимации по горизонтали.
 type Sprites struct {
 	frames        map[string][]*ebiten.Image
 	flipped       map[string][]*ebiten.Image
@@ -131,7 +131,7 @@ func (s *Sprites) Frame(role string, tick int) *ebiten.Image {
 	return frames[((tick%len(frames))+len(frames))%len(frames)]
 }
 
-// FrameFlipped — кадр, отражённый по горизонтали (персонаж смотрит влево).
+// FrameFlipped: кадр, отражённый по горизонтали (персонаж смотрит влево).
 // Зеркальные кадры считаются один раз и кэшируются.
 func (s *Sprites) FrameFlipped(role string, tick int) *ebiten.Image {
 	frames := s.frames[role]

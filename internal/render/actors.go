@@ -12,10 +12,10 @@ type worldActor struct {
 	opponent     *domain.Opponent
 }
 
-// Sort a render-only list by the ground anchor, not the top of the artwork.
-// All feet use (y+1)*TileSize, so row order is depth order regardless of sprite
-// height, outline padding, camera position or animation. Equal rows preserve
-// the existing enemy order, with the player last, to avoid arbitrary flicker.
+// Сортируем список только для отрисовки по точке опоры на земле, а не по верху картинки.
+// Все ноги стоят на (y+1)*TileSize, поэтому порядок строк это порядок глубины независимо от
+// высоты спрайта, поля обводки, позиции камеры и анимации. Равные строки сохраняют
+// прежний порядок врагов, игрок последним, чтобы не было случайного мерцания.
 func worldActors(s *domain.Session, vis domain.Visibility) []worldActor {
 	enemies := s.Level.AllOpponents()
 	actors := make([]worldActor, 0, len(enemies)+1)

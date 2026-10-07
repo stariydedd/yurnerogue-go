@@ -1,4 +1,4 @@
-// Команда game — точка входа YurneROGUE: нативное окно и WASM-сборка.
+// Команда game: точка входа YurneROGUE, нативное окно и WASM-сборка.
 package main
 
 import (
@@ -26,8 +26,8 @@ func main() {
 		ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	}
 	ebiten.SetWindowTitle("YurneROGUE")
-	// The game draws into its own surface and DrawFinalScreen shows it; the
-	// offscreen Ebitengine would clear every frame is never shown.
+	// Игра рисует в свою поверхность, и её показывает DrawFinalScreen; offscreen,
+	// который Ebitengine очищал бы каждый кадр, никогда не показывается.
 	ebiten.SetScreenClearedEveryFrame(false)
 	g := game.New(renderer)
 	g.EnableAudio()

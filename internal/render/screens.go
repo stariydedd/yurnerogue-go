@@ -14,16 +14,16 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/locale"
 )
 
-// Tagline — слоган под названием в главном меню.
+// Tagline: слоган под названием в главном меню.
 const Tagline = "Every strike may be the last"
 
-// MenuOption — пункт главного меню.
+// MenuOption: пункт главного меню.
 type MenuOption struct {
 	Label string
 	Key   string
 }
 
-// MainMenuOptions — состав главного меню.
+// MainMenuOptions: состав главного меню.
 var MainMenuOptions = []MenuOption{
 	{"PLAY", "new"},
 	{"LEADERBOARD", "scoreboard"},
@@ -32,16 +32,16 @@ var MainMenuOptions = []MenuOption{
 	{"SFX", "effects"},
 }
 
-// QuitOptions — выбор в диалоге выхода в меню.
+// QuitOptions: выбор в диалоге выхода в меню.
 var QuitOptions = []MenuOption{
 	{"MAIN MENU", "menu"},
 	{"CANCEL", "cancel"},
 }
 
-// backdrop — фон экранов меню: сплошной чёрный.
+// backdrop: фон экранов меню, сплошной чёрный.
 func (r *Renderer) backdrop(screen *ebiten.Image) { screen.Fill(Black) }
 
-// titleWithShadow uses the shared orange menu heading on both layouts.
+// titleWithShadow использует общий оранжевый заголовок меню в обеих раскладках.
 func (r *Renderer) titleWithShadow(screen *ebiten.Image, s string, y float64) {
 	s = r.tr(s)
 	face := r.Fonts.Title
@@ -54,7 +54,7 @@ func (r *Renderer) titleWithShadow(screen *ebiten.Image, s string, y float64) {
 	r.Text(screen, s, face, x, y, uiAccent)
 }
 
-// DrawMainMenu — заглавный экран с героем и списком пунктов.
+// DrawMainMenu: заглавный экран с героем и списком пунктов.
 func (r *Renderer) DrawMainMenu(screen *ebiten.Image, selected int, message string) {
 	r.drawMenuHeader(screen, message)
 	r.DrawLanguageControls(screen)
@@ -78,7 +78,7 @@ func NameEntryBounds(l Layout) image.Rectangle {
 	return image.Rect((l.ScreenW-w)/2, 420, (l.ScreenW+w)/2, 468)
 }
 
-// DrawNameEntry — экран ввода имени перед новой игрой.
+// DrawNameEntry: экран ввода имени перед новой игрой.
 func (r *Renderer) DrawNameEntry(screen *ebiten.Image, input string, status ...string) {
 	l := r.Layout
 	r.backdrop(screen)
@@ -117,8 +117,8 @@ var helpItems = []helpEntry{
 	{"portal", "Exit", "Descend deeper. Clear level 21 to win.", ""},
 }
 
-// Desktop bindings are drawn as keycaps like the HUD badges; abilities and
-// items show their HUD icon in a slot with the key under it.
+// На десктопе привязки рисуются клавишами, как значки в HUD; способности и
+// предметы показывают свой значок из HUD в слоте с клавишей под ним.
 var helpDesktopControls = []helpEntry{
 	{"", "Move", "Step into an enemy to attack. Hold to keep walking. Arrows work too.", "W/A S D"},
 	{"", "Run", "Then a direction: run until something blocks the way.", "R"},
@@ -169,7 +169,7 @@ func (r *Renderer) drawFitted(screen *ebiten.Image, role string, x, y, slot floa
 	screen.DrawImage(img, op)
 }
 
-// LeaderboardRecord — строка таблицы рекордов.
+// LeaderboardRecord: строка таблицы рекордов.
 type LeaderboardRecord struct {
 	PlayerName    string
 	Treasures     int
@@ -205,7 +205,7 @@ func playerLabel(name string) string {
 	return name
 }
 
-// DrawEndScreen — экран смерти или победы.
+// DrawEndScreen: экран смерти или победы.
 func (r *Renderer) DrawEndScreen(screen *ebiten.Image, title, submitStatus string) {
 	l := r.Layout
 	r.backdrop(screen)
@@ -228,7 +228,7 @@ func (r *Renderer) statusLines(status string, face text.Face) []string {
 	return wrapText(status, maxChars)
 }
 
-// DrawItemMenu — список предметов поверх нижней части поля.
+// DrawItemMenu: список предметов поверх нижней части поля.
 func (r *Renderer) DrawItemMenu(screen *ebiten.Image, items []*domain.Item, selected int) {
 	l := r.Layout
 
@@ -253,7 +253,7 @@ func (r *Renderer) DrawItemMenu(screen *ebiten.Image, items []*domain.Item, sele
 		if i == selected {
 			prefix, clr = "> ", uiAccent
 		}
-		// На тач-экране цифровые префиксы бессмысленны — клавиатуры нет.
+		// На тач-экране цифровые префиксы бессмысленны: клавиатуры нет.
 		if !l.Touch {
 			line = strconv.Itoa(i+1) + ": " + line
 		}
@@ -267,7 +267,7 @@ func QuitDialogBounds(l Layout) image.Rectangle {
 	return image.Rect(x, y, x+w, y+h)
 }
 
-// DrawQuitDialog — подтверждение выхода в главное меню.
+// DrawQuitDialog: подтверждение выхода в главное меню.
 func (r *Renderer) DrawQuitDialog(screen *ebiten.Image, selected int) {
 	r.dimScreen(screen)
 	box := QuitDialogBounds(r.Layout)

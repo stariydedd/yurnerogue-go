@@ -1,6 +1,6 @@
-# Public SSH host keys of the production server, for deploy and backup jobs.
-# The workflows prefix each line with DEPLOY_HOST and refuse any other key.
-# After the server is reinstalled or replaced, put its new keys here.
+# Публичные SSH-ключи хоста продового сервера для деплоя и бэкапа.
+# Workflow подставляют перед каждой строкой DEPLOY_HOST и отвергают любой другой ключ.
+# После переустановки или замены сервера положите сюда его новые ключи.
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMoYhOSJCoOI9kr3d9M0IsjeQ2m3ffZceaDfnBpOvhfa
 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKCwtrLGre4RwbT6we3h8ernObF07xrMK4WAq7MlPYXwwhZ4h5OS7WBGF09YQXmsl84NuSwBmkSBAbrbu5cWXffzd3X5Rd3AUjC6cFaSu/Gkw7+PdGRebO90cfCYE2bxqd0B5coytdNtIZdpugh9zyGTaLmY8QEyhkdM0Y+R1Yc+VwG5McM1Y0yi7sa6ZRxX3pB2S/eTniRNwXAtrrcZ3+osdcV6d1KFXyA1vkw/+zShhYW++GOufOp5zxqcYObP6erYD8F5Jox1UlDy+sGMqDfqE9W2ImdzVXZTwk+OJRXqWbgsrTD9JkEnO5HXmDcTDGiCw+AceoGUSPQJ1LaqsgeC7NJKGhQE2RtMO5pY1s44yEz41y7JSdknOWWp46IyoOiAMqIPooHBM5Pf0pUOZ93P/sqIjZgcQgiHcPTQzOSD+ESlQaMVA2s9hnHu3G8ZBVVl7oqd01btWna/iHpUSiMibYuLuwCe9EW6ruk9QpQijj3pppcgf3MFm45EtWQTs=
 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBOs6WAsIGKzKL2iCTgnD1+mwJjOIgBTAO07XoohnadC9zZgPEQ0IrmyMz2/Icuf8kF2qX3GQJGBCQ8fQ+eby8Tk=

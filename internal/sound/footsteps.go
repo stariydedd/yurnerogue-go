@@ -4,8 +4,8 @@ import "math"
 
 const stepVariants = 4
 
-// Each sound family has its own shuffle bag, independent of simulation randomness.
-// The boundary between bags also excludes the last played variant.
+// У каждого семейства звуков свой перемешанный мешок, независимый от случайностей симуляции.
+// На стыке мешков тоже исключается последний сыгранный вариант.
 type variantBag struct {
 	bag             [stepVariants]int
 	remaining, last int
@@ -41,8 +41,8 @@ func (b *variantBag) next(count int) int {
 	return b.last
 }
 
-// Heel, sole and a short scuff form one step; no long reverberation on grass
-// or outdoor trails. Variants change noise, weight and the sole's timing.
+// Пятка, подошва и короткое шарканье дают один шаг; без длинной реверберации
+// на траве и тропах. Варианты меняют шум, вес и тайминг подошвы.
 func footstep(c Cue, variant int) []byte {
 	const duration = 0.24
 	dst := make([]float64, int(duration*SampleRate))
@@ -63,11 +63,11 @@ func footstep(c Cue, variant int) []byte {
 		}
 		weight := math.Sin(2*math.Pi*float64(78+variant*9)*t) * heel * 0.12
 		if c == StepGrass {
-			// Soft compression with a longer, irregular foliage rustle.
+			// Мягкое сжатие и более длинный неровный шорох листвы.
 			rustle := (smooth - low) * (0.55 + 0.3*math.Sin(2*math.Pi*float64(31+variant*5)*t))
 			dst[i] = weight + low*heel*0.9 + rustle*(heel*0.18+sole*0.55)
 		} else {
-			// A firm contact followed by the scrape of grit under the sole.
+			// Твёрдый контакт, за ним скрежет песка под подошвой.
 			grit := (noise - smooth) * (heel*0.65 + sole*0.22)
 			dst[i] = weight*1.4 + smooth*heel*0.5 + grit
 		}

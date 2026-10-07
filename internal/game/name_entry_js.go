@@ -9,8 +9,8 @@ import (
 	"github.com/stariydedd/yurnerogue-go/internal/render"
 )
 
-// A real DOM input receives the original tap, so Safari can open its keyboard.
-// Polling values avoids Go callbacks running inside a browser event handler.
+// Настоящий DOM input получает исходное касание, поэтому Safari может открыть клавиатуру.
+// Опрос значений избавляет от Go-колбэков, выполняющихся внутри обработчика событий браузера.
 func (g *Game) syncBrowserNameEntry() bool {
 	bridge := js.Global().Get("yurneNameEntry")
 	if !bridge.Truthy() {

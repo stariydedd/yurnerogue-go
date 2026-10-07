@@ -2,10 +2,10 @@ package domain
 
 import "math/rand"
 
-// BaseWeaponName is the permanent starter, represented by no equipped upgrade.
+// BaseWeaponName: постоянный стартовый клинок; он означает, что улучшения в руках нет.
 const BaseWeaponName = "Quelling Blade"
 
-// ItemType — категория предмета.
+// ItemType: категория предмета.
 type ItemType int
 
 const (
@@ -17,7 +17,7 @@ const (
 	ItemWeapon
 )
 
-// ItemSubType — какую характеристику меняет эликсир или свиток.
+// ItemSubType: какую характеристику меняет эликсир или свиток.
 type ItemSubType int
 
 const (
@@ -27,7 +27,7 @@ const (
 	SubHealth
 )
 
-// Item — предмет: еда, эликсир, свиток, оружие или сокровище.
+// Item: предмет; еда, эликсир, свиток, оружие или сокровище.
 type Item struct {
 	Type    ItemType
 	SubType ItemSubType
@@ -75,8 +75,8 @@ var (
 		"Mystic Scroll",
 		"Ancient Scroll",
 	}
-	// weaponNames go from cheapest to most expensive Dota 2 item (approximate
-	// gold cost); each name covers an equal slice of the +1..+50 bonus range.
+	// weaponNames идут от самого дешёвого предмета Dota 2 к самому дорогому (по примерной
+	// цене в золоте); каждое название покрывает равную долю бонусов от +1 до +50.
 	weaponNames = []string{
 		"Crystalys",      // ~2000
 		"Yasha",          // ~2050
@@ -144,7 +144,7 @@ func NewElixir(player *Person, level int) *Item {
 	return it
 }
 
-// NewScroll — постоянный бафф к одной из характеристик.
+// NewScroll: постоянный бафф к одной из характеристик.
 func NewScroll(player *Person, level int) *Item {
 	it := &Item{Type: ItemScroll, Name: pick(scrollNames, player.rng)}
 	applyStatRoll(it, player, level, 1)
@@ -206,7 +206,7 @@ func WeaponName(bonus int) string {
 	return weaponNames[clamp((bonus-1)/step, 0, len(weaponNames)-1)]
 }
 
-// StatLabel — приписка к сообщению об использовании предмета, например " [+3 STR]".
+// StatLabel: приписка к сообщению об использовании предмета, например " [+3 STR]".
 // У оружия приписки нет: его сила видна по названию.
 func (it *Item) StatLabel() string {
 	if it.Type == ItemWeapon {

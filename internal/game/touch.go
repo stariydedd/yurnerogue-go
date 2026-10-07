@@ -20,12 +20,12 @@ const (
 type touchInput struct {
 	controls *render.Controls
 
-	// pressed — какой контрол держит каждый палец (или мышь с id -1).
+	// pressed: какой контрол держит каждый палец (или мышь с id -1).
 	pressed map[ebiten.TouchID]string
-	// repeatControl и repeatAt — автоповтор зажатой крестовины.
+	// repeatControl и repeatAt: автоповтор зажатой крестовины.
 	repeatControl string
 	repeatAt      int
-	// repeated — последний контрол update пришёл из автоповтора.
+	// repeated: последний контрол update пришёл из автоповтора.
 	repeated bool
 	ticks    int
 }
@@ -40,7 +40,7 @@ func (t *touchInput) reset() {
 	t.repeatAt = 0
 }
 
-// mouseID — псевдопалец для мыши: так тач-раскладку можно щёлкать на десктопе.
+// mouseID: псевдопалец для мыши, чтобы тач-раскладку можно было щёлкать на десктопе.
 const mouseID ebiten.TouchID = -1
 
 // update обрабатывает касания и возвращает контролы, которые надо «нажать».
@@ -52,8 +52,8 @@ func (t *touchInput) update(g *Game) []string {
 	}
 	if _, menu := menuPage(g.state); menu {
 		t.reset()
-		// Process only one pointer: no second finger or synthetic mouse click
-		// may activate another screen during the same tick.
+		// Обрабатываем только один указатель: второй палец или синтетический щелчок мыши
+		// не должны активировать другой экран в том же тике.
 		if ids := inpututil.AppendJustPressedTouchIDs(nil); len(ids) > 0 {
 			g.handleMenuPointer(g.toLogical(ebiten.TouchPosition(ids[0])))
 		} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
@@ -177,13 +177,13 @@ func keyForControl(control string, state State) ebiten.Key {
 		}
 		return ebiten.KeyZ
 	case render.CtrlSelect:
-		// В игре Enter не нужен — кнопка открывает справку.
+		// В игре Enter не нужен: кнопка открывает справку.
 		if state == StatePlaying {
 			return ebiten.KeyF1
 		}
 		return ebiten.KeyEnter
 	case render.CtrlMenu:
-		// В диалогах MENU означает «отмена», иначе — выход в меню.
+		// В диалогах MENU означает «отмена», иначе выход в меню.
 		switch state {
 		case StateItemMenu, StateQuitDialog, StateNameEntry:
 			return ebiten.KeyEscape
@@ -197,7 +197,7 @@ func runControlVisible(state State) bool {
 	return state == StatePlaying
 }
 
-// selectLabel — подпись контекстной кнопки для текущего экрана.
+// selectLabel: подпись контекстной кнопки для текущего экрана.
 func selectLabel(state State) render.SelectLabel {
 	switch state {
 	case StatePlaying:

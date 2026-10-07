@@ -17,7 +17,7 @@ const (
 	ViewRows = 22
 )
 
-// Layout — размеры кадра. Меняется на портретную «консоль» на тач-устройствах,
+// Layout: размеры кадра. Меняется на портретную «консоль» на тач-устройствах,
 // поэтому рендер берёт значения отсюда, а не из констант.
 type Layout struct {
 	Language         locale.Language
@@ -28,7 +28,7 @@ type Layout struct {
 	Touch            bool
 }
 
-// DesktopLayout — раскладка с клавиатурой: поле 40x22 тайла и панель снизу.
+// DesktopLayout: раскладка с клавиатурой, поле 40x22 тайла и панель снизу.
 func DesktopLayout() Layout {
 	gridW, gridH := ViewCols*TileSize, ViewRows*TileSize
 	panelH := 128
@@ -41,8 +41,8 @@ func DesktopLayout() Layout {
 	}
 }
 
-// DesktopLayoutForSize expands the viewport instead of distorting a fixed
-// frame. Keep the reference HUD/menu size and fit it with one uniform scale.
+// DesktopLayoutForSize расширяет область просмотра, а не искажает фиксированный
+// кадр. Эталонный размер HUD и меню сохраняется и вписывается одним общим масштабом.
 func DesktopLayoutForSize(width, height int) Layout {
 	l := DesktopLayout()
 	if width <= 0 || height <= 0 {
@@ -55,7 +55,7 @@ func DesktopLayoutForSize(width, height int) Layout {
 	return l
 }
 
-// TouchLayout — портретная раскладка в стиле ретро-консоли: карта сверху,
+// TouchLayout: портретная раскладка в стиле ретро-консоли; карта сверху,
 // статус-панель, снизу экранные кнопки. Высота повторяет пропорции окна,
 // чтобы канвас не растягивало.
 func TouchLayout(windowW, windowH int) Layout {
@@ -82,8 +82,8 @@ func TouchLayout(windowW, windowH int) Layout {
 	}
 }
 
-// GridTop — верхняя граница статус-панели (она же низ игрового поля).
+// GridTop: верхняя граница статус-панели (она же низ игрового поля).
 func (l Layout) GridTop() int { return l.GridH }
 
-// ControlsTop — верхняя граница панели кнопок.
+// ControlsTop: верхняя граница панели кнопок.
 func (l Layout) ControlsTop() int { return l.GridH + l.PanelH }

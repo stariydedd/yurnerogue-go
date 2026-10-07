@@ -259,7 +259,7 @@ func TestWrapTextKeepsAllWords(t *testing.T) {
 }
 
 func TestWrapTextHandlesOverlongWord(t *testing.T) {
-	// Слово длиннее лимита обрезать нельзя — иначе текст потеряется;
+	// Слово длиннее лимита обрезать нельзя, иначе текст потеряется;
 	// оно занимает строку целиком.
 	got := wrapText("Parchment-of-Thunderous-Roar tail", 10)
 	if len(got) == 0 || got[0] != "Parchment-of-Thunderous-Roar" {
@@ -271,7 +271,7 @@ func TestHUDCacheKeyFollowsEverythingShown(t *testing.T) {
 	r := &Renderer{Layout: DesktopLayout()}
 	s := domain.NewSessionSeed(21)
 	base := r.hudKey(s)
-	r.tick += 100 // animation alone must not rebuild the HUD
+	r.tick += 100 // одна анимация не должна перестраивать HUD
 	if r.hudKey(s) != base {
 		t.Fatal("HUD key depends on animation")
 	}

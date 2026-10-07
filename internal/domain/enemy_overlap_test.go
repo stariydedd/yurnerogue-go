@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-// Riki blinks to a random cell of its room; the hero's cell must never be one.
+// Riki прыгает в случайную клетку своей комнаты; клетка героя такой быть не должна.
 func TestRikiNeverBlinksOntoTheHero(t *testing.T) {
 	room := &Room{X: 10, Y: 10, W: 4, H: 1}
 	rooms := []*Room{room}
-	hero := Point{13, 10} // farther than Riki's hostility radius
+	hero := Point{13, 10} // дальше радиуса агрессии Riki
 	for seed := int64(0); seed < 200; seed++ {
 		o := NewOpponent(Ghost)
 		o.rng = rand.New(rand.NewSource(seed))
@@ -20,12 +20,12 @@ func TestRikiNeverBlinksOntoTheHero(t *testing.T) {
 			if (Point{o.X, o.Y}) == hero {
 				t.Fatalf("seed %d: Riki blinked onto the hero", seed)
 			}
-			o.X, o.Y = 10, 10 // keep it out of reach so it keeps blinking
+			o.X, o.Y = 10, 10 // держим его вне досягаемости, чтобы он продолжал прыгать
 		}
 	}
 }
 
-// No enemy may ever share the hero's cell, whatever its movement pattern.
+// Ни один враг, как бы он ни ходил, не должен стоять в клетке героя.
 func TestEnemiesNeverShareTheHeroCell(t *testing.T) {
 	for seed := int64(1); seed <= 40; seed++ {
 		s := NewSessionSeed(seed)
@@ -42,7 +42,7 @@ func TestEnemiesNeverShareTheHeroCell(t *testing.T) {
 	}
 }
 
-// Riki's blink used to pick any free cell of the room, the portal included.
+// Раньше прыжок Riki выбирал любую свободную клетку комнаты, включая портал.
 func TestRikiNeverBlinksOntoThePortal(t *testing.T) {
 	room := &Room{X: 10, Y: 10, W: 3, H: 1}
 	rooms := []*Room{room}
@@ -65,9 +65,9 @@ func TestRikiNeverBlinksOntoThePortal(t *testing.T) {
 	}
 }
 
-// A blink needs a room: in a corridor Riki used to stand still for good.
+// Прыжку нужна комната: в коридоре Riki раньше стоял на месте навсегда.
 func TestRikiWalksOutOfACorridor(t *testing.T) {
-	corridor := []Rect{{X: 20, Y: 9, W: 10, H: 3}} // centre line y=10, x=21..28
+	corridor := []Rect{{X: 20, Y: 9, W: 10, H: 3}} // центральная линия y=10, x=21..28
 	for seed := int64(0); seed < 50; seed++ {
 		o := NewOpponent(Ghost)
 		o.rng = rand.New(rand.NewSource(seed))
@@ -79,7 +79,7 @@ func TestRikiWalksOutOfACorridor(t *testing.T) {
 	}
 }
 
-// No enemy walks, steps twice or blinks onto the portal.
+// Ни один враг не заходит на портал ни шагом, ни двойным шагом, ни прыжком.
 func TestEnemiesNeverStandOnThePortal(t *testing.T) {
 	for seed := int64(1); seed <= 40; seed++ {
 		s := NewSessionSeed(seed)
@@ -94,7 +94,7 @@ func TestEnemiesNeverStandOnThePortal(t *testing.T) {
 	}
 }
 
-// Riki used to show on every new level until the enemies' first turn.
+// Раньше Riki был виден на каждом новом уровне до первого хода врагов.
 func TestRikiStartsHidden(t *testing.T) {
 	for _, kind := range AllOpponentTypes {
 		if got := NewOpponent(kind).IsVisible; got != (kind != Ghost) {

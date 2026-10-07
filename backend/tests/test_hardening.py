@@ -45,11 +45,11 @@ def test_leaderboard_index_is_added_to_an_existing_table(monkeypatch):
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(bind=engine)
     for index in Run.__table__.indexes:
-        index.drop(bind=engine)  # a database made before the index existed
+        index.drop(bind=engine)  # база, созданная до появления индекса
     monkeypatch.setattr("app.main.engine", engine)
     with TestClient(app):
         pass
     assert "runs_leaderboard_order" in {index["name"] for index in inspect(engine).get_indexes("runs")}
-    with TestClient(app):  # and a restart does not trip over it
+    with TestClient(app):  # и перезапуск на нём не спотыкается
         pass
     engine.dispose()

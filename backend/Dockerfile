@@ -10,14 +10,14 @@ FROM python:3.12.15-slim
 WORKDIR /srv
 
 COPY backend/requirements.txt .
-# Exact versions with hashes (requirements.in says how to update them):
-# a changed or unexpected package fails the build.
+# Точные версии с хешами (как их обновлять, написано в requirements.in):
+# изменённый или неожиданный пакет ломает сборку.
 RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
 COPY backend/app ./app
 COPY --from=verifier /rogue-verifier /usr/local/bin/rogue-verifier
 
-# The API and the verifier need no root: files stay root's and read-only.
+# API и верификатору не нужен root: файлы остаются у root и только для чтения.
 RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 USER app
 
