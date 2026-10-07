@@ -14,15 +14,20 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: infra/deploy-host-keys
+          sparse-checkout-cone-mode: false
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          # Без ssh-keyscan: его пробные рукопожатия с разными типами ключей
-          # fail2ban на сервере считает атакой и банит раннер. Ключ хоста
-          # принимается при первом обычном подключении.
-          printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+          # Ключи хоста лежат в репозитории (infra/deploy-host-keys): подключение
+          # к серверу с другим ключом обрывается. ssh-keyscan не нужен, а его
+          # пробные рукопожатия fail2ban на сервере считает атакой.
+          sed -e '/^#/d' -e "s/^/${{ secrets.DEPLOY_HOST }} /" infra/deploy-host-keys > ~/.ssh/known_hosts
+          printf 'Host *\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
       - name: Dump database on server
         id: dump
         run: |

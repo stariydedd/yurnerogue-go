@@ -1,0 +1,6 @@
+# Test tools on top of the runtime dependencies, at the same versions as
+# requirements.txt. See requirements.in for regenerating the lock.
+-r requirements.in
+-c requirements.txt
+pytest>=8.0
+httpx>=0.27

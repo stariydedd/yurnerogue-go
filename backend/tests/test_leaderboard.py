@@ -146,6 +146,28 @@ def test_expired_or_incompatible_tickets_rejected(client, field, value, status):
     assert submit(client, ticket).status_code == status
 
 
+def test_start_drops_abandoned_expired_tickets(client):
+    played, abandoned, late, fresh = (start(client) for _ in range(4))
+    assert submit(client, played).status_code == 201
+    now = datetime.now(UTC)
+    dependency = app.dependency_overrides[get_db]()
+    with next(dependency) as db:
+        for ticket, age in [(played, 48), (abandoned, 48), (late, 0.5)]:
+            db.get(RankedTicket, ticket).expires_at = now - timedelta(hours=age)
+        db.commit()
+    dependency.close()
+    start(client)
+    dependency = app.dependency_overrides[get_db]()
+    with next(dependency) as db:
+        left = {ticket for ticket in (played, abandoned, late, fresh) if db.get(RankedTicket, ticket)}
+    dependency.close()
+    # A played run keeps its ticket and name; a just expired one still
+    # answers "expired" for a while.
+    assert left == {played, late, fresh}
+    assert submit(client, late).status_code == 410
+    assert client.get("/api/leaderboard").json()[0]["player_name"] == "tester"
+
+
 def test_start_validates_version_and_name(client):
     assert client.post("/api/runs/start", json={"version": "old"}).status_code == 409
     assert client.post("/api/runs/start", json={"version": "2", "player_name": "x" * 33}).status_code == 422

@@ -4,7 +4,7 @@ import secrets
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import and_, delete, desc, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -15,15 +15,30 @@ from app.verifier import rules_version, verify
 
 router = APIRouter(prefix="/api", tags=["leaderboard"])
 
+TICKET_LIFETIME = timedelta(hours=24)
+# Kept a while after expiry, so a late submission still hears "expired".
+EXPIRED_TICKET_GRACE = timedelta(hours=1)
+
+
+def drop_expired_tickets(db: Session, now: datetime) -> None:
+    """Every start adds a ticket, and abandoned runs never use theirs. Tickets
+    of submitted runs stay: they hold the name the run was played under."""
+    db.execute(delete(RankedTicket).where(
+        RankedTicket.expires_at < now - EXPIRED_TICKET_GRACE,
+        ~exists().where(RankedResult.ticket_id == RankedTicket.id),
+    ))
+
 
 @router.post("/runs/start", response_model=RunTicket, status_code=201)
 def start_run(payload: RunStart, db: Session = Depends(get_db)):
     version = rules_version()
     if payload.version != version:
         raise HTTPException(409, "Game rules changed; reload the game")
+    now = datetime.now(UTC)
+    drop_expired_tickets(db, now)
     ticket = RankedTicket(id=str(uuid4()), seed=str(secrets.randbelow(2**63 - 1) + 1),
                           player_name=payload.player_name, version=version,
-                          expires_at=datetime.now(UTC) + timedelta(hours=24))
+                          expires_at=now + TICKET_LIFETIME)
     db.add(ticket)
     db.commit()
     return RunTicket(ticket=ticket.id, seed=ticket.seed, version=version)

@@ -17,7 +17,7 @@ class ProxyTest(unittest.TestCase):
         with response:
             return response.code, response.headers, response.read()
 
-    def test_submission_limits(self):
+    def wait_ready(self):
         for attempt in range(30):
             try:
                 if self.request("/api/health")[0] == 200:
@@ -28,6 +28,34 @@ class ProxyTest(unittest.TestCase):
         else:
             self.fail("test proxy did not become ready")
 
+    def test_bundle_is_served_precompressed(self):
+        self.wait_ready()
+        cases = {
+            "br, gzip": ("br", b"brotli body\n"),
+            "gzip, deflate, br;q=0.9": ("br", b"brotli body\n"),
+            "gzip": ("gzip", b"gzip body\n"),
+            "": (None, b"plain wasm\n"),
+        }
+        for accept, (encoding, body) in cases.items():
+            with self.subTest(accept=accept):
+                code, headers, data = self.request("/main.wasm", headers={"Accept-Encoding": accept})
+                self.assertEqual(code, 200)
+                self.assertEqual(headers["Content-Encoding"], encoding)
+                self.assertEqual(headers["Content-Type"], "application/wasm")
+                self.assertEqual(headers["Cache-Control"], "no-cache")
+                self.assertIn("Accept-Encoding", headers["Vary"])
+                self.assertIn("max-age", headers["Strict-Transport-Security"])
+                self.assertEqual(data, body)
+        # A bundle without its .br file falls back to gzip.
+        code, headers, data = self.request("/old.wasm", headers={"Accept-Encoding": "br, gzip"})
+        self.assertEqual((code, headers["Content-Encoding"], data), (200, "gzip", b"old gzip body\n"))
+        self.assertEqual(headers["Content-Type"], "application/wasm")
+        # The .br file itself is not a public URL.
+        self.assertEqual(self.request("/main.wasm.br", headers={"Accept-Encoding": "br"})[0], 404)
+        self.assertEqual(self.request("/index.html")[0], 200)
+
+    def test_submission_limits(self):
+        self.wait_ready()
         self.assertEqual(self.request("/api/runs", b"x" * 65537)[0], 413)
         self.assertEqual(self.request("/api/runs/start", b"{}")[0], 201)
         responses = [self.request("/api/runs", b"{}") for _ in range(16)]

@@ -137,8 +137,11 @@ jobs:
           GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o build/web/main.wasm ./cmd/game
           cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" build/web/
           cp web/index.html web/favicon.png build/web/
-          # Предсжатый файл рядом с оригиналом: nginx отдаёт его через gzip_static.
+          # Предсжатые файлы рядом с оригиналом: nginx отдаёт .br браузерам
+          # с brotli (на четверть меньше) и .gz остальным через gzip_static.
           gzip -9 -k build/web/main.wasm
+          command -v brotli >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q brotli; }
+          brotli -q 11 -k build/web/main.wasm
           ls -lh build/web/
       - uses: actions/upload-artifact@v4
         with:
@@ -195,10 +198,11 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          # Без ssh-keyscan: его пробные рукопожатия с разными типами ключей
-          # fail2ban на сервере считает атакой и банит раннер. Ключ хоста
-          # принимается при первом обычном подключении.
-          printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+          # Ключи хоста лежат в репозитории (infra/deploy-host-keys): подключение
+          # к серверу с другим ключом обрывается. ssh-keyscan не нужен, а его
+          # пробные рукопожатия fail2ban на сервере считает атакой.
+          sed -e '/^#/d' -e "s/^/${{ secrets.DEPLOY_HOST }} /" infra/deploy-host-keys > ~/.ssh/known_hosts
+          printf 'Host *\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
       - name: Upload game static and infra files
         if: steps.release.outputs.current == 'true'
         env:

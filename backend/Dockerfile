@@ -10,7 +10,9 @@ FROM python:3.12-slim
 WORKDIR /srv
 
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Exact versions with hashes (requirements.in says how to update them):
+# a changed or unexpected package fails the build.
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
 COPY backend/app ./app
 COPY --from=verifier /rogue-verifier /usr/local/bin/rogue-verifier
