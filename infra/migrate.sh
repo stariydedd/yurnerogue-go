@@ -40,7 +40,7 @@ ssh_old 'grep yurnerogue-github-deploy /root/.ssh/authorized_keys' |
 echo "== moving database"
 ssh_new "cd /opt/rogue && $C pull -q && $C up -d db --wait --wait-timeout 120"
 ssh_old "cd /opt/rogue && $C exec -T db pg_dump -U rogue -d rogue -Fc" |
-    ssh_new "cd /opt/rogue && $C exec -T db pg_restore -U rogue -d rogue --no-owner --exit-on-error"
+    ssh_new "cd /opt/rogue && $C exec -T db pg_restore -U rogue -d rogue --no-owner --no-privileges --exit-on-error"
 
 echo "== comparing row counts"
 count_sql="SELECT string_agg(format('%s=%s', table_name,

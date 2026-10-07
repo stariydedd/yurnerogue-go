@@ -15,9 +15,9 @@ docker compose --env-file .env --env-file .release.env ps
 docker compose --env-file .env --env-file .release.env logs --tail=100 backend
 ```
 
-Deployment pulls the selected backend image and the current `nginx:alpine` and
-`postgres:16-alpine` builds (security fixes; PostgreSQL stays on major 16),
-waits for container health,
+Deployment pulls the selected backend image and the nginx and PostgreSQL
+images at the exact versions in `infra/docker-compose.prod.yml` (PostgreSQL
+stays on major 16; Dependabot proposes updates), waits for container health,
 validates and reloads nginx, then checks HTTPS health, a database-backed
 leaderboard read and the WASM file. A failed check fails the workflow; there is
 no automatic rollback. Static upload and backend restart are not atomic, so a
@@ -57,9 +57,13 @@ cd /opt/rogue
 C="docker compose --env-file .env --env-file .release.env"
 $C stop backend
 $C exec -T db dropdb -U rogue rogue && $C exec -T db createdb -U rogue rogue
-$C exec -T db pg_restore -U rogue -d rogue --no-owner --exit-on-error < X.dump
+$C exec -T db pg_restore -U rogue -d rogue --no-owner --no-privileges --exit-on-error < X.dump
 $C up -d --wait
 ```
+
+`--no-privileges` leaves out the grants to the backend's role `rogue_app`: a
+dump holds no roles, so on a new server the grants would stop the restore.
+`db-guard` creates the role and grants its rights on every start.
 
 A dump restored on a server with a different `state/db-id` is rejected by
 `db-guard`; if that dump is the intended data, replace `state/db-id` with the
@@ -70,6 +74,21 @@ with root SSH access to both. It never modifies the old server, copies secrets,
 `state/db-id`, backups, static files and certificates, transfers the database,
 compares row counts of every table and starts the stack only if they match.
 It then prints the remaining DNS, `DEPLOY_HOST` and nginx steps.
+
+### Backend database role
+
+The backend connects as `rogue_app`, not as the superuser `rogue`. The role
+reads and writes the game tables and may create new ones, but cannot run
+`COPY ... PROGRAM`, read server files, alter existing tables or touch
+`infra_meta`. `db-guard` creates the role and grants its rights on every start
+from `APP_DB_PASSWORD` in `/opt/rogue/.env` (lowercase hex, e.g.
+`openssl rand -hex 24`); `DATABASE_URL` there uses the same password:
+`postgresql+psycopg://rogue_app:<APP_DB_PASSWORD>@db:5432/rogue`. Backups,
+restores and `db-guard` itself keep using `rogue`.
+
+A new index on an existing table needs its owner, `rogue`: create it by hand
+with `psql -U rogue` before deploying code that expects it, or the backend's
+startup fails.
 
 ## Ranked replay verification
 

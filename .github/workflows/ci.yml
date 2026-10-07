@@ -123,6 +123,13 @@ jobs:
           docker compose -p rogue-proxy-test -f infra/tests/compose.yml logs
           docker compose -p rogue-proxy-test -f infra/tests/compose.yml down
 
+  test-db-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Test db-guard and the backend database role
+        run: sh infra/tests/test_db_guard.sh
+
   build-web:
     runs-on: ubuntu-latest
     needs: [lint, test-game, test-wasm]
@@ -172,7 +179,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [build-web, build-backend-image, test-proxy]
+    needs: [build-web, build-backend-image, test-proxy, test-db-guard]
     if: github.ref == 'refs/heads/main'
     concurrency: production
     steps:

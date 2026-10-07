@@ -38,4 +38,30 @@ elif [ "$file_id" != "$db_id" ]; then
     exit 1
 fi
 
+# Роль приложения: читает и пишет таблицы игры, может создавать новые, но не
+# суперпользователь (нет COPY ... PROGRAM, чтения файлов сервера, чужих таблиц
+# и infra_meta). Дамп базы не содержит ролей, поэтому роль и права выдаются
+# здесь при каждом старте: после восстановления или переезда тоже. Без
+# APP_DB_PASSWORD в .env шаг пропускается, backend остаётся на суперпользователе.
+if [ -n "${APP_DB_PASSWORD:-}" ]; then
+    case "$APP_DB_PASSWORD" in
+        *[!0-9a-f]*)
+            echo "db-guard: APP_DB_PASSWORD must be lowercase hex (openssl rand -hex 24)" >&2
+            exit 1 ;;
+    esac
+    psql -v ON_ERROR_STOP=1 -qX -v pw="$APP_DB_PASSWORD" <<'SQL'
+SELECT format('CREATE ROLE rogue_app LOGIN PASSWORD %L', :'pw')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rogue_app') \gexec
+ALTER ROLE rogue_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'pw';
+SELECT format('GRANT CONNECT ON DATABASE %I TO rogue_app', current_database()) \gexec
+GRANT USAGE, CREATE ON SCHEMA public TO rogue_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rogue_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rogue_app;
+REVOKE ALL ON infra_meta FROM rogue_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO rogue_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO rogue_app;
+SQL
+    echo "db-guard: role rogue_app is up to date"
+fi
+
 echo "db-guard: ok, db_id $db_id"
