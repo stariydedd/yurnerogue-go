@@ -1,4 +1,4 @@
-FROM golang:1.26.8 AS verifier
+FROM golang:1.27.1 AS verifier
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY internal/domain ./internal/domain

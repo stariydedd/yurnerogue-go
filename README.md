@@ -92,7 +92,7 @@ Two findings from the port are worth recording:
 
 | Category | Tools |
 |----------|-------|
-| **Game** | Go 1.26, Ebitengine, WebAssembly |
+| **Game** | Go 1.27, Ebitengine, WebAssembly |
 | **Backend** | FastAPI, SQLAlchemy 2, PostgreSQL 16 |
 | **Infrastructure** | Docker Compose, nginx, Let's Encrypt |
 | **CI/CD** | GitHub Actions, GitHub Container Registry |

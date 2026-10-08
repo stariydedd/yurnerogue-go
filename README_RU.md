@@ -92,7 +92,7 @@ Python-версия уезжала в браузер через pygbag, а то�
 
 | Категория | Инструменты |
 |-----------|-------------|
-| **Игра** | Go 1.26, Ebitengine, WebAssembly |
+| **Игра** | Go 1.27, Ebitengine, WebAssembly |
 | **Бэкенд** | FastAPI, SQLAlchemy 2, PostgreSQL 16 |
 | **Инфраструктура** | Docker Compose, nginx, Let's Encrypt |
 | **CI/CD** | GitHub Actions, GitHub Container Registry |
