@@ -5,7 +5,7 @@ COPY internal/domain ./internal/domain
 COPY cmd/verifier ./cmd/verifier
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /rogue-verifier ./cmd/verifier
 
-FROM python:3.12.15-slim
+FROM python:3.12.16-slim
 
 WORKDIR /srv
 
